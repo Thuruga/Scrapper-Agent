@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intelligence Scraper - Camada Bronze</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --accent-color: #3b82f6;
+            --accent-hover: #2563eb;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --success: #10b981;
+            --error: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.08) 0px, transparent 50%),
+                radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.08) 0px, transparent 50%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2.5rem 1rem;
+            background-attachment: fixed;
+        }
+
+        header {
+            margin-bottom: 2rem;
+            text-align: center;
+            animation: fadeInDown 0.8s ease;
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #60a5fa, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.5px;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            font-size: 1.15rem;
+            font-weight: 300;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 0.5rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .tab-btn {
+            background: transparent;
+            color: var(--text-muted);
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: none;
+            margin-top: 0;
+            width: auto;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-main);
+            transform: none;
+            box-shadow: none;
+        }
+
+        .tab-btn.active {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-main);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .tab-content {
+            display: none;
+            width: 100%;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+        }
+
+        @media(min-width: 860px) {
+            .container {
+                grid-template-columns: 380px 1fr;
+            }
+        }
+
+        .glass-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .glass-card:hover {
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.3);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.6rem;
+            font-size: 0.95rem;
+            color: #cbd5e1;
+            font-weight: 500;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 0.85rem 1.2rem;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: var(--text-main);
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+            background: rgba(0, 0, 0, 0.4);
+        }
+        
+        select option {
+            background: #1e293b;
+            color: var(--text-main);
+        }
+
+        button {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(135deg, var(--accent-color), #2563eb);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.05rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+        }
+
+        button:disabled {
+            background: #475569;
+            box-shadow: none;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981, #059669);
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+        
+        .btn-success:hover {
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .spinner {
+            display: none;
+            width: 22px;
+            height: 22px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .button-loading .spinner {
+            display: block;
+        }
+        .button-loading .btn-text {
+            display: none;
+        }
+
+        /* Results Area */
+        .results-area {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            min-height: 400px;
+        }
+        
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            flex-grow: 1;
+            color: var(--text-muted);
+            text-align: center;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 1.5rem;
+            opacity: 0.3;
+            color: var(--accent-color);
+        }
+
+        /* Product View */
+        .product-view {
+            display: none;
+            animation: fadeIn 0.6s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.35rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 1.2rem;
+        }
+
+        .badge.aramis { background: rgba(59, 130, 246, 0.15); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.3); }
+        .badge.reserva { background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge.tommy { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.3); }
+
+        .price { font-size: 2.5rem; font-weight: 700; color: var(--success); }
+
+        /* Console Feed */
+        .console-feed {
+            background: #0f172a;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .console-line {
+            padding: 0.3rem 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .console-line.info { color: #93c5fd; }
+        .console-line.success { color: #6ee7b7; }
+        .console-line.error { color: #fca5a5; }
+        .console-line.stats { color: #c084fc; font-weight: bold; }
+
+        .console-feed::-webkit-scrollbar { width: 8px; }
+        .console-feed::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+        .console-feed::-webkit-scrollbar-thumb { background: rgba(59, 130, 246, 0.4); border-radius: 4px; }
+
+        .progress-container {
+            display: none;
+            margin-bottom: 1.5rem;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 6px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-color), #c084fc);
+            width: 0%;
+            transition: width 0.4s ease;
+        }
+
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Intelligence Scraper</h1>
+        <p class="subtitle">Extrator Automático de Dados - Camada Bronze</p>
+    </header>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('single')">Produto Único</button>
+        <button class="tab-btn" onclick="switchTab('category')">Varrer Categoria</button>
+    </div>
+
+    <!-- TAB: PRODUTO ÚNICO -->
+    <div id="tab-single" class="tab-content active">
+        <div class="container">
+            <div class="glass-card">
+                <form id="scrapeForm">
+                    <div class="form-group">
+                        <label for="brand">Marca Concorrente</label>
+                        <select id="brand" required>
+                            <option value="aramis">Aramis</option>
+                            <option value="reserva">Reserva</option>
+                            <option value="tommy">Tommy Hilfiger</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="url">URL do Produto</label>
+                        <input type="url" id="url" placeholder="Ex: https://www.aramis.com.br/produto..." required>
+                    </div>
+                    <button type="submit" id="submitBtn">
+                        <span class="btn-text">Extrair Produto</span>
+                        <div class="spinner"></div>
+                    </button>
+                </form>
+            </div>
+            <div class="glass-card results-area">
+                <div id="singleEmptyState" class="empty-state">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    <h3>Extração Unitária</h3>
+                    <p>Insira a URL e selecione a marca para extrair informações detalhadas.</p>
+                </div>
+                <div id="productView" class="product-view">
+                    <div class="badge aramis" id="singleBadge">Aramis</div>
+                    <h2 id="singleTitle">Nome do Produto</h2>
+                    
+                    <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
+                        <span style="background: rgba(255,255,255,0.1); padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.85rem;" id="singleCategory">Categoria</span>
+                        <span style="background: rgba(255,255,255,0.1); padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.85rem;" id="singleSubcategory">Subcategoria</span>
+                    </div>
+
+                    <div class="price" id="singlePrice">R$ 0,00</div>
+                    
+                    <div style="margin-top: 1rem; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
+                        <h4 style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.3rem;">Composição</h4>
+                        <p id="singleComposition" style="color: #f8fafc; font-weight: 500;">Não informada</p>
+                    </div>
+
+                    <p id="singleResult" style="margin-top: 1rem; color: #a78bfa; font-family: monospace;"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB: VARRER CATEGORIA -->
+    <div id="tab-category" class="tab-content">
+        <div class="container">
+            <div class="glass-card">
+                <form id="orchestratorForm">
+                    <div class="form-group">
+                        <label for="orchBrand">Marca Concorrente</label>
+                        <select id="orchBrand" required>
+                            <option value="aramis">Aramis</option>
+                            <option value="reserva">Reserva</option>
+                            <option value="tommy">Tommy Hilfiger</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="orchUrl">URL da Categoria</label>
+                        <input type="url" id="orchUrl" placeholder="Ex: https://www.aramis.com.br/roupas/polos" required>
+                    </div>
+                    <button type="submit" id="orchBtn">
+                        <span class="btn-text">Iniciar Varredura em Lote</span>
+                        <div class="spinner"></div>
+                    </button>
+                </form>
+
+                <div id="downloadArea" style="display: none; margin-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5rem;">
+                    <p style="color: var(--success); font-weight: 500; margin-bottom: 1rem;">✅ Extração concluída com sucesso!</p>
+                    <button id="downloadBtn" class="btn-success" onclick="downloadFile()">Baixar Camada Bronze (Excel)</button>
+                </div>
+            </div>
+
+            <div class="glass-card results-area" style="min-height: 500px;">
+                <div class="progress-container" id="progressContainer">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 600;">Progresso da Extração</span>
+                        <span id="progressText" style="color: var(--accent-color); font-weight: bold;">0 / 0</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="stats-row">
+                        <span id="statSuccess">Sucessos: 0</span>
+                        <span id="statError">Falhas: 0</span>
+                    </div>
+                </div>
+
+                <div class="console-feed" id="consoleFeed">
+                    <div class="console-line info">> Aguardando inicialização...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            document.querySelector(`button[onclick="switchTab('${tabId}')"]`).classList.add('active');
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+        }
+
+        // Single Scrape Logic
+        document.getElementById('scrapeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            const brand = document.getElementById('brand').value;
+            const url = document.getElementById('url').value;
+
+            btn.classList.add('button-loading');
+            btn.disabled = true;
+            document.getElementById('singleEmptyState').style.display = 'none';
+
+            try {
+                const res = await fetch('/scrape', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({url, brand})
+                });
+                const data = await res.json();
+                
+                document.getElementById('productView').style.display = 'block';
+                document.getElementById('singleBadge').textContent = brand;
+                document.getElementById('singleTitle').textContent = data.raw_title || 'Sem título';
+                document.getElementById('singleCategory').textContent = data.category || 'Sem Categoria';
+                document.getElementById('singleSubcategory').textContent = data.sub_category || 'Sem Subcategoria';
+                document.getElementById('singleComposition').textContent = data.composition || 'Não informada';
+                document.getElementById('singlePrice').textContent = `R$ ${data.price_full}`;
+                document.getElementById('singleResult').textContent = "Extraído com sucesso! Veja o console.";
+                console.log(data);
+            } catch (err) {
+                alert("Erro na extração: " + err.message);
+            } finally {
+                btn.classList.remove('button-loading');
+                btn.disabled = false;
+            }
+        });
+
+        // Orchestrator Logic
+        let ws = null;
+        let totalLinks = 0;
+        let processedLinks = 0;
+        let successCount = 0;
+        let errorCount = 0;
+
+        function logToConsole(message, type = 'info') {
+            const feed = document.getElementById('consoleFeed');
+            const line = document.createElement('div');
+            line.className = `console-line ${type}`;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            line.textContent = `[${timestamp}] ${message}`;
+            
+            feed.appendChild(line);
+            feed.scrollTop = feed.scrollHeight; // Auto-scroll
+        }
+
+        function updateProgress() {
+            if(totalLinks === 0) return;
+            const percentage = (processedLinks / totalLinks) * 100;
+            document.getElementById('progressFill').style.width = `${percentage}%`;
+            document.getElementById('progressText').textContent = `${processedLinks} / ${totalLinks}`;
+            document.getElementById('statSuccess').textContent = `Sucessos: ${successCount}`;
+            document.getElementById('statError').textContent = `Falhas: ${errorCount}`;
+        }
+
+        document.getElementById('orchestratorForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('orchBtn');
+            const brand = document.getElementById('orchBrand').value;
+            const url = document.getElementById('orchUrl').value;
+
+            btn.classList.add('button-loading');
+            btn.disabled = true;
+            document.getElementById('downloadArea').style.display = 'none';
+            document.getElementById('consoleFeed').innerHTML = '';
+            
+            totalLinks = 0; processedLinks = 0; successCount = 0; errorCount = 0;
+            document.getElementById('progressContainer').style.display = 'block';
+            updateProgress();
+
+            logToConsole('Enviando requisição de Job para o servidor...', 'info');
+
+            try {
+                const res = await fetch('/scrape-category', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({url, brand})
+                });
+                
+                if(!res.ok) throw new Error("Falha ao iniciar Job");
+                
+                const data = await res.json();
+                const jobId = data.job_id;
+                logToConsole(`Job criado: ${jobId}. Conectando via WebSockets...`, 'info');
+
+                // Connect WebSocket
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}/ws/${jobId}`;
+                
+                ws = new WebSocket(wsUrl);
+                
+                ws.onmessage = (event) => {
+                    const msg = JSON.parse(event.data);
+                    
+                    if(msg.type === 'stats') {
+                        totalLinks = msg.total_links;
+                        updateProgress();
+                    }
+                    
+                    if(msg.type === 'success') {
+                        processedLinks++;
+                        successCount++;
+                        updateProgress();
+                    }
+                    
+                    if(msg.type === 'error' && msg.message && msg.message.includes("Extração")) {
+                        processedLinks++;
+                        errorCount++;
+                        updateProgress();
+                    }
+                    
+                    if(msg.type === 'done') {
+                        logToConsole(msg.message, 'stats');
+                        document.getElementById('downloadArea').style.display = 'block';
+                        window.lastOutputFile = msg.output_file;
+                        btn.classList.remove('button-loading');
+                        btn.disabled = false;
+                        ws.close();
+                        return;
+                    }
+
+                    logToConsole(msg.message || JSON.stringify(msg), msg.type || 'info');
+                };
+                
+                ws.onerror = (error) => {
+                    logToConsole('Erro na conexão WebSocket', 'error');
+                    btn.classList.remove('button-loading');
+                    btn.disabled = false;
+                };
+
+            } catch(err) {
+                logToConsole(`Erro: ${err.message}`, 'error');
+                btn.classList.remove('button-loading');
+                btn.disabled = false;
+            }
+        });
+
+        function downloadFile() {
+            if (window.lastOutputFile) {
+                window.location.href = '/' + window.lastOutputFile;
+            } else {
+                alert("Nenhum arquivo gerado.");
+            }
+        }
+    </script>
+</body>
+</html>

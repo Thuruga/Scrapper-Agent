@@ -1,0 +1,1233 @@
+{
+  "Aramis": [
+    {
+      "departamento": "Infantil",
+      "nome": "Camisa Manga Longa",
+      "url": "https://www.aramis.com.br/infantil/roupas/camisas/camisa-manga-longa"
+    },
+    {
+      "departamento": "Infantil",
+      "nome": "Camisa Manga Curta",
+      "url": "https://www.aramis.com.br/infantil/roupas/camisas/camisa-manga-curta"
+    },
+    {
+      "departamento": "Infantil",
+      "nome": "Chino",
+      "url": "https://www.aramis.com.br/infantil/roupas/bermudas/chino"
+    },
+    {
+      "departamento": "Infantil",
+      "nome": "Sport",
+      "url": "https://www.aramis.com.br/infantil/roupas/bermudas/sport"
+    },
+    {
+      "departamento": "Infantil",
+      "nome": "Shorts",
+      "url": "https://www.aramis.com.br/infantil/roupas/shorts"
+    },
+    {
+      "departamento": "Infantil",
+      "nome": "Chino",
+      "url": "https://www.aramis.com.br/infantil/roupas/calcas/chino"
+    },
+    {
+      "departamento": "Infantil",
+      "nome": "Sport",
+      "url": "https://www.aramis.com.br/infantil/roupas/calcas/sport"
+    },
+    {
+      "departamento": "Infantil",
+      "nome": "Jeans",
+      "url": "https://www.aramis.com.br/infantil/roupas/calcas/jeans"
+    },
+    {
+      "departamento": "Infantil",
+      "nome": "Camiseta Manga Curta",
+      "url": "https://www.aramis.com.br/infantil/roupas/camisetas/camiseta-manga-curta"
+    },
+    {
+      "departamento": "Infantil",
+      "nome": "Camiseta Manga Longa",
+      "url": "https://www.aramis.com.br/infantil/roupas/camisetas/camiseta-manga-longa"
+    },
+    {
+      "departamento": "Infantil",
+      "nome": "Jaquetas",
+      "url": "https://www.aramis.com.br/infantil/roupas/jaquetas"
+    },
+    {
+      "departamento": "Infantil",
+      "nome": "Tricots",
+      "url": "https://www.aramis.com.br/infantil/roupas/tricots"
+    },
+    {
+      "departamento": "Infantil",
+      "nome": "Moletons",
+      "url": "https://www.aramis.com.br/infantil/roupas/moletons"
+    },
+    {
+      "departamento": "Infantil",
+      "nome": "Polo Manga Curta",
+      "url": "https://www.aramis.com.br/infantil/roupas/polos/polo-manga-curta"
+    },
+    {
+      "departamento": "Infantil",
+      "nome": "Polo Manga Longa",
+      "url": "https://www.aramis.com.br/infantil/roupas/polos/polo-manga-longa"
+    },
+    {
+      "departamento": "Infantil",
+      "nome": "Cachecol",
+      "url": "https://www.aramis.com.br/infantil/acessorios/cachecol"
+    },
+    {
+      "departamento": "Infantil",
+      "nome": "Gorro",
+      "url": "https://www.aramis.com.br/infantil/acessorios/gorro"
+    },
+    {
+      "departamento": "Infantil",
+      "nome": "Cinto",
+      "url": "https://www.aramis.com.br/infantil/acessorios/cinto"
+    },
+    {
+      "departamento": "Infantil",
+      "nome": "Meias",
+      "url": "https://www.aramis.com.br/infantil/acessorios/meias"
+    },
+    {
+      "departamento": "Infantil",
+      "nome": "Sungas",
+      "url": "https://www.aramis.com.br/infantil/acessorios/sungas"
+    },
+    {
+      "departamento": "Infantil",
+      "nome": "Bonés",
+      "url": "https://www.aramis.com.br/infantil/acessorios/bones"
+    },
+    {
+      "departamento": "Infantil",
+      "nome": "Cuecas",
+      "url": "https://www.aramis.com.br/infantil/acessorios/cuecas"
+    },
+    {
+      "departamento": "Infantil",
+      "nome": "Chinelos",
+      "url": "https://www.aramis.com.br/infantil/calcados/chinelos"
+    },
+    {
+      "departamento": "Infantil",
+      "nome": "Tênis",
+      "url": "https://www.aramis.com.br/infantil/calcados/tenis"
+    },
+    {
+      "departamento": "Urban",
+      "nome": "Costume",
+      "url": "https://www.aramis.com.br/urban/roupas/alfaiataria/costume"
+    },
+    {
+      "departamento": "Urban",
+      "nome": "Paletó",
+      "url": "https://www.aramis.com.br/urban/roupas/alfaiataria/paleto"
+    },
+    {
+      "departamento": "Urban",
+      "nome": "Calça Alfaiataria",
+      "url": "https://www.aramis.com.br/urban/roupas/alfaiataria/calca-alfaiataria"
+    },
+    {
+      "departamento": "Urban",
+      "nome": "Manga Longa",
+      "url": "https://www.aramis.com.br/urban/roupas/tricot/manga-longa"
+    },
+    {
+      "departamento": "Urban",
+      "nome": "pre venda",
+      "url": "https://www.aramis.com.br/urban/roupas/pre-venda"
+    },
+    {
+      "departamento": "Urban",
+      "nome": "Linha Exclusiva",
+      "url": "https://www.aramis.com.br/urban/calcados/tenis/linha-exclusiva"
+    },
+    {
+      "departamento": "Urban",
+      "nome": "Boné",
+      "url": "https://www.aramis.com.br/urban/acessorios/bone"
+    },
+    {
+      "departamento": "Urban",
+      "nome": "Óculos",
+      "url": "https://www.aramis.com.br/urban/acessorios/oculos"
+    },
+    {
+      "departamento": "Urban",
+      "nome": "Meia",
+      "url": "https://www.aramis.com.br/urban/acessorios/meia"
+    },
+    {
+      "departamento": "Urban",
+      "nome": "Cuecas",
+      "url": "https://www.aramis.com.br/urban/acessorios/cuecas"
+    },
+    {
+      "departamento": "Urban",
+      "nome": "Mochila",
+      "url": "https://www.aramis.com.br/urban/acessorios/mochila"
+    },
+    {
+      "departamento": "Urban",
+      "nome": "Mala",
+      "url": "https://www.aramis.com.br/urban/acessorios/mala"
+    },
+    {
+      "departamento": "Urban",
+      "nome": "Sunga",
+      "url": "https://www.aramis.com.br/urban/beachwear/sunga"
+    },
+    {
+      "departamento": "Urban",
+      "nome": "Shorts Água",
+      "url": "https://www.aramis.com.br/urban/beachwear/shorts-agua"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Calça Alfaiataria",
+      "url": "https://www.aramis.com.br/roupas/alfaiataria/calca-alfaiataria"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Colete Alfaiataria",
+      "url": "https://www.aramis.com.br/roupas/alfaiataria/colete-alfaiataria"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Costume",
+      "url": "https://www.aramis.com.br/roupas/alfaiataria/costume"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Paletó",
+      "url": "https://www.aramis.com.br/roupas/alfaiataria/paleto"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Gravata",
+      "url": "https://www.aramis.com.br/roupas/alfaiataria/gravata"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Colete",
+      "url": "https://www.aramis.com.br/roupas/alfaiataria/colete"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Short de banho",
+      "url": "https://www.aramis.com.br/roupas/beachwear/short-de-banho"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Sunga",
+      "url": "https://www.aramis.com.br/roupas/beachwear/sunga"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Bermuda",
+      "url": "https://www.aramis.com.br/roupas/bermudas-e-shorts/bermuda"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Bermuda 5 Pockets",
+      "url": "https://www.aramis.com.br/roupas/bermudas-e-shorts/bermuda-5-pockets"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Bermuda Chino",
+      "url": "https://www.aramis.com.br/roupas/bermudas-e-shorts/bermuda-chino"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Bermuda Jeans",
+      "url": "https://www.aramis.com.br/roupas/bermudas-e-shorts/bermuda-jeans"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Bermuda Moletom",
+      "url": "https://www.aramis.com.br/roupas/bermudas-e-shorts/bermuda-moletom"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Bermuda Sport",
+      "url": "https://www.aramis.com.br/roupas/bermudas-e-shorts/bermuda-sport"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Shorts",
+      "url": "https://www.aramis.com.br/roupas/bermudas-e-shorts/shorts"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Calça 5 Pockets",
+      "url": "https://www.aramis.com.br/roupas/calcas/calca-5-pockets"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Calça Chino",
+      "url": "https://www.aramis.com.br/roupas/calcas/calca-chino"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Calça Jeans",
+      "url": "https://www.aramis.com.br/roupas/calcas/calca-jeans"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Calça Moletom",
+      "url": "https://www.aramis.com.br/roupas/calcas/calca-moletom"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Calça Sport",
+      "url": "https://www.aramis.com.br/roupas/calcas/calca-sport"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Camisa Manga Curta",
+      "url": "https://www.aramis.com.br/roupas/camisas/camisa-manga-curta"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Camisa Manga Longa",
+      "url": "https://www.aramis.com.br/roupas/camisas/camisa-manga-longa"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Camiseta Manga Curta",
+      "url": "https://www.aramis.com.br/roupas/camisetas/camiseta-manga-curta"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Camiseta Manga Longa",
+      "url": "https://www.aramis.com.br/roupas/camisetas/camiseta-manga-longa"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Regata",
+      "url": "https://www.aramis.com.br/roupas/camisetas/regata"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Jaqueta",
+      "url": "https://www.aramis.com.br/roupas/jaquetas/jaqueta"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Jaqueta Liquid Repeller",
+      "url": "https://www.aramis.com.br/roupas/jaquetas/jaqueta-liquid-repeller"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Moletom Careca",
+      "url": "https://www.aramis.com.br/roupas/moletom/moletom-careca"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Moletom com Capuz",
+      "url": "https://www.aramis.com.br/roupas/moletom/moletom-com-capuz"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Moletom com Zíper",
+      "url": "https://www.aramis.com.br/roupas/moletom/moletom-com-ziper"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Polo Manga Curta",
+      "url": "https://www.aramis.com.br/roupas/polos/polo-manga-curta"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Polo Manga Longa",
+      "url": "https://www.aramis.com.br/roupas/polos/polo-manga-longa"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Tricot Manga Curta",
+      "url": "https://www.aramis.com.br/roupas/tricot/tricot-manga-curta"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Tricot Manga Longa",
+      "url": "https://www.aramis.com.br/roupas/tricot/tricot-manga-longa"
+    },
+    {
+      "departamento": "Acessórios",
+      "nome": "INATIVO - Boné",
+      "url": "https://www.aramis.com.br/acessorios/inativo---variados/inativo---bone"
+    },
+    {
+      "departamento": "Acessórios",
+      "nome": "Colar",
+      "url": "https://www.aramis.com.br/acessorios/joias/colar"
+    },
+    {
+      "departamento": "Acessórios",
+      "nome": "Pulseira",
+      "url": "https://www.aramis.com.br/acessorios/joias/pulseira"
+    },
+    {
+      "departamento": "Acessórios",
+      "nome": "Meias",
+      "url": "https://www.aramis.com.br/acessorios/meias"
+    },
+    {
+      "departamento": "Acessórios",
+      "nome": "Cuecas",
+      "url": "https://www.aramis.com.br/acessorios/cuecas"
+    },
+    {
+      "departamento": "Acessórios",
+      "nome": "Carteiras",
+      "url": "https://www.aramis.com.br/acessorios/carteiras"
+    },
+    {
+      "departamento": "Acessórios",
+      "nome": "Cintos",
+      "url": "https://www.aramis.com.br/acessorios/cintos"
+    },
+    {
+      "departamento": "Acessórios",
+      "nome": "Necessaire",
+      "url": "https://www.aramis.com.br/acessorios/necessaire"
+    },
+    {
+      "departamento": "Acessórios",
+      "nome": "Mochilas",
+      "url": "https://www.aramis.com.br/acessorios/mochilas"
+    },
+    {
+      "departamento": "Acessórios",
+      "nome": "Bonés",
+      "url": "https://www.aramis.com.br/acessorios/bones"
+    },
+    {
+      "departamento": "Acessórios",
+      "nome": "Bolsas",
+      "url": "https://www.aramis.com.br/acessorios/bolsas"
+    },
+    {
+      "departamento": "Acessórios",
+      "nome": "Malas",
+      "url": "https://www.aramis.com.br/acessorios/malas"
+    },
+    {
+      "departamento": "Acessórios",
+      "nome": "Kits",
+      "url": "https://www.aramis.com.br/acessorios/kits"
+    },
+    {
+      "departamento": "Acessórios",
+      "nome": "Óculos",
+      "url": "https://www.aramis.com.br/acessorios/oculos"
+    },
+    {
+      "departamento": "Calçados",
+      "nome": "Tênis",
+      "url": "https://www.aramis.com.br/calcados/tenis"
+    },
+    {
+      "departamento": "Calçados",
+      "nome": "Sapatos",
+      "url": "https://www.aramis.com.br/calcados/sapatos"
+    },
+    {
+      "departamento": "Calçados",
+      "nome": "Chinelos",
+      "url": "https://www.aramis.com.br/calcados/chinelos"
+    },
+    {
+      "departamento": "Calçados",
+      "nome": "Drive",
+      "url": "https://www.aramis.com.br/calcados/drive"
+    }
+  ],
+  "Reserva": [
+    {
+      "departamento": "Reserva",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/reserva/masculino/bermudas-e-shorts/colecao"
+    },
+    {
+      "departamento": "Reserva",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/reserva/masculino/bermudas-e-shorts/promocao"
+    },
+    {
+      "departamento": "Reserva",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/reserva/masculino/calcas/colecao"
+    },
+    {
+      "departamento": "Reserva",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/reserva/masculino/calcas/promocao"
+    },
+    {
+      "departamento": "Reserva",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/reserva/masculino/camisas/colecao"
+    },
+    {
+      "departamento": "Reserva",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/reserva/masculino/camisas/promocao"
+    },
+    {
+      "departamento": "Reserva",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/reserva/masculino/camisetas/colecao"
+    },
+    {
+      "departamento": "Reserva",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/reserva/masculino/camisetas/promocao"
+    },
+    {
+      "departamento": "Reserva",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/reserva/masculino/coletes/colecao"
+    },
+    {
+      "departamento": "Reserva",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/reserva/masculino/coletes/promocao"
+    },
+    {
+      "departamento": "Reserva",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/reserva/masculino/cuecas/colecao"
+    },
+    {
+      "departamento": "Reserva",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/reserva/masculino/cuecas/promocao"
+    },
+    {
+      "departamento": "Reserva",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/reserva/masculino/leggings/colecao"
+    },
+    {
+      "departamento": "Reserva",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/reserva/masculino/leggings/promocao"
+    },
+    {
+      "departamento": "Reserva",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/reserva/masculino/macacoes/colecao"
+    },
+    {
+      "departamento": "Reserva",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/reserva/masculino/macacoes/promocao"
+    },
+    {
+      "departamento": "Reserva",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/reserva/masculino/meias/colecao"
+    },
+    {
+      "departamento": "Reserva",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/reserva/masculino/meias/promocao"
+    },
+    {
+      "departamento": "Reserva",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/reserva/masculino/pijamas/colecao"
+    },
+    {
+      "departamento": "Reserva",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/reserva/masculino/pijamas/promocao"
+    },
+    {
+      "departamento": "Reserva",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/reserva/masculino/pochetes-e-doleiras/colecao"
+    },
+    {
+      "departamento": "Reserva",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/reserva/masculino/pochetes-e-doleiras/promocao"
+    },
+    {
+      "departamento": "Reserva",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/reserva/masculino/polos/colecao"
+    },
+    {
+      "departamento": "Reserva",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/reserva/masculino/polos/promocao"
+    },
+    {
+      "departamento": "Reserva",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/reserva/masculino/sungas/colecao"
+    },
+    {
+      "departamento": "Reserva",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/reserva/masculino/sungas/promocao"
+    },
+    {
+      "departamento": "Reserva",
+      "nome": "Bebê",
+      "url": "https://www.usereserva.com/reserva/servicos/faca-voce/bebe"
+    },
+    {
+      "departamento": "Reserva",
+      "nome": "Infantil",
+      "url": "https://www.usereserva.com/reserva/servicos/faca-voce/infantil"
+    },
+    {
+      "departamento": "Reserva",
+      "nome": "Masculino",
+      "url": "https://www.usereserva.com/reserva/servicos/faca-voce/masculino"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/mini/infantil/acessorios/colecao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/mini/infantil/acessorios/promocao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/mini/infantil/bermudas/colecao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/mini/infantil/bermudas/promocao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/mini/infantil/blusas/colecao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/mini/infantil/blusas/promocao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/mini/infantil/calcas/colecao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/mini/infantil/calcas/promocao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/mini/infantil/camisas/colecao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/mini/infantil/camisas/promocao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/mini/infantil/camisetas/colecao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/mini/infantil/camisetas/promocao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/mini/infantil/coletes/colecao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/mini/infantil/coletes/promocao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/mini/infantil/cuecas/colecao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/mini/infantil/cuecas/promocao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/mini/infantil/fantasias/colecao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/mini/infantil/fantasias/promocao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/mini/infantil/kits/colecao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/mini/infantil/kits/promocao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/mini/infantil/macacoes-e-macaquinhos/colecao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/mini/infantil/macacoes-e-macaquinhos/promocao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/mini/infantil/pijamas/colecao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/mini/infantil/pijamas/promocao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/mini/infantil/polos/colecao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/mini/infantil/polos/promocao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/mini/infantil/regatas/colecao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/mini/infantil/regatas/promocao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/mini/infantil/sungas/colecao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/mini/infantil/sungas/promocao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/mini/bebe/acessorios/colecao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/mini/bebe/acessorios/promocao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/mini/bebe/bermudas/colecao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/mini/bebe/bermudas/promocao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/mini/bebe/bodies/colecao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/mini/bebe/bodies/promocao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/mini/bebe/calcas/colecao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/mini/bebe/calcas/promocao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/mini/bebe/camisas/colecao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/mini/bebe/camisas/promocao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/mini/bebe/camisetas/colecao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/mini/bebe/camisetas/promocao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/mini/bebe/fantasias/colecao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/mini/bebe/fantasias/promocao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/mini/bebe/kits/colecao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/mini/bebe/kits/promocao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/mini/bebe/macacoes-e-macaquinhos/colecao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/mini/bebe/macacoes-e-macaquinhos/promocao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/mini/bebe/meias/colecao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/mini/bebe/meias/promocao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/mini/bebe/polos/colecao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/mini/bebe/polos/promocao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/mini/bebe/shorts/colecao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/mini/bebe/shorts/promocao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/mini/bebe/shorts/colecao"
+    },
+    {
+      "departamento": "Mini",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/mini/bebe/shorts/promocao"
+    },
+    {
+      "departamento": "GO",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/go/masculino/chinelos/colecao"
+    },
+    {
+      "departamento": "GO",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/go/masculino/chinelos/promocao"
+    },
+    {
+      "departamento": "GO",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/go/masculino/kits/colecao"
+    },
+    {
+      "departamento": "GO",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/go/masculino/sandalias-e-papetes/colecao"
+    },
+    {
+      "departamento": "GO",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/go/masculino/sandalias-e-papetes/promocao"
+    },
+    {
+      "departamento": "GO",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/go/masculino/tenis/colecao"
+    },
+    {
+      "departamento": "GO",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/go/masculino/tenis/promocao"
+    },
+    {
+      "departamento": "GO",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/go/masculino/social/colecao"
+    },
+    {
+      "departamento": "GO",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/go/masculino/social/promocao"
+    },
+    {
+      "departamento": "GO",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/go/masculino/botas/colecao"
+    },
+    {
+      "departamento": "GO",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/go/masculino/botas/promocao"
+    },
+    {
+      "departamento": "GO",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/go/infantil/chinelos/colecao"
+    },
+    {
+      "departamento": "GO",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/go/infantil/chinelos/promocao"
+    },
+    {
+      "departamento": "GO",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/go/infantil/tenis/colecao"
+    },
+    {
+      "departamento": "GO",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/go/infantil/tenis/promocao"
+    },
+    {
+      "departamento": "GO",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/go/infantil/acessorios/colecao"
+    },
+    {
+      "departamento": "GO",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/go/infantil/acessorios/promocao"
+    },
+    {
+      "departamento": "GO",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/go/infantil/mochilas/colecao"
+    },
+    {
+      "departamento": "GO",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/go/infantil/mochilas/promocao"
+    },
+    {
+      "departamento": "GO",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/go/infantil/papetes-e-slides/colecao"
+    },
+    {
+      "departamento": "GO",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/go/infantil/papetes-e-slides/promocao"
+    },
+    {
+      "departamento": "GO",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/go/bebes/acessorios/colecao"
+    },
+    {
+      "departamento": "GO",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/go/bebes/acessorios/promocao"
+    },
+    {
+      "departamento": "GO",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/go/bebes/chinelos/colecao"
+    },
+    {
+      "departamento": "GO",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/go/bebes/chinelos/promocao"
+    },
+    {
+      "departamento": "GO",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/go/bebes/papetes-e-slides/colecao"
+    },
+    {
+      "departamento": "GO",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/go/bebes/papetes-e-slides/promocao"
+    },
+    {
+      "departamento": "GO",
+      "nome": "Coleção",
+      "url": "https://www.usereserva.com/go/bebes/tenis/colecao"
+    },
+    {
+      "departamento": "GO",
+      "nome": "Promoção",
+      "url": "https://www.usereserva.com/go/bebes/tenis/promocao"
+    }
+  ],
+  "Tommy Hilfiger": [
+    {
+      "departamento": "Roupas",
+      "nome": "Blusas",
+      "url": "https://br.tommy.com/roupas/blusas"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Calças",
+      "url": "https://br.tommy.com/roupas/calcas"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Camisas",
+      "url": "https://br.tommy.com/roupas/camisas"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Coletes",
+      "url": "https://br.tommy.com/roupas/coletes"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Macacão",
+      "url": "https://br.tommy.com/roupas/macacao"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Bermudas & Shorts",
+      "url": "https://br.tommy.com/roupas/bermudas---shorts"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Moletons",
+      "url": "https://br.tommy.com/roupas/moletons"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Polos",
+      "url": "https://br.tommy.com/roupas/polos"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Camisetas",
+      "url": "https://br.tommy.com/roupas/camisetas"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Blazers",
+      "url": "https://br.tommy.com/roupas/blazers"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Cardigans",
+      "url": "https://br.tommy.com/roupas/cardigans"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Jeans",
+      "url": "https://br.tommy.com/roupas/jeans"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Meias",
+      "url": "https://br.tommy.com/roupas/meias"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Suéteres",
+      "url": "https://br.tommy.com/roupas/sueteres"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Praia",
+      "url": "https://br.tommy.com/roupas/praia"
+    },
+    {
+      "departamento": "Roupas",
+      "nome": "Bodies",
+      "url": "https://br.tommy.com/roupas/bodies"
+    },
+    {
+      "departamento": "Calçados",
+      "nome": "Botas",
+      "url": "https://br.tommy.com/calcados/botas"
+    },
+    {
+      "departamento": "Calçados",
+      "nome": "Sandálias",
+      "url": "https://br.tommy.com/calcados/sandalias"
+    },
+    {
+      "departamento": "Calçados",
+      "nome": "Sapatilhas",
+      "url": "https://br.tommy.com/calcados/sapatilhas"
+    },
+    {
+      "departamento": "Calçados",
+      "nome": "Sapatos",
+      "url": "https://br.tommy.com/calcados/sapatos"
+    },
+    {
+      "departamento": "Calçados",
+      "nome": "Tênis",
+      "url": "https://br.tommy.com/calcados/tenis"
+    },
+    {
+      "departamento": "Calçados",
+      "nome": "Chinelos",
+      "url": "https://br.tommy.com/calcados/chinelos"
+    },
+    {
+      "departamento": "Acessórios",
+      "nome": "Bonés",
+      "url": "https://br.tommy.com/acessorios/bones"
+    },
+    {
+      "departamento": "Acessórios",
+      "nome": "Mochilas & Malas",
+      "url": "https://br.tommy.com/acessorios/mochilas---malas"
+    },
+    {
+      "departamento": "Acessórios",
+      "nome": "Bolsas",
+      "url": "https://br.tommy.com/acessorios/bolsas"
+    },
+    {
+      "departamento": "Acessórios",
+      "nome": "Carteiras",
+      "url": "https://br.tommy.com/acessorios/carteiras"
+    },
+    {
+      "departamento": "Acessórios",
+      "nome": "Cintos",
+      "url": "https://br.tommy.com/acessorios/cintos"
+    },
+    {
+      "departamento": "Acessórios",
+      "nome": "Lenços",
+      "url": "https://br.tommy.com/acessorios/lencos"
+    },
+    {
+      "departamento": "Acessórios",
+      "nome": "Perfumes",
+      "url": "https://br.tommy.com/acessorios/perfumes"
+    },
+    {
+      "departamento": "Acessórios",
+      "nome": "Chapéu",
+      "url": "https://br.tommy.com/acessorios/chapeu"
+    },
+    {
+      "departamento": "Acessórios",
+      "nome": "Touca",
+      "url": "https://br.tommy.com/acessorios/touca"
+    },
+    {
+      "departamento": "Acessórios",
+      "nome": "Shape de Skate",
+      "url": "https://br.tommy.com/acessorios/shape-de-skate"
+    },
+    {
+      "departamento": "Acessórios",
+      "nome": "Porta Cartão",
+      "url": "https://br.tommy.com/acessorios/porta-cartao"
+    },
+    {
+      "departamento": "Underwear",
+      "nome": "Bermudas",
+      "url": "https://br.tommy.com/underwear/bermudas"
+    },
+    {
+      "departamento": "Underwear",
+      "nome": "Calças",
+      "url": "https://br.tommy.com/underwear/calcas"
+    },
+    {
+      "departamento": "Underwear",
+      "nome": "Camisetas",
+      "url": "https://br.tommy.com/underwear/camisetas"
+    },
+    {
+      "departamento": "Underwear",
+      "nome": "Cuecas",
+      "url": "https://br.tommy.com/underwear/cuecas"
+    },
+    {
+      "departamento": "Underwear",
+      "nome": "Conjuntos",
+      "url": "https://br.tommy.com/underwear/conjuntos"
+    },
+    {
+      "departamento": "Underwear",
+      "nome": "Meias",
+      "url": "https://br.tommy.com/underwear/meias"
+    },
+    {
+      "departamento": "Underwear",
+      "nome": "Pijamas",
+      "url": "https://br.tommy.com/underwear/pijamas"
+    },
+    {
+      "departamento": "Exclusivo",
+      "nome": "Exclusivo",
+      "url": "https://br.tommy.com/exclusivo"
+    }
+  ]
+}
