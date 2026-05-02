@@ -1,22 +1,8 @@
 import asyncio
 import json
 from playwright.async_api import async_playwright
-from pydantic import BaseModel, Field
 from typing import Optional, Dict
-
-
-class RawProductBronze(BaseModel):
-    url: str
-    brand: str
-    raw_title: str
-    raw_description: str
-    price_full: float
-    price_discount: Optional[float] = None
-    stock_availability: bool
-    category: Optional[str] = None
-    sub_category: Optional[str] = None
-    composition: Optional[str] = None
-    specifications: Dict[str, str] = Field(default_factory=dict)
+from core.models import RawProductBronze
 
 
 async def scrape_competitor_product(

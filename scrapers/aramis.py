@@ -2,7 +2,7 @@ import asyncio
 import logging
 from typing import Optional, Dict, Callable
 from playwright.async_api import async_playwright
-from pydantic import BaseModel, Field
+from core.models import RawProductBronze
 
 # ---------------------------------------------------------
 # Configuração Profissional de Log
@@ -14,23 +14,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger("ScraperAramis")
 
-# ---------------------------------------------------------
-# 1. Contrato de Dados (Camada Bronze)
-# ---------------------------------------------------------
-class RawProductBronze(BaseModel):
-    url: str
-    brand: str
-    raw_title: str
-    raw_description: str
-    price_full: float
-    price_discount: Optional[float] = None
-    category: Optional[str] = None
-    sub_category: Optional[str] = None
-    specifications: Dict[str, str] = Field(default_factory=dict)
-
 
 # ---------------------------------------------------------
-# 2. Mecanismo de Resiliência (Retry Assíncrono)
+# Mecanismo de Resiliência (Retry Assíncrono)
 # ---------------------------------------------------------
 def retry_async(retries: int = 3, delay: int = 3):
     """
@@ -56,7 +42,7 @@ def retry_async(retries: int = 3, delay: int = 3):
 
 
 # ---------------------------------------------------------
-# 3. O Motor do Scraper (Playwright)
+# O Motor do Scraper (Playwright)
 # ---------------------------------------------------------
 @retry_async(retries=3, delay=5)
 async def scrape_competitor_product(product_url: str, brand_name: str) -> Optional[RawProductBronze]:
@@ -239,6 +225,10 @@ async def scrape_competitor_product(product_url: str, brand_name: str) -> Option
                 
                 if "Tamanhos" in dom_data["specs"]:
                     api_specs["Tamanhos"] = dom_data["specs"]["Tamanhos"]
+
+                # Extrair composição das specs
+                merged_specs = {**dom_data["specs"], **api_specs}
+                composition = merged_specs.get("Composição") or merged_specs.get("Material")
                 
                 # Merge entre dados da API interceptada e do DOM/React State
                 product_data = RawProductBronze(
@@ -249,9 +239,11 @@ async def scrape_competitor_product(product_url: str, brand_name: str) -> Option
                     price_full=dom_data["price"], # DOM Price Costuma ser mais preciso nas ofertas
                     category=dom_data["category"],
                     sub_category=dom_data["sub_category"],
-                    specifications={**dom_data["specs"], **api_specs} # Junta as duas fontes
+                    composition=composition,
+                    specifications=merged_specs, # Junta as duas fontes
                 )
             else:
+                composition = dom_data["specs"].get("Composição") or dom_data["specs"].get("Material")
                 product_data = RawProductBronze(
                     url=product_url,
                     brand=brand_name,
@@ -260,7 +252,8 @@ async def scrape_competitor_product(product_url: str, brand_name: str) -> Option
                     price_full=dom_data["price"],
                     category=dom_data["category"],
                     sub_category=dom_data["sub_category"],
-                    specifications=dom_data["specs"]
+                    composition=composition,
+                    specifications=dom_data["specs"],
                 )
 
             logger.info("Extração concluída com sucesso.")

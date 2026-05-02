@@ -1,25 +1,8 @@
 import asyncio
 import json
 from playwright.async_api import async_playwright
-from pydantic import BaseModel, Field
 from typing import Optional, Dict
-
-
-# ---------------------------------------------------------
-# 1. Contrato de Dados (Camada Bronze)
-# ---------------------------------------------------------
-class RawProductBronze(BaseModel):
-    url: str
-    brand: str
-    raw_title: str
-    raw_description: str
-    price_full: float
-    price_discount: Optional[float] = None
-    stock_availability: bool
-    category: Optional[str] = None
-    sub_category: Optional[str] = None
-    composition: Optional[str] = None
-    specifications: Dict[str, str] = Field(default_factory=dict)
+from core.models import RawProductBronze
 
 
 # ---------------------------------------------------------
@@ -29,7 +12,6 @@ async def scrape_competitor_product(
     product_url: str, brand_name: str
 ) -> Optional[RawProductBronze]:
     async with async_playwright() as p:
-        # headless=True para debugar visualmente.
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -47,7 +29,12 @@ async def scrape_competitor_product(
             url_lower = response.url.lower()
             if any(
                 bad_word in url_lower
-                for bad_word in ["crossselling", "similars", "recommendations"]
+                for bad_word in [
+                    "crossselling",
+                    "similars",
+                    "recommendations",
+                    "whosawalsosaw",
+                ]
             ):
                 return
 
@@ -73,17 +60,29 @@ async def scrape_competitor_product(
             await page.goto(product_url, wait_until="domcontentloaded", timeout=30000)
             await page.wait_for_timeout(3000)
 
-            # --- NOVO: Interação Ativa (Forçando o Lazy Loading) ---
-            print("Procurando botões de Especificações para forçar carregamento...")
-            try:
-                elementos_clicaveis = await page.locator("text='Especificações'").all()
-                for el in elementos_clicaveis:
-                    if await el.is_visible():
-                        await el.click(timeout=2000)
-                        await page.wait_for_timeout(1500)  # Espera a animação e a API
-                        break
-            except Exception:
-                pass  # Se não achar o botão, ignora
+            # --- AGENTE ATIVO GENERALISTA (Cobre Tommy, Reserva, Aramis) ---
+            print("Procurando botões de expansão de detalhes...")
+            botoes_alvo = [
+                "Especificações",
+                "Características",
+                "Detalhes",
+                "Descrição",
+                "Composição",
+            ]
+
+            for texto in botoes_alvo:
+                try:
+                    elementos = await page.locator(
+                        f"//button[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '{texto.lower()}')] | //div[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '{texto.lower()}')]"
+                    ).all()
+                    for el in elementos:
+                        if await el.is_visible():
+                            await el.click(timeout=1500)
+                            await page.wait_for_timeout(1000)
+                            print(f"Botão '{texto}' clicado!")
+                            break
+                except:
+                    continue
 
             product_data = None
 
@@ -139,7 +138,7 @@ async def scrape_competitor_product(
                 except Exception:
                     pass
 
-            # --- TENTATIVA 2: Fallback (Meta Tags + React State + DOM Ativo) ---
+            # --- TENTATIVA 2: Fallback Blindado ---
             if (
                 not product_data
                 or product_data.price_full == 0.0
@@ -159,7 +158,7 @@ async def scrape_competitor_product(
                     return meta ? meta.content : "";
                 }""")
 
-                # --- CORREÇÃO: Captura da Descrição Rica ---
+                # Captura da Descrição Rica
                 meta_desc = await page.evaluate("""() => {
                     let state = window.__STATE__ || {};
                     for (let key in state) {
@@ -173,7 +172,7 @@ async def scrape_competitor_product(
 
                 dom_specs = await page.evaluate("""() => {
                     let specs = {};
-                    const chavesDesejadas = ['Composição', 'Atributos', 'Cor Real', 'Medidas Complementares'];
+                    const chavesDesejadas = ['Composição', 'Atributos', 'Cor', 'Cor Real', 'Material', 'Modelagem'];
                     
                     // 1. Busca no Estado do React
                     let state = window.__STATE__ || {};
@@ -189,11 +188,14 @@ async def scrape_competitor_product(
                         }
                     });
 
-                    // 2. Busca Força Bruta via Regex no JSON inteiro
+                    // 2. Busca Força Bruta via Regex
                     if (!specs['Composição']) {
                         let stateStr = JSON.stringify(state);
-                        let match = stateStr.match(/"name":"Composição".*?"values":\\["(.*?)"\\]/);
+                        let match = stateStr.match(/"name":"Composi[çc][ãa]o".*?"values":\\["(.*?)"\\]/);
                         if (match) specs['Composição'] = match[1];
+                        
+                        let matchMaterial = stateStr.match(/"name":"Material".*?"values":\\["(.*?)"\\]/);
+                        if (matchMaterial && !specs['Composição']) specs['Composição'] = matchMaterial[1];
                     }
 
                     // 3. Busca no DOM Visível
@@ -202,7 +204,7 @@ async def scrape_competitor_product(
                             if (el.children.length > 0) continue; 
                             let text = (el.textContent || "").trim();
                             for (let chave of chavesDesejadas) {
-                                if (text === chave || text === chave + ":") {
+                                if (text === chave || text === chave + ":" || text.toLowerCase() === 'composição') {
                                     let fullText = (el.parentElement.textContent || "").trim();
                                     let valor = fullText.replace(text, "").replace(":", "").trim();
                                     if (valor) specs[chave] = valor.split('\\n')[0].trim();
@@ -211,11 +213,11 @@ async def scrape_competitor_product(
                         }
                     }
 
-                    // Puxando os Tamanhos visuais
+                    // Puxando os Tamanhos visuais (Adicionados tamanhos Internacionais para Tommy)
                     let tamanhos = [];
                     document.querySelectorAll('span, p, div, li').forEach(el => {
                         let txt = (el.textContent || "").trim();
-                        if (['P', 'M', 'G', 'GG', 'XGG', 'XXG', '38', '40', '42', '44', '46'].includes(txt)) {
+                        if (['PP', 'P', 'M', 'G', 'GG', 'XGG', 'XXG', 'S', 'L', 'XL', 'XXL', '38', '40', '42'].includes(txt)) {
                             if (!tamanhos.includes(txt) && el.children.length === 0) tamanhos.push(txt);
                         }
                     });
@@ -223,6 +225,18 @@ async def scrape_competitor_product(
 
                     return specs;
                 }""")
+
+                dom_category = await page.evaluate("""() => {
+                    let breadcrumbs = Array.from(document.querySelectorAll('.vtex-breadcrumb-1-x-link, [class*="breadcrumb"] a'));
+                    if(breadcrumbs.length > 0) {
+                        let parts = breadcrumbs.map(el => el.textContent.trim()).filter(t => t);
+                        if(parts[0] && parts[0].toLowerCase() === 'home') parts.shift();
+                        return { category: parts[0] || null, sub_category: parts[1] || null };
+                    }
+                    return { category: null, sub_category: null };
+                }""")
+
+                comp = dom_specs.get('Composição') or dom_specs.get('Material')
 
                 if product_data:
                     product_data.specifications.update(dom_specs)
@@ -251,7 +265,7 @@ async def scrape_competitor_product(
                         sub_category=dom_category['sub_category'],
                         composition=comp
                     )
-                print("[SUCESSO] Extração do estado do React concluída!")
+                print("[SUCESSO] Extração do estado do React/DOM concluída!")
 
             await browser.close()
             return product_data
@@ -262,10 +276,10 @@ async def scrape_competitor_product(
             return None
 
 
-# --- Testando a execução ---
 async def main():
-    url_teste = "https://www.aramis.com.br/polo-tricot-manga-curta-explorer-fishbone-azul-indigo-po-12-0034-156/p?theme=urban"
-    resultado = await scrape_competitor_product(url_teste, "Aramis")
+    # Testando a Polo da Tommy Hilfiger
+    url_teste = "https://br.tommy.com/polo-performance-jersey-thmw0mw37310_thbds/p"
+    resultado = await scrape_competitor_product(url_teste, "Tommy Hilfiger")
 
     if resultado:
         print("\n--- Dado Bruto Capturado (Camada Bronze) ---")

@@ -353,6 +353,46 @@
             color: var(--text-muted);
             margin-top: 0.5rem;
         }
+
+        /* Category selector skeleton */
+        .category-skeleton {
+            height: 48px;
+            background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.2s infinite;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+        }
+        @keyframes shimmer { to { background-position: -200% 0; } }
+
+        /* Cancel button */
+        .btn-cancel {
+            background: linear-gradient(135deg, #ef4444, #b91c1c);
+            box-shadow: 0 4px 15px rgba(239,68,68,0.35);
+            display: none;
+        }
+        .btn-cancel:hover { box-shadow: 0 6px 20px rgba(239,68,68,0.5); }
+        .btn-cancel.visible { display: flex; }
+
+        /* custom-url toggle */
+        .toggle-link {
+            display: inline-block;
+            margin-top: 0.4rem;
+            font-size: 0.85rem;
+            color: var(--accent-color);
+            cursor: pointer;
+            text-decoration: underline;
+            background: none;
+            border: none;
+            width: auto;
+            padding: 0;
+            box-shadow: none;
+            margin-top: 0;
+        }
+        .toggle-link:hover { transform: none; box-shadow: none; }
+
+        /* cancelled state */
+        .console-line.cancelled { color: #f59e0b; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -425,6 +465,7 @@
         <div class="container">
             <div class="glass-card">
                 <form id="orchestratorForm">
+                    <!-- Brand selector -->
                     <div class="form-group">
                         <label for="orchBrand">Marca Concorrente</label>
                         <select id="orchBrand" required>
@@ -433,19 +474,39 @@
                             <option value="tommy">Tommy Hilfiger</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label for="orchUrl">URL da Categoria</label>
-                        <input type="url" id="orchUrl" placeholder="Ex: https://www.aramis.com.br/roupas/polos" required>
+
+                    <!-- Dynamic category selector -->
+                    <div class="form-group" id="categoryGroup">
+                        <label for="orchCategory">Categoria</label>
+                        <div id="categorySkeleton" class="category-skeleton"></div>
+                        <select id="orchCategory" style="display:none;" required></select>
                     </div>
-                    <button type="submit" id="orchBtn">
-                        <span class="btn-text">Iniciar Varredura em Lote</span>
+
+                    <!-- Custom URL (optional override) -->
+                    <div class="form-group" id="customUrlGroup" style="display:none;">
+                        <label for="orchCustomUrl">URL Personalizada</label>
+                        <input type="url" id="orchCustomUrl" placeholder="https://www.aramis.com.br/...">
+                    </div>
+                    <button type="button" class="toggle-link" id="toggleCustomUrl" onclick="toggleCustomUrl()">
+                        + Usar URL personalizada
+                    </button>
+
+                    <!-- Start button -->
+                    <button type="submit" id="orchBtn" style="margin-top:1.2rem;">
+                        <span class="btn-text">🚀 Iniciar Varredura em Lote</span>
+                        <div class="spinner"></div>
+                    </button>
+
+                    <!-- Cancel button (shown during job) -->
+                    <button type="button" id="cancelBtn" class="btn-cancel" onclick="cancelJob()">
+                        <span class="btn-text">⏹ Cancelar Operação</span>
                         <div class="spinner"></div>
                     </button>
                 </form>
 
                 <div id="downloadArea" style="display: none; margin-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5rem;">
-                    <p style="color: var(--success); font-weight: 500; margin-bottom: 1rem;">✅ Extração concluída com sucesso!</p>
-                    <button id="downloadBtn" class="btn-success" onclick="downloadFile()">Baixar Camada Bronze (Excel)</button>
+                    <p id="downloadMsg" style="color: var(--success); font-weight: 500; margin-bottom: 1rem;">✅ Extração concluída com sucesso!</p>
+                    <button id="downloadBtn" class="btn-success" onclick="downloadFile()">⬇ Baixar Camada Bronze (Excel)</button>
                 </div>
             </div>
 
@@ -516,8 +577,60 @@
             }
         });
 
-        // Orchestrator Logic
+        // ── Category Loader ────────────────────────────────────────────────
+        async function loadCategories(brand) {
+            const skeleton = document.getElementById('categorySkeleton');
+            const sel = document.getElementById('orchCategory');
+            skeleton.style.display = 'block';
+            sel.style.display = 'none';
+            sel.innerHTML = '';
+            try {
+                const res = await fetch(`/brands/${brand}/categories`);
+                if (!res.ok) throw new Error('Erro ao carregar categorias');
+                const data = await res.json();
+                data.categories.forEach(group => {
+                    const og = document.createElement('optgroup');
+                    og.label = group.group;
+                    group.items.forEach(item => {
+                        const opt = document.createElement('option');
+                        opt.value = item.path;
+                        opt.textContent = item.label;
+                        og.appendChild(opt);
+                    });
+                    sel.appendChild(og);
+                });
+                skeleton.style.display = 'none';
+                sel.style.display = 'block';
+            } catch(e) {
+                skeleton.style.display = 'none';
+                sel.style.display = 'block';
+                sel.innerHTML = '<option value="">Erro ao carregar — use URL personalizada</option>';
+            }
+        }
+
+        // Load on brand change
+        document.getElementById('orchBrand').addEventListener('change', e => loadCategories(e.target.value));
+        // Load on page open
+        loadCategories(document.getElementById('orchBrand').value);
+
+        // ── Custom URL toggle ──────────────────────────────────────────────
+        let customUrlVisible = false;
+        function toggleCustomUrl() {
+            customUrlVisible = !customUrlVisible;
+            const group = document.getElementById('customUrlGroup');
+            const btn   = document.getElementById('toggleCustomUrl');
+            const catGroup = document.getElementById('categoryGroup');
+            const catSel   = document.getElementById('orchCategory');
+            group.style.display = customUrlVisible ? 'block' : 'none';
+            catGroup.style.display = customUrlVisible ? 'none' : 'block';
+            catSel.required = !customUrlVisible;
+            document.getElementById('orchCustomUrl').required = customUrlVisible;
+            btn.textContent = customUrlVisible ? '← Usar seletor de categoria' : '+ Usar URL personalizada';
+        }
+
+        // ── Orchestrator State ─────────────────────────────────────────────
         let ws = null;
+        let currentJobId = null;
         let totalLinks = 0;
         let processedLinks = 0;
         let successCount = 0;
@@ -527,102 +640,131 @@
             const feed = document.getElementById('consoleFeed');
             const line = document.createElement('div');
             line.className = `console-line ${type}`;
-            
             const timestamp = new Date().toLocaleTimeString();
             line.textContent = `[${timestamp}] ${message}`;
-            
             feed.appendChild(line);
-            feed.scrollTop = feed.scrollHeight; // Auto-scroll
+            feed.scrollTop = feed.scrollHeight;
         }
 
         function updateProgress() {
-            if(totalLinks === 0) return;
-            const percentage = (processedLinks / totalLinks) * 100;
-            document.getElementById('progressFill').style.width = `${percentage}%`;
+            if (totalLinks === 0) return;
+            const pct = (processedLinks / totalLinks) * 100;
+            document.getElementById('progressFill').style.width = `${pct}%`;
             document.getElementById('progressText').textContent = `${processedLinks} / ${totalLinks}`;
             document.getElementById('statSuccess').textContent = `Sucessos: ${successCount}`;
             document.getElementById('statError').textContent = `Falhas: ${errorCount}`;
         }
 
-        document.getElementById('orchestratorForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = document.getElementById('orchBtn');
-            const brand = document.getElementById('orchBrand').value;
-            const url = document.getElementById('orchUrl').value;
+        function setJobRunning(running) {
+            const orchBtn   = document.getElementById('orchBtn');
+            const cancelBtn = document.getElementById('cancelBtn');
+            orchBtn.classList.toggle('button-loading', running);
+            orchBtn.disabled = running;
+            cancelBtn.classList.toggle('visible', running);
+        }
 
+        // ── Cancel ─────────────────────────────────────────────────────────
+        async function cancelJob() {
+            if (!currentJobId) return;
+            const btn = document.getElementById('cancelBtn');
             btn.classList.add('button-loading');
             btn.disabled = true;
+            try {
+                await fetch(`/jobs/${currentJobId}`, { method: 'DELETE' });
+                logToConsole('⏹ Sinal de cancelamento enviado. Aguardando o robô finalizar a tarefa atual...', 'cancelled');
+            } catch(e) {
+                logToConsole('Erro ao cancelar: ' + e.message, 'error');
+                btn.classList.remove('button-loading');
+                btn.disabled = false;
+            }
+        }
+
+        // ── Form Submit ────────────────────────────────────────────────────
+        document.getElementById('orchestratorForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const brand = document.getElementById('orchBrand').value;
+
+            // Build payload
+            let payload = { brand };
+            if (customUrlVisible) {
+                const cu = document.getElementById('orchCustomUrl').value.trim();
+                if (!cu) { alert('Informe a URL personalizada.'); return; }
+                payload.custom_url = cu;
+            } else {
+                const path = document.getElementById('orchCategory').value;
+                if (!path) { alert('Selecione uma categoria.'); return; }
+                payload.category_path = path;
+            }
+
             document.getElementById('downloadArea').style.display = 'none';
             document.getElementById('consoleFeed').innerHTML = '';
-            
             totalLinks = 0; processedLinks = 0; successCount = 0; errorCount = 0;
             document.getElementById('progressContainer').style.display = 'block';
             updateProgress();
-
-            logToConsole('Enviando requisição de Job para o servidor...', 'info');
+            setJobRunning(true);
+            logToConsole('Enviando requisição de job para o servidor...', 'info');
 
             try {
                 const res = await fetch('/scrape-category', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({url, brand})
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
                 });
-                
-                if(!res.ok) throw new Error("Falha ao iniciar Job");
-                
-                const data = await res.json();
-                const jobId = data.job_id;
-                logToConsole(`Job criado: ${jobId}. Conectando via WebSockets...`, 'info');
+                if (!res.ok) throw new Error(await res.text());
 
-                // Connect WebSocket
-                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const wsUrl = `${protocol}//${window.location.host}/ws/${jobId}`;
-                
-                ws = new WebSocket(wsUrl);
-                
+                const data = await res.json();
+                currentJobId = data.job_id;
+                logToConsole(`Job ${currentJobId} iniciado. URL: ${data.url}`, 'info');
+                logToConsole('Conectando via WebSocket...', 'info');
+
+                const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+                ws = new WebSocket(`${protocol}//${location.host}/ws/${currentJobId}`);
+
                 ws.onmessage = (event) => {
                     const msg = JSON.parse(event.data);
-                    
-                    if(msg.type === 'stats') {
-                        totalLinks = msg.total_links;
-                        updateProgress();
-                    }
-                    
-                    if(msg.type === 'success') {
-                        processedLinks++;
-                        successCount++;
-                        updateProgress();
-                    }
-                    
-                    if(msg.type === 'error' && msg.message && msg.message.includes("Extração")) {
-                        processedLinks++;
-                        errorCount++;
-                        updateProgress();
-                    }
-                    
-                    if(msg.type === 'done') {
-                        logToConsole(msg.message, 'stats');
+
+                    if (msg.type === 'stats') { totalLinks = msg.total_links; updateProgress(); }
+                    if (msg.type === 'success') { processedLinks++; successCount++; updateProgress(); }
+                    if (msg.type === 'error' && msg.message && msg.message.includes('Extração')) { processedLinks++; errorCount++; updateProgress(); }
+
+                    if (msg.type === 'done' || msg.type === 'cancelled_done') {
+                        const isCancelled = msg.type === 'cancelled_done';
+                        logToConsole(msg.message, isCancelled ? 'cancelled' : 'stats');
+                        document.getElementById('downloadMsg').innerHTML = isCancelled
+                            ? '⚠️ Operação cancelada — dados parciais disponíveis para download.'
+                            : '✅ Extração concluída com sucesso!';
+                        document.getElementById('downloadMsg').style.color = isCancelled ? 'var(--warning)' : 'var(--success)';
                         document.getElementById('downloadArea').style.display = 'block';
                         window.lastOutputFile = msg.output_file;
-                        btn.classList.remove('button-loading');
-                        btn.disabled = false;
-                        ws.close();
+                        setJobRunning(false);
+                        document.getElementById('cancelBtn').classList.remove('button-loading');
+                        document.getElementById('cancelBtn').disabled = false;
+                        currentJobId = null;
+                        if (ws) ws.close();
+                        return;
+                    }
+
+                    if (msg.type === 'cancelled') {
+                        logToConsole(msg.message, 'cancelled');
+                        setJobRunning(false);
+                        document.getElementById('cancelBtn').classList.remove('button-loading');
+                        document.getElementById('cancelBtn').disabled = false;
+                        currentJobId = null;
+                        if (ws) ws.close();
                         return;
                     }
 
                     logToConsole(msg.message || JSON.stringify(msg), msg.type || 'info');
                 };
-                
-                ws.onerror = (error) => {
-                    logToConsole('Erro na conexão WebSocket', 'error');
-                    btn.classList.remove('button-loading');
-                    btn.disabled = false;
+
+                ws.onerror = () => {
+                    logToConsole('Erro na conexão WebSocket.', 'error');
+                    setJobRunning(false);
                 };
 
             } catch(err) {
                 logToConsole(`Erro: ${err.message}`, 'error');
-                btn.classList.remove('button-loading');
-                btn.disabled = false;
+                setJobRunning(false);
             }
         });
 
@@ -630,7 +772,7 @@
             if (window.lastOutputFile) {
                 window.location.href = '/' + window.lastOutputFile;
             } else {
-                alert("Nenhum arquivo gerado.");
+                alert('Nenhum arquivo gerado.');
             }
         }
     </script>
