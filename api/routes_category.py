@@ -1,9 +1,12 @@
 """
 Rotas de Categoria: listagem dinâmica e varredura em lote.
 
-GET  /brands/{brand}/categories  — Categorias dinâmicas via VTEX API
-POST /scrape-category            — Inicia job de varredura em lote
-WS   /ws/{job_id}                — WebSocket para logs em tempo real
+GET  /brands/{brand}/categories      — Categorias dinâmicas via VTEX API
+GET  /canonical-categories            — Categorias canônicas de/para
+POST /category-preview                — Preview do mapeamento de/para
+POST /scrape-category                 — Inicia job de varredura (marca única)
+POST /scrape-category-multi           — Inicia job de varredura multi-marca
+WS   /ws/{job_id}                     — WebSocket para logs em tempo real
 """
 
 import asyncio
@@ -11,13 +14,18 @@ import threading
 import uuid
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, Field
+from typing import Optional, List, Dict
 
 from config import BRAND_REGISTRY
 from core.websocket import manager
 from core.job_manager import JOB_CANCEL_FLAGS
 from services.vtex_catalog import vtex_catalog
+from services.category_mapping import (
+    get_canonical_categories,
+    resolve_category_for_brands,
+    get_category_preview,
+)
 
 router = APIRouter()
 
@@ -50,8 +58,25 @@ class ScrapeCategoryRequest(BaseModel):
         return f"{base}{self.category_path}"
 
 
+class ScrapeMultiBrandRequest(BaseModel):
+    """Request para varredura multi-marca com mapeamento de/para."""
+    brands: List[str] = Field(
+        ..., min_length=1,
+        description="Lista de brand_keys para varrer (ex: ['aramis', 'reserva'])"
+    )
+    category_slug: str = Field(
+        ..., description="Slug canônico da categoria (ex: 'camisas', 'polos')"
+    )
+
+
+class CategoryPreviewRequest(BaseModel):
+    """Request para preview do mapeamento de/para."""
+    brands: List[str]
+    category_slug: str
+
+
 # ---------------------------------------------------------------------------
-# Orchestrator runner (background thread)
+# Orchestrator runner — Marca Única (background thread)
 # ---------------------------------------------------------------------------
 def run_orchestrator_sync(
     job_id: str,
@@ -81,7 +106,7 @@ def run_orchestrator_sync(
 
 
 # ---------------------------------------------------------------------------
-# Endpoints
+# Endpoints — Existentes (retrocompatíveis)
 # ---------------------------------------------------------------------------
 @router.get("/brands/{brand}/categories")
 async def get_categories(brand: str):
@@ -120,3 +145,81 @@ async def scrape_category(request: ScrapeCategoryRequest, background_tasks: Back
         run_orchestrator_sync, job_id, url, request.brand, main_loop, cancel_event
     )
     return {"job_id": job_id, "message": "Orquestração iniciada.", "url": url}
+
+
+# ---------------------------------------------------------------------------
+# Endpoints — Multi-Marca (novos)
+# ---------------------------------------------------------------------------
+@router.get("/canonical-categories")
+async def list_canonical_categories():
+    """Retorna todas as categorias canônicas agrupadas para o frontend."""
+    return {"categories": get_canonical_categories()}
+
+
+@router.post("/category-preview")
+async def preview_category_mapping(request: CategoryPreviewRequest):
+    """Retorna o preview do mapeamento de/para antes de iniciar a varredura."""
+    preview = get_category_preview(request.category_slug, request.brands)
+    if not preview:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Categoria '{request.category_slug}' não encontrada."
+        )
+    return preview
+
+
+@router.post("/scrape-category-multi")
+async def scrape_category_multi(
+    request: ScrapeMultiBrandRequest,
+    background_tasks: BackgroundTasks,
+):
+    """
+    Inicia job de varredura multi-marca em paralelo.
+
+    Resolve automaticamente o mapeamento de/para usando o slug canônico,
+    garantindo que cada marca use o path VTEX correto para a mesma categoria.
+    """
+    # Validar marcas
+    invalid_brands = [b for b in request.brands if b.lower() not in BRAND_REGISTRY]
+    if invalid_brands:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Marcas não suportadas: {invalid_brands}"
+        )
+
+    # Resolver mapeamento de/para
+    try:
+        brand_url_map = resolve_category_for_brands(
+            request.category_slug, request.brands
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # Extrair apenas as URLs finais
+    url_map = {bk: info["url"] for bk, info in brand_url_map.items()}
+    category_label = brand_url_map[request.brands[0].lower()]["label"]
+
+    job_id = str(uuid.uuid4())
+    main_loop = asyncio.get_running_loop()
+
+    cancel_event = threading.Event()
+    JOB_CANCEL_FLAGS[job_id] = cancel_event
+
+    # Importar e lançar o orquestrador multi-marca
+    from services.orchestrator_multi import run_multi_orchestrator_sync
+
+    background_tasks.add_task(
+        run_multi_orchestrator_sync,
+        job_id,
+        url_map,
+        category_label,
+        main_loop,
+        cancel_event,
+    )
+
+    return {
+        "job_id": job_id,
+        "message": f"Varredura multi-marca iniciada para '{category_label}'.",
+        "brands": list(url_map.keys()),
+        "urls": url_map,
+    }

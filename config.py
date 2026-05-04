@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     """Configurações carregadas de .env com fallback para defaults."""
 
     # Server
-    APP_HOST: str = "0.0.0.0"
+    APP_HOST: str = "localhost"
     APP_PORT: int = 8000
 
     # VTEX Catalog Cache

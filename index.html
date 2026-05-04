@@ -908,6 +908,216 @@
             padding: 0.6rem 1.4rem;
             font-size: 0.9rem;
         }
+
+        /* ── Multi-Brand Selector ───────────────────────────────────── */
+        .multi-brand-selector {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .brand-checkbox {
+            display: flex !important;
+            margin: 0 !important;
+        }
+
+        .brand-checkbox input[type="checkbox"] {
+            display: none;
+            width: auto;
+        }
+
+        .brand-chip {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1.2rem;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            background: rgba(0, 0, 0, 0.25);
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            user-select: none;
+        }
+
+        .brand-chip:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .brand-checkbox input:checked + .brand-chip {
+            border-color: rgba(255, 255, 255, 0.25);
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-main);
+            box-shadow: 0 0 12px rgba(255, 255, 255, 0.05);
+        }
+
+        .chip-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            opacity: 0.4;
+            transition: opacity 0.3s ease;
+        }
+
+        .brand-checkbox input:checked + .brand-chip .chip-dot {
+            opacity: 1;
+            box-shadow: 0 0 6px currentColor;
+        }
+
+        /* ── De/Para Preview ────────────────────────────────────────── */
+        .depara-preview {
+            margin-top: 1rem;
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 12px;
+            background: rgba(139, 92, 246, 0.05);
+            overflow: hidden;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .depara-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.8rem 1.2rem;
+            background: rgba(139, 92, 246, 0.08);
+            border-bottom: 1px solid rgba(139, 92, 246, 0.15);
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #c084fc;
+        }
+
+        .depara-icon {
+            font-size: 1rem;
+        }
+
+        .depara-mappings {
+            padding: 0.8rem 1.2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .depara-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.85rem;
+            padding: 0.4rem 0;
+        }
+
+        .depara-brand {
+            font-weight: 600;
+            min-width: 100px;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .depara-arrow {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+
+        .depara-url {
+            color: var(--text-muted);
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* ── Multi-Brand Status Badges ─────────────────────────────── */
+        .multi-brand-status {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        .brand-status-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            background: rgba(0, 0, 0, 0.2);
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .brand-status-badge .badge-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .brand-status-badge.running {
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+
+        .brand-status-badge.completed {
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .brand-status-badge.completed .badge-dot {
+            animation: none;
+        }
+
+        .brand-status-badge.errored {
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .brand-status-badge.errored .badge-dot {
+            animation: none;
+        }
+
+        .badge-stats {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+
+        /* ── Console brand colors ──────────────────────────────────── */
+        .console-line.brand-aramis {
+            color: #93c5fd;
+        }
+
+        .console-line.brand-reserva {
+            color: #fca5a5;
+        }
+
+        .console-line.brand-tommy {
+            color: #6ee7b7;
+        }
+
+        .console-line.brand_success {
+            color: #6ee7b7;
+        }
+
+        .console-line.brand_error {
+            color: #fca5a5;
+        }
+
+        .console-line.brand_done {
+            color: #c084fc;
+            font-weight: bold;
+        }
+
+        .console-line.brand_stats {
+            color: #c084fc;
+        }
     </style>
 </head>
 
@@ -988,40 +1198,67 @@
         </div>
     </div>
 
-    <!-- TAB: VARRER CATEGORIA -->
+    <!-- TAB: VARRER CATEGORIA (Multi-Marca) -->
     <div id="tab-category" class="tab-content">
         <div class="container">
             <div class="glass-card">
                 <form id="orchestratorForm">
-                    <!-- Brand selector -->
+                    <!-- Multi-brand checkboxes -->
                     <div class="form-group">
-                        <label for="orchBrand">Marca Concorrente</label>
-                        <select id="orchBrand" required>
-                            <option value="aramis">Aramis</option>
-                            <option value="reserva">Reserva</option>
-                            <option value="tommy">Tommy Hilfiger</option>
+                        <label>Marcas para Varrer</label>
+                        <div class="multi-brand-selector" id="multiBrandSelector">
+                            <label class="brand-checkbox aramis-check">
+                                <input type="checkbox" id="orchChkAramis" value="aramis" checked>
+                                <span class="brand-chip">
+                                    <span class="chip-dot" style="background:#3b82f6;"></span>
+                                    Aramis
+                                </span>
+                            </label>
+                            <label class="brand-checkbox reserva-check">
+                                <input type="checkbox" id="orchChkReserva" value="reserva" checked>
+                                <span class="brand-chip">
+                                    <span class="chip-dot" style="background:#ef4444;"></span>
+                                    Reserva
+                                </span>
+                            </label>
+                            <label class="brand-checkbox tommy-check">
+                                <input type="checkbox" id="orchChkTommy" value="tommy">
+                                <span class="brand-chip">
+                                    <span class="chip-dot" style="background:#10b981;"></span>
+                                    Tommy Hilfiger
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Canonical category selector (multi-brand mode) -->
+                    <div class="form-group" id="canonicalCategoryGroup">
+                        <label for="orchCanonicalCategory">Categoria (De/Para automático)</label>
+                        <div id="canonicalCategorySkeleton" class="category-skeleton"></div>
+                        <select id="orchCanonicalCategory" style="display:none;">
+                            <option value="">Selecione uma categoria...</option>
                         </select>
                     </div>
 
-                    <!-- Dynamic category selector -->
-                    <div class="form-group" id="categoryGroup">
-                        <label for="orchCategory">Categoria</label>
-                        <div id="categorySkeleton" class="category-skeleton"></div>
-                        <select id="orchCategory" style="display:none;" required></select>
+                    <!-- Single-brand dynamic category selector (single-brand mode) -->
+                    <div class="form-group" id="singleBrandCategoryGroup" style="display:none;">
+                        <label for="orchSingleCategory">Categoria</label>
+                        <div id="singleCategorySkeleton" class="category-skeleton" style="display:none;"></div>
+                        <select id="orchSingleCategory" style="display:none;"></select>
                     </div>
 
-                    <!-- Custom URL (optional override) -->
-                    <div class="form-group" id="customUrlGroup" style="display:none;">
-                        <label for="orchCustomUrl">URL Personalizada</label>
-                        <input type="url" id="orchCustomUrl" placeholder="https://www.aramis.com.br/...">
+                    <!-- De/Para Preview Panel (multi-brand only) -->
+                    <div class="depara-preview" id="deparaPreview" style="display:none;">
+                        <div class="depara-header">
+                            <span class="depara-icon">🔗</span>
+                            <span class="depara-title">Mapeamento De/Para</span>
+                        </div>
+                        <div class="depara-mappings" id="deparaMappings"></div>
                     </div>
-                    <button type="button" class="toggle-link" id="toggleCustomUrl" onclick="toggleCustomUrl()">
-                        + Usar URL personalizada
-                    </button>
 
                     <!-- Start button -->
                     <button type="submit" id="orchBtn" style="margin-top:1.2rem;">
-                        <span class="btn-text">🚀 Iniciar Varredura em Lote</span>
+                        <span class="btn-text" id="orchBtnText">🚀 Iniciar Varredura Multi-Marca</span>
                         <div class="spinner"></div>
                     </button>
 
@@ -1055,6 +1292,9 @@
                         <span id="statError">Falhas: 0</span>
                     </div>
                 </div>
+
+                <!-- Multi-brand status badges -->
+                <div class="multi-brand-status" id="multiBrandStatus" style="display:none;"></div>
 
                 <div class="console-feed" id="consoleFeed">
                     <div class="console-line info">> Aguardando inicialização...</div>
@@ -1174,16 +1414,62 @@
             }
         });
 
-        // ── Category Loader ────────────────────────────────────────────────
-        async function loadCategories(brand) {
-            const skeleton = document.getElementById('categorySkeleton');
-            const sel = document.getElementById('orchCategory');
+        // ── Category Mode Controller ────────────────────────────────────────
+        const BRAND_COLORS = {
+            aramis: { color: '#3b82f6', name: 'Aramis' },
+            reserva: { color: '#ef4444', name: 'Reserva' },
+            tommy: { color: '#10b981', name: 'Tommy Hilfiger' },
+        };
+
+        function getSelectedBrands() {
+            const brands = [];
+            if (document.getElementById('orchChkAramis').checked) brands.push('aramis');
+            if (document.getElementById('orchChkReserva').checked) brands.push('reserva');
+            if (document.getElementById('orchChkTommy').checked) brands.push('tommy');
+            return brands;
+        }
+
+        function isMultiMode() { return getSelectedBrands().length > 1; }
+
+        // ── Switch UI between single-brand and multi-brand mode ─────────
+        let _lastSingleBrand = null;
+
+        function switchCategoryMode() {
+            const brands = getSelectedBrands();
+            const multi = brands.length > 1;
+
+            // Toggle category selectors
+            document.getElementById('canonicalCategoryGroup').style.display = multi ? 'block' : 'none';
+            document.getElementById('singleBrandCategoryGroup').style.display = multi ? 'none' : 'block';
+
+            // Toggle de/para preview
+            if (!multi) document.getElementById('deparaPreview').style.display = 'none';
+
+            // Button text
+            document.getElementById('orchBtnText').textContent = multi
+                ? '🚀 Iniciar Varredura Multi-Marca'
+                : '🚀 Iniciar Varredura em Lote';
+
+            // Single-brand: load dynamic categories if brand changed
+            if (!multi && brands.length === 1 && brands[0] !== _lastSingleBrand) {
+                _lastSingleBrand = brands[0];
+                loadSingleBrandCategories(brands[0]);
+            }
+
+            // Multi-brand: update preview
+            if (multi) updateDeparaPreview();
+        }
+
+        // ── Single-Brand Category Loader (VTEX API) ─────────────────────
+        async function loadSingleBrandCategories(brand) {
+            const skeleton = document.getElementById('singleCategorySkeleton');
+            const sel = document.getElementById('orchSingleCategory');
             skeleton.style.display = 'block';
             sel.style.display = 'none';
             sel.innerHTML = '';
             try {
                 const res = await fetch(`/brands/${brand}/categories`);
-                if (!res.ok) throw new Error('Erro ao carregar categorias');
+                if (!res.ok) throw new Error('Erro');
                 const data = await res.json();
                 data.categories.forEach(group => {
                     const og = document.createElement('optgroup');
@@ -1201,29 +1487,76 @@
             } catch (e) {
                 skeleton.style.display = 'none';
                 sel.style.display = 'block';
-                sel.innerHTML = '<option value="">Erro ao carregar — use URL personalizada</option>';
+                sel.innerHTML = '<option value="">Erro ao carregar categorias</option>';
             }
         }
 
-        // Load on brand change
-        document.getElementById('orchBrand').addEventListener('change', e => loadCategories(e.target.value));
-        // Load on page open
-        loadCategories(document.getElementById('orchBrand').value);
-
-        // ── Custom URL toggle ──────────────────────────────────────────────
-        let customUrlVisible = false;
-        function toggleCustomUrl() {
-            customUrlVisible = !customUrlVisible;
-            const group = document.getElementById('customUrlGroup');
-            const btn = document.getElementById('toggleCustomUrl');
-            const catGroup = document.getElementById('categoryGroup');
-            const catSel = document.getElementById('orchCategory');
-            group.style.display = customUrlVisible ? 'block' : 'none';
-            catGroup.style.display = customUrlVisible ? 'none' : 'block';
-            catSel.required = !customUrlVisible;
-            document.getElementById('orchCustomUrl').required = customUrlVisible;
-            btn.textContent = customUrlVisible ? '← Usar seletor de categoria' : '+ Usar URL personalizada';
+        // ── Canonical Category Loader (multi-brand) ─────────────────────
+        async function loadCanonicalCategories() {
+            const skeleton = document.getElementById('canonicalCategorySkeleton');
+            const sel = document.getElementById('orchCanonicalCategory');
+            skeleton.style.display = 'block';
+            sel.style.display = 'none';
+            try {
+                const res = await fetch('/canonical-categories');
+                if (!res.ok) throw new Error('Erro');
+                const data = await res.json();
+                sel.innerHTML = '<option value="">Selecione uma categoria...</option>';
+                data.categories.forEach(group => {
+                    const og = document.createElement('optgroup');
+                    og.label = group.group;
+                    group.categories.forEach(cat => {
+                        const opt = document.createElement('option');
+                        opt.value = cat.slug;
+                        opt.textContent = cat.label;
+                        og.appendChild(opt);
+                    });
+                    sel.appendChild(og);
+                });
+                skeleton.style.display = 'none';
+                sel.style.display = 'block';
+            } catch (e) {
+                skeleton.style.display = 'none';
+                sel.style.display = 'block';
+                sel.innerHTML = '<option value="">Erro ao carregar categorias</option>';
+            }
         }
+
+        // ── De/Para Preview (multi-brand only) ──────────────────────────
+        async function updateDeparaPreview() {
+            const slug = document.getElementById('orchCanonicalCategory').value;
+            const brands = getSelectedBrands();
+            const panel = document.getElementById('deparaPreview');
+            if (!slug || brands.length < 2) { panel.style.display = 'none'; return; }
+            try {
+                const res = await fetch('/category-preview', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ category_slug: slug, brands })
+                });
+                if (!res.ok) { panel.style.display = 'none'; return; }
+                const data = await res.json();
+                document.getElementById('deparaMappings').innerHTML = data.mappings.map(m => {
+                    const bc = BRAND_COLORS[m.brand] || { color: '#94a3b8', name: m.brand };
+                    return `<div class="depara-row">
+                        <span class="depara-brand"><span class="chip-dot" style="background:${bc.color};opacity:1;"></span>${bc.name}</span>
+                        <span class="depara-arrow">→</span>
+                        <span class="depara-url">${m.url}</span>
+                    </div>`;
+                }).join('');
+                panel.style.display = 'block';
+            } catch (e) { panel.style.display = 'none'; }
+        }
+
+        // ── Event Bindings ──────────────────────────────────────────────
+        document.getElementById('orchCanonicalCategory').addEventListener('change', updateDeparaPreview);
+        document.querySelectorAll('#multiBrandSelector input[type="checkbox"]').forEach(cb => {
+            cb.addEventListener('change', switchCategoryMode);
+        });
+
+        // Init on page load
+        loadCanonicalCategories();
+        switchCategoryMode();
 
         // ── Orchestrator State ─────────────────────────────────────────────
         let ws = null;
@@ -1232,13 +1565,15 @@
         let processedLinks = 0;
         let successCount = 0;
         let errorCount = 0;
+        let brandStatusMap = {};
 
-        function logToConsole(message, type = 'info') {
+        function logToConsole(message, type = 'info', brand = null) {
             const feed = document.getElementById('consoleFeed');
             const line = document.createElement('div');
-            line.className = `console-line ${type}`;
-            const timestamp = new Date().toLocaleTimeString();
-            line.textContent = `[${timestamp}] ${message}`;
+            let cls = `console-line ${type}`;
+            if (brand) cls += ` brand-${brand}`;
+            line.className = cls;
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
             feed.appendChild(line);
             feed.scrollTop = feed.scrollHeight;
         }
@@ -1252,113 +1587,168 @@
             document.getElementById('statError').textContent = `Falhas: ${errorCount}`;
         }
 
-        function setJobRunning(running) {
-            const orchBtn = document.getElementById('orchBtn');
-            const cancelBtn = document.getElementById('cancelBtn');
-            orchBtn.classList.toggle('button-loading', running);
-            orchBtn.disabled = running;
-            cancelBtn.classList.toggle('visible', running);
+        function initBrandStatusBadges(brands) {
+            const c = document.getElementById('multiBrandStatus');
+            c.style.display = brands.length > 1 ? 'flex' : 'none';
+            c.innerHTML = '';
+            brandStatusMap = {};
+            brands.forEach(bk => {
+                const bc = BRAND_COLORS[bk] || { color: '#94a3b8', name: bk };
+                brandStatusMap[bk] = { success: 0, error: 0, total: 0 };
+                c.insertAdjacentHTML('beforeend', `
+                    <div class="brand-status-badge running" id="badge-${bk}">
+                        <span class="badge-dot" style="background:${bc.color};"></span>
+                        <span>${bc.name}</span>
+                        <span class="badge-stats" id="badge-stats-${bk}">Varrendo...</span>
+                    </div>`);
+            });
         }
 
-        // ── Cancel ─────────────────────────────────────────────────────────
+        function updateBrandBadge(bk, status, text) {
+            const badge = document.getElementById(`badge-${bk}`);
+            const stats = document.getElementById(`badge-stats-${bk}`);
+            if (badge) badge.className = `brand-status-badge ${status}`;
+            if (stats && text) stats.textContent = text;
+        }
+
+        function setJobRunning(running) {
+            document.getElementById('orchBtn').classList.toggle('button-loading', running);
+            document.getElementById('orchBtn').disabled = running;
+            document.getElementById('cancelBtn').classList.toggle('visible', running);
+        }
+
         async function cancelJob() {
             if (!currentJobId) return;
             const btn = document.getElementById('cancelBtn');
-            btn.classList.add('button-loading');
-            btn.disabled = true;
+            btn.classList.add('button-loading'); btn.disabled = true;
             try {
                 await fetch(`/jobs/${currentJobId}`, { method: 'DELETE' });
-                logToConsole('⏹ Sinal de cancelamento enviado. Aguardando o robô finalizar a tarefa atual...', 'cancelled');
+                logToConsole('⏹ Sinal de cancelamento enviado...', 'cancelled');
             } catch (e) {
                 logToConsole('Erro ao cancelar: ' + e.message, 'error');
-                btn.classList.remove('button-loading');
-                btn.disabled = false;
+                btn.classList.remove('button-loading'); btn.disabled = false;
             }
         }
 
-        // ── Form Submit ────────────────────────────────────────────────────
-        document.getElementById('orchestratorForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const brand = document.getElementById('orchBrand').value;
+        // ── WebSocket message handler (shared) ──────────────────────────
+        function handleWsMessage(msg) {
+            const brand = msg.brand || null;
 
-            // Build payload
-            let payload = { brand };
-            if (customUrlVisible) {
-                const cu = document.getElementById('orchCustomUrl').value.trim();
-                if (!cu) { alert('Informe a URL personalizada.'); return; }
-                payload.custom_url = cu;
-            } else {
-                const path = document.getElementById('orchCategory').value;
-                if (!path) { alert('Selecione uma categoria.'); return; }
-                payload.category_path = path;
+            if (msg.type === 'brand_stats' && brand && brandStatusMap[brand]) {
+                brandStatusMap[brand].total = msg.total_links;
+                totalLinks += msg.total_links;
+                updateProgress();
+                updateBrandBadge(brand, 'running', `0/${msg.total_links}`);
+            }
+            if (msg.type === 'stats' && msg.total_links) { totalLinks = msg.total_links; updateProgress(); }
+
+            if (msg.type === 'brand_success' && brand) {
+                processedLinks++; successCount++;
+                if (brandStatusMap[brand]) {
+                    brandStatusMap[brand].success++;
+                    const bs = brandStatusMap[brand];
+                    updateBrandBadge(brand, 'running', `${bs.success + bs.error}/${bs.total}`);
+                }
+                updateProgress();
+            }
+            if (msg.type === 'success') { processedLinks++; successCount++; updateProgress(); }
+
+            if (msg.type === 'brand_error' && brand) {
+                processedLinks++; errorCount++;
+                if (brandStatusMap[brand]) {
+                    brandStatusMap[brand].error++;
+                    const bs = brandStatusMap[brand];
+                    updateBrandBadge(brand, 'running', `${bs.success + bs.error}/${bs.total}`);
+                }
+                updateProgress();
+            }
+            if (msg.type === 'error' && msg.message && msg.message.includes('Extração')) {
+                processedLinks++; errorCount++; updateProgress();
             }
 
+            if (msg.type === 'brand_done' && brand && brandStatusMap[brand]) {
+                updateBrandBadge(brand, 'completed', `✓ ${msg.success_count} produtos`);
+            }
+
+            if (msg.type === 'done' || msg.type === 'cancelled_done') {
+                const cancelled = msg.type === 'cancelled_done';
+                logToConsole(msg.message, cancelled ? 'cancelled' : 'stats');
+                document.getElementById('downloadMsg').innerHTML = cancelled
+                    ? '⚠️ Operação cancelada — dados parciais disponíveis.'
+                    : `✅ Extração concluída! ${msg.valid_products || ''} produtos.`;
+                document.getElementById('downloadMsg').style.color = cancelled ? 'var(--warning)' : 'var(--success)';
+                document.getElementById('downloadArea').style.display = 'block';
+                window.lastOutputFile = msg.output_file;
+                setJobRunning(false);
+                document.getElementById('cancelBtn').classList.remove('button-loading');
+                document.getElementById('cancelBtn').disabled = false;
+                currentJobId = null;
+                if (ws) ws.close();
+                return;
+            }
+
+            if (msg.type === 'cancelled') {
+                logToConsole(msg.message, 'cancelled');
+                setJobRunning(false);
+                document.getElementById('cancelBtn').classList.remove('button-loading');
+                document.getElementById('cancelBtn').disabled = false;
+                currentJobId = null;
+                if (ws) ws.close();
+                return;
+            }
+
+            logToConsole(msg.message || JSON.stringify(msg), msg.type || 'info', brand);
+        }
+
+        // ── Form Submit (Smart: single or multi) ────────────────────────
+        document.getElementById('orchestratorForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const brands = getSelectedBrands();
+            if (brands.length === 0) { alert('Selecione ao menos uma marca.'); return; }
+
+            const multi = brands.length > 1;
+            let endpoint, payload;
+
+            if (multi) {
+                const slug = document.getElementById('orchCanonicalCategory').value;
+                if (!slug) { alert('Selecione uma categoria.'); return; }
+                endpoint = '/scrape-category-multi';
+                payload = { brands, category_slug: slug };
+            } else {
+                const path = document.getElementById('orchSingleCategory').value;
+                if (!path) { alert('Selecione uma categoria.'); return; }
+                endpoint = '/scrape-category';
+                payload = { brand: brands[0], category_path: path };
+            }
+
+            // Reset UI
             document.getElementById('downloadArea').style.display = 'none';
             document.getElementById('consoleFeed').innerHTML = '';
             totalLinks = 0; processedLinks = 0; successCount = 0; errorCount = 0;
             document.getElementById('progressContainer').style.display = 'block';
             updateProgress();
             setJobRunning(true);
-            logToConsole('Enviando requisição de job para o servidor...', 'info');
+            initBrandStatusBadges(brands);
+            logToConsole(`Iniciando varredura: [${brands.join(', ')}]`, 'info');
 
             try {
-                const res = await fetch('/scrape-category', {
+                const res = await fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-                if (!res.ok) throw new Error(await res.text());
-
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({ detail: 'Erro desconhecido' }));
+                    throw new Error(err.detail || `HTTP ${res.status}`);
+                }
                 const data = await res.json();
                 currentJobId = data.job_id;
-                logToConsole(`Job ${currentJobId} iniciado. URL: ${data.url}`, 'info');
-                logToConsole('Conectando via WebSocket...', 'info');
+                logToConsole(`Job ${currentJobId} iniciado.`, 'info');
 
                 const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
                 ws = new WebSocket(`${protocol}//${location.host}/ws/${currentJobId}`);
-
-                ws.onmessage = (event) => {
-                    const msg = JSON.parse(event.data);
-
-                    if (msg.type === 'stats') { totalLinks = msg.total_links; updateProgress(); }
-                    if (msg.type === 'success') { processedLinks++; successCount++; updateProgress(); }
-                    if (msg.type === 'error' && msg.message && msg.message.includes('Extração')) { processedLinks++; errorCount++; updateProgress(); }
-
-                    if (msg.type === 'done' || msg.type === 'cancelled_done') {
-                        const isCancelled = msg.type === 'cancelled_done';
-                        logToConsole(msg.message, isCancelled ? 'cancelled' : 'stats');
-                        document.getElementById('downloadMsg').innerHTML = isCancelled
-                            ? '⚠️ Operação cancelada — dados parciais disponíveis para download.'
-                            : '✅ Extração concluída com sucesso!';
-                        document.getElementById('downloadMsg').style.color = isCancelled ? 'var(--warning)' : 'var(--success)';
-                        document.getElementById('downloadArea').style.display = 'block';
-                        window.lastOutputFile = msg.output_file;
-                        setJobRunning(false);
-                        document.getElementById('cancelBtn').classList.remove('button-loading');
-                        document.getElementById('cancelBtn').disabled = false;
-                        currentJobId = null;
-                        if (ws) ws.close();
-                        return;
-                    }
-
-                    if (msg.type === 'cancelled') {
-                        logToConsole(msg.message, 'cancelled');
-                        setJobRunning(false);
-                        document.getElementById('cancelBtn').classList.remove('button-loading');
-                        document.getElementById('cancelBtn').disabled = false;
-                        currentJobId = null;
-                        if (ws) ws.close();
-                        return;
-                    }
-
-                    logToConsole(msg.message || JSON.stringify(msg), msg.type || 'info');
-                };
-
-                ws.onerror = () => {
-                    logToConsole('Erro na conexão WebSocket.', 'error');
-                    setJobRunning(false);
-                };
-
+                ws.onmessage = (event) => handleWsMessage(JSON.parse(event.data));
+                ws.onerror = () => { logToConsole('Erro WebSocket.', 'error'); setJobRunning(false); };
             } catch (err) {
                 logToConsole(`Erro: ${err.message}`, 'error');
                 setJobRunning(false);
@@ -1366,11 +1756,8 @@
         });
 
         function downloadFile() {
-            if (window.lastOutputFile) {
-                window.location.href = '/' + window.lastOutputFile;
-            } else {
-                alert('Nenhum arquivo gerado.');
-            }
+            if (window.lastOutputFile) window.location.href = '/' + window.lastOutputFile;
+            else alert('Nenhum arquivo gerado.');
         }
 
         // ================================================================
