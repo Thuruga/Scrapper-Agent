@@ -21,9 +21,8 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 from config import settings, BRAND_REGISTRY
-import aiohttp
-from config import BRAND_REGISTRY
-from services.vtex_extractor import extrair_pagina_categoria
+from crawler import varrer_categoria_vtex
+from scrapers import get_scraper
 
 logger = logging.getLogger("OrchestratorMulti")
 
@@ -54,7 +53,7 @@ async def _run_brand_pipeline(
     log_callback: Optional[Callable] = None,
 ) -> BrandJobResult:
     """
-    Pipeline completo para uma marca: extração paginada da API VTEX.
+    Pipeline completo para uma marca: crawl → scrape → retorna produtos.
     """
     brand_info = BRAND_REGISTRY.get(brand_key, {})
     brand_name = brand_info.get("name", brand_key.title())
@@ -70,31 +69,74 @@ async def _run_brand_pipeline(
     def is_cancelled() -> bool:
         return cancel_event.is_set()
 
-    emit({"type": "info", "message": f"[{brand_name}] Iniciando extração rápida API: {url}"})
+    # ── Carregar scraper ───────────────────────────────────────────────
+    try:
+        scraper_module = get_scraper(brand_key)
+    except ValueError as e:
+        result.error_message = str(e)
+        result.finished = True
+        emit({"type": "error", "message": f"[{brand_name}] {e}"})
+        return result
 
-    pagina = 1
-    
-    async with aiohttp.ClientSession() as session:
-        while True:
+    # ── ETAPA 1: VARREDURA ─────────────────────────────────────────────
+    emit({"type": "info", "message": f"[{brand_name}] Iniciando varredura: {url}"})
+
+    links = await varrer_categoria_vtex(
+        url,
+        log_callback=lambda msg: emit(
+            msg if isinstance(msg, dict) else {"type": "info", "message": f"[{brand_name}] {msg}"}
+        ),
+        cancel_event=cancel_event,
+    )
+
+    if is_cancelled():
+        emit({"type": "cancelled", "message": f"[{brand_name}] Varredura cancelada."})
+        result.finished = True
+        return result
+
+    if not links:
+        emit({"type": "error", "message": f"[{brand_name}] Nenhum link encontrado."})
+        result.finished = True
+        return result
+
+    result.total_links = len(links)
+    emit({
+        "type": "brand_stats",
+        "total_links": len(links),
+        "message": f"[{brand_name}] {len(links)} links encontrados. Iniciando extração...",
+    })
+
+    # ── ETAPA 2: EXTRAÇÃO ──────────────────────────────────────────────
+    semaforo = asyncio.Semaphore(settings.MAX_CONCURRENCY)
+
+    async def extract_one(link: str):
+        if is_cancelled():
+            return None
+        async with semaforo:
             if is_cancelled():
-                emit({"type": "cancelled", "message": f"[{brand_name}] Operação interrompida."})
-                break
+                return None
+            emit({"type": "info", "message": f"[{brand_name}] Extraindo: {link}"})
+            try:
+                produto = await scraper_module.scrape_competitor_product(link, brand_key)
+                await asyncio.sleep(settings.SCRAPER_DELAY_SECONDS)
+                if produto:
+                    result.success_count += 1
+                    emit({"type": "brand_success", "message": f"[{brand_name}] ✓ {produto.raw_title}"})
+                else:
+                    result.error_count += 1
+                    emit({"type": "brand_error", "message": f"[{brand_name}] ✗ Falha: {link}"})
+                return produto
+            except asyncio.CancelledError:
+                return None
+            except Exception as e:
+                result.error_count += 1
+                emit({"type": "brand_error", "message": f"[{brand_name}] ✗ Erro: {e}"})
+                return None
 
-            emit({"type": "info", "message": f"[{brand_name}] A extrair Página {pagina}..."})
-            
-            produtos_pagina = await extrair_pagina_categoria(session, url, brand_name, pagina)
+    tasks = [extract_one(link) for link in links]
+    resultados_brutos = await asyncio.gather(*tasks)
 
-            if not produtos_pagina:
-                emit({"type": "info", "message": f"[{brand_name}] Fim da categoria alcançado na página {pagina}."})
-                break
-
-            result.products.extend(produtos_pagina)
-            result.success_count += len(produtos_pagina)
-            
-            emit({"type": "brand_success", "message": f"[{brand_name}] Página {pagina} concluída. +{len(produtos_pagina)} produtos."})
-            
-            pagina += 1
-
+    result.products = [r for r in resultados_brutos if r is not None]
     result.finished = True
 
     emit({
