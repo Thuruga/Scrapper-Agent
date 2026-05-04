@@ -283,7 +283,7 @@ def run_multi_orchestrator_sync(
             ),
         })
     else:
-        msg_type = "cancelled" if is_cancelled else "error"
+        msg_type = "cancelled" if is_cancelled else "error_done"
         log_callback({
             "type": msg_type,
             "message": (

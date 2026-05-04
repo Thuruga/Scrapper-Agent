@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Intelligence Scraper - Camada Bronze</title>
+    <title>E-Scraper</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -809,14 +809,15 @@
             gap: 0.3rem;
             margin-bottom: 0.4rem;
             font-size: 0.8rem;
-            color: #fbbf24; /* yellow-400 */
+            color: #fbbf24;
+            /* yellow-400 */
         }
-        
+
         .rating-stars {
             display: flex;
             gap: 1px;
         }
-        
+
         .rating-count {
             color: var(--text-muted);
             font-size: 0.75rem;
@@ -947,7 +948,7 @@
             background: rgba(255, 255, 255, 0.05);
         }
 
-        .brand-checkbox input:checked + .brand-chip {
+        .brand-checkbox input:checked+.brand-chip {
             border-color: rgba(255, 255, 255, 0.25);
             background: rgba(255, 255, 255, 0.08);
             color: var(--text-main);
@@ -963,7 +964,7 @@
             transition: opacity 0.3s ease;
         }
 
-        .brand-checkbox input:checked + .brand-chip .chip-dot {
+        .brand-checkbox input:checked+.brand-chip .chip-dot {
             opacity: 1;
             box-shadow: 0 0 6px currentColor;
         }
@@ -1060,8 +1061,15 @@
         }
 
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
         }
 
         .brand-status-badge.running {
@@ -1124,8 +1132,8 @@
 <body>
 
     <header>
-        <h1>Intelligence Scraper</h1>
-        <p class="subtitle">Extrator Automático de Dados - Camada Bronze</p>
+        <h1>E-Scraper</h1>
+        <p class="subtitle">Extrator de Dados de E-commerce</p>
     </header>
 
     <div class="tabs">
@@ -1387,14 +1395,14 @@
                 document.getElementById('singleSubcategory').textContent = data.sub_category || 'Sem Subcategoria';
                 document.getElementById('singleComposition').textContent = data.composition || 'Não informada';
                 document.getElementById('singlePrice').textContent = `R$ ${data.price_full}`;
-                
+
                 // Show Rating if available
                 const ratingRow = document.getElementById('singleRatingRow');
                 if (data.rating) {
                     ratingRow.style.display = 'flex';
                     document.getElementById('singleRatingValue').textContent = data.rating.toFixed(1);
                     document.getElementById('singleReviewCount').textContent = `(${data.review_count} avaliações)`;
-                    
+
                     let starsHtml = '';
                     for (let i = 1; i <= 5; i++) {
                         starsHtml += i <= Math.round(data.rating) ? '★' : '☆';
@@ -1622,11 +1630,19 @@
             const btn = document.getElementById('cancelBtn');
             btn.classList.add('button-loading'); btn.disabled = true;
             try {
-                await fetch(`/jobs/${currentJobId}`, { method: 'DELETE' });
+                const res = await fetch(`/jobs/${currentJobId}`, { method: 'DELETE' });
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    throw new Error(data.detail || `Erro ${res.status}`);
+                }
                 logToConsole('⏹ Sinal de cancelamento enviado...', 'cancelled');
             } catch (e) {
                 logToConsole('Erro ao cancelar: ' + e.message, 'error');
                 btn.classList.remove('button-loading'); btn.disabled = false;
+                if (e.message.includes('404')) {
+                    setJobRunning(false);
+                    currentJobId = null;
+                }
             }
         }
 
@@ -1687,8 +1703,8 @@
                 return;
             }
 
-            if (msg.type === 'cancelled') {
-                logToConsole(msg.message, 'cancelled');
+            if (msg.type === 'cancelled' || msg.type === 'error_done') {
+                logToConsole(msg.message, msg.type === 'error_done' ? 'error' : 'cancelled');
                 setJobRunning(false);
                 document.getElementById('cancelBtn').classList.remove('button-loading');
                 document.getElementById('cancelBtn').disabled = false;
@@ -1844,7 +1860,7 @@
                 ? `<div class="product-category">${product.category}</div>`
                 : '';
 
-            const ratingHtml = product.rating 
+            const ratingHtml = product.rating
                 ? `<div class="rating-row">
                     <div class="rating-stars">${buildStars(product.rating)}</div>
                     <span style="font-weight:600;">${product.rating.toFixed(1)}</span>

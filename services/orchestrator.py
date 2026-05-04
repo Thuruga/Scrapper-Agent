@@ -76,7 +76,7 @@ async def run_orchestrator(
     try:
         scraper_module = get_scraper(marca)
     except ValueError as e:
-        emit_log({"type": "error", "message": str(e)})
+        emit_log({"type": "error_done", "message": str(e)})
         return
 
     # Nome do módulo para arquivo de saída
@@ -99,7 +99,7 @@ async def run_orchestrator(
         return
 
     if not links:
-        emit_log({"type": "error", "message": "Nenhum link encontrado. Abortando operação."})
+        emit_log({"type": "error_done", "message": "Nenhum link encontrado. Abortando operação."})
         return
 
     emit_log("\n==================================================")
@@ -162,7 +162,7 @@ async def run_orchestrator(
         if is_cancelled():
             emit_log({"type": "cancelled", "message": "Operação cancelada. Nenhum produto foi coletado."})
         else:
-            emit_log({"type": "error", "message": "Nenhum produto válido extraído."})
+            emit_log({"type": "error_done", "message": "Nenhum produto válido extraído."})
 
     emit_log("Pipeline de Camada Bronze concluído.")
 

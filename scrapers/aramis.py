@@ -4,14 +4,24 @@ from typing import Optional, Dict, Callable
 from playwright.async_api import async_playwright
 from core.models import RawProductBronze
 from services.review_service import get_single_review
+from services.vtex_extractor import (
+    extract_colors,
+    extract_color_family,
+    extract_sizes,
+    extract_prices,
+    extract_stock,
+    extract_category,
+    extract_specifications,
+    extract_composition,
+)
 
 # ---------------------------------------------------------
 # Configuração Profissional de Log
 # ---------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger("ScraperAramis")
 
@@ -24,6 +34,7 @@ def retry_async(retries: int = 3, delay: int = 3):
     Decorador para lidar com instabilidades de rede e timeouts de renderização.
     Tenta executar a função e, em caso de exceção, aguarda e tenta de novo.
     """
+
     def decorator(func: Callable):
         async def wrapper(*args, **kwargs):
             last_exception = None
@@ -36,9 +47,13 @@ def retry_async(retries: int = 3, delay: int = 3):
                     if attempt < retries:
                         logger.info(f"Aguardando {delay}s para nova tentativa...")
                         await asyncio.sleep(delay)
-            logger.error(f"Todas as {retries} tentativas falharam. Último erro: {last_exception}")
+            logger.error(
+                f"Todas as {retries} tentativas falharam. Último erro: {last_exception}"
+            )
             return None
+
         return wrapper
+
     return decorator
 
 
@@ -46,7 +61,9 @@ def retry_async(retries: int = 3, delay: int = 3):
 # O Motor do Scraper (Playwright)
 # ---------------------------------------------------------
 @retry_async(retries=3, delay=5)
-async def scrape_competitor_product(product_url: str, brand_name: str) -> Optional[RawProductBronze]:
+async def scrape_competitor_product(
+    product_url: str, brand_name: str
+) -> Optional[RawProductBronze]:
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context(
@@ -57,9 +74,12 @@ async def scrape_competitor_product(product_url: str, brand_name: str) -> Option
         # OTIMIZAÇÃO: Bloqueia recursos visuais para extremar a performance
         await page.route(
             "**/*",
-            lambda route: route.abort()
-            if route.request.resource_type in ["image", "stylesheet", "font", "media"]
-            else route.continue_()
+            lambda route: (
+                route.abort()
+                if route.request.resource_type
+                in ["image", "stylesheet", "font", "media"]
+                else route.continue_()
+            ),
         )
 
         intercepted_api_data = None
@@ -69,7 +89,7 @@ async def scrape_competitor_product(product_url: str, brand_name: str) -> Option
             nonlocal intercepted_api_data
             if intercepted_api_data:
                 return
-            
+
             # Filtra apenas chamadas relevantes ao GraphQL da VTEX public api
             if "graphql" in response.url.lower():
                 try:
@@ -91,7 +111,7 @@ async def scrape_competitor_product(product_url: str, brand_name: str) -> Option
         try:
             logger.info(f"Acessando URL: {product_url}")
             await page.goto(product_url, wait_until="domcontentloaded", timeout=30000)
-            
+
             # Pequeno tempo extra para queries de graphql assíncronas
             await page.wait_for_timeout(2500)
 
@@ -100,7 +120,9 @@ async def scrape_competitor_product(product_url: str, brand_name: str) -> Option
                 spec_buttons = await page.locator("text='Especificações'").all()
                 for btn in spec_buttons:
                     if await btn.is_visible():
-                        logger.info("Forçando o carregamento das especificações no DOM...")
+                        logger.info(
+                            "Forçando o carregamento das especificações no DOM..."
+                        )
                         await btn.click(timeout=1500)
                         await page.wait_for_timeout(1000)
                         break
@@ -216,47 +238,66 @@ async def scrape_competitor_product(product_url: str, brand_name: str) -> Option
                 };
             }""")
 
-            # Integra as informações se a API pegou algo mas o React State pegou mais coisas (Ex: Descrição ou Preço)
             if intercepted_api_data:
                 api_name = intercepted_api_data.get("productName", "")
                 api_desc = intercepted_api_data.get("description", "")
-                
-                # Trata as propriedades (Composição, Gênero, etc) vindo da API
-                api_specs = {}
-                for prop in intercepted_api_data.get("properties", []):
-                    if prop.get("name") and prop.get("values"):
-                        api_specs[prop["name"]] = prop["values"][0]
-                
+
+                # Extração centralizada via vtex_extractor
+                api_specs = extract_specifications(intercepted_api_data)
+
+                # Mantém tamanhos extraídos do DOM (mais confiáveis para Aramis via __STATE__)
                 if "Tamanhos" in dom_data["specs"]:
                     api_specs["Tamanhos"] = dom_data["specs"]["Tamanhos"]
 
-                # Extrair composição das specs
                 merged_specs = {**dom_data["specs"], **api_specs}
-                composition = merged_specs.get("Composição") or merged_specs.get("Material")
-                
-                product_id_str = str(intercepted_api_data.get("productId") or dom_data.get("productId") or "")
+                composition = extract_composition(merged_specs)
+
+                # Cores e tamanhos via serviço centralizado
+                colors = extract_colors(intercepted_api_data)
+                sizes = extract_sizes(intercepted_api_data.get("items", []))
+
+                # Enriquecimento de família de cores (cross-selling)
+                product_id_str = str(
+                    intercepted_api_data.get("productId")
+                    or dom_data.get("productId")
+                    or ""
+                )
+                product_ref = intercepted_api_data.get("productReference", "")
+                color_family = extract_color_family(
+                    product_ref, product_id_str, "www.aramis.com.br"
+                )
+                all_colors = sorted(set(colors + color_family))
+
                 rating, count = await get_single_review("aramis", product_id_str)
-                
+
                 # Merge entre dados da API interceptada e do DOM/React State
                 product_data = RawProductBronze(
                     url=product_url,
                     brand=brand_name,
                     raw_title=api_name if api_name else dom_data["productName"],
                     raw_description=api_desc if api_desc else dom_data["description"],
-                    price_full=dom_data["price"], # DOM Price Costuma ser mais preciso nas ofertas
+                    price_full=dom_data["price"],  # DOM Price é mais preciso nas ofertas
                     category=dom_data["category"],
                     sub_category=dom_data["sub_category"],
                     composition=composition,
+                    available_colors=all_colors,
+                    available_sizes=sizes,
                     rating=rating,
                     review_count=count,
-                    specifications=merged_specs, # Junta as duas fontes
+                    specifications=merged_specs,
                 )
             else:
-                composition = dom_data["specs"].get("Composição") or dom_data["specs"].get("Material")
-                
+                merged_specs = dom_data["specs"]
+                composition = extract_composition(merged_specs)
+                sizes_dom = [
+                    s.strip()
+                    for s in merged_specs.get("Tamanhos", "").split(",")
+                    if s.strip()
+                ]
+
                 product_id_str = str(dom_data.get("productId") or "")
                 rating, count = await get_single_review("aramis", product_id_str)
-                
+
                 product_data = RawProductBronze(
                     url=product_url,
                     brand=brand_name,
@@ -266,9 +307,11 @@ async def scrape_competitor_product(product_url: str, brand_name: str) -> Option
                     category=dom_data["category"],
                     sub_category=dom_data["sub_category"],
                     composition=composition,
+                    available_colors=[],
+                    available_sizes=sizes_dom,
                     rating=rating,
                     review_count=count,
-                    specifications=dom_data["specs"],
+                    specifications=merged_specs,
                 )
 
             logger.info("Extração concluída com sucesso.")
@@ -284,7 +327,7 @@ async def scrape_competitor_product(product_url: str, brand_name: str) -> Option
 async def main():
     url_teste = "https://www.aramis.com.br/polo-manga-curta-pima-performing-marinho-po-12-0014-010/p"
     logger.info("Iniciando rotina de scraping do produto teste...")
-    
+
     resultado = await scrape_competitor_product(url_teste, "Aramis")
 
     if resultado:

@@ -4,6 +4,13 @@ from playwright.async_api import async_playwright
 from typing import Optional, Dict
 from core.models import RawProductBronze
 from services.review_service import get_single_review
+from services.vtex_extractor import (
+    extract_colors,
+    extract_sizes,
+    extract_specifications,
+    extract_composition,
+    extract_category,
+)
 
 
 # ---------------------------------------------------------
@@ -98,30 +105,16 @@ async def scrape_competitor_product(
                         .get("Price", 0.0)
                     )
 
-                    specs_dict = {}
-                    if "allSpecifications" in intercepted_api_data:
-                        for k in intercepted_api_data["allSpecifications"]:
-                            v = intercepted_api_data.get(k, [])
-                            specs_dict[k] = v[0] if isinstance(v, list) else str(v)
+                    # Extração centralizada via vtex_extractor
+                    specs_dict = extract_specifications(intercepted_api_data)
+                    composition = extract_composition(specs_dict)
+                    colors = extract_colors(intercepted_api_data)
+                    sizes = extract_sizes(intercepted_api_data.get("items", []))
 
-                    tamanhos = []
-                    for sku in intercepted_api_data.get("items", []):
-                        if sku.get("name") and sku.get("name") not in tamanhos:
-                            tamanhos.append(sku.get("name"))
-                    if tamanhos:
-                        specs_dict["Tamanhos"] = ", ".join(tamanhos)
+                    cat_principal, sub_cat = extract_category(
+                        intercepted_api_data.get("categories", [])
+                    )
 
-                    cat_array = intercepted_api_data.get("categories", [])
-                    category, sub_category = None, None
-                    if cat_array:
-                        parts = [p for p in cat_array[0].split("/") if p]
-                        if len(parts) >= 1:
-                            category = parts[0]
-                        if len(parts) >= 2:
-                            sub_category = parts[1]
-
-                    composition = specs_dict.get("Composição") or specs_dict.get("Material")
-                    
                     product_id_str = str(intercepted_api_data.get("productId", ""))
                     rating, count = await get_single_review("tommy", product_id_str)
 
@@ -135,9 +128,11 @@ async def scrape_competitor_product(
                         price_full=float(preco_venda),
                         stock_availability=True,
                         specifications=specs_dict,
-                        category=category,
-                        sub_category=sub_category,
+                        category=cat_principal,
+                        sub_category=sub_cat,
                         composition=composition,
+                        available_colors=colors,
+                        available_sizes=sizes,
                         rating=rating,
                         review_count=count
                     )
@@ -249,6 +244,11 @@ async def scrape_competitor_product(
                 }""")
 
                 comp = dom_specs.get('Composição') or dom_specs.get('Material')
+                sizes_dom = [
+                    s.strip()
+                    for s in dom_specs.get("Tamanhos", "").split(",")
+                    if s.strip()
+                ]
 
                 if product_data:
                     product_data.specifications.update(dom_specs)
@@ -263,6 +263,8 @@ async def scrape_competitor_product(
                         product_data.sub_category = dom_category['sub_category']
                     if not product_data.composition:
                         product_data.composition = comp
+                    if not product_data.available_sizes:
+                        product_data.available_sizes = sizes_dom
                     if not product_data.rating:
                         product_data.rating = rating
                         product_data.review_count = count
@@ -279,6 +281,8 @@ async def scrape_competitor_product(
                         category=dom_category['category'],
                         sub_category=dom_category['sub_category'],
                         composition=comp,
+                        available_colors=[],
+                        available_sizes=sizes_dom,
                         rating=rating,
                         review_count=count
                     )
