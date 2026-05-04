@@ -20,7 +20,8 @@ class RawProductBronze(BaseModel):
     raw_description: str
     price_full: float
     price_discount: Optional[float] = None
-    stock_availability: Optional[bool] = None
+    stock_availability: bool
+    stock_quantity: int = 0
     category: Optional[str] = None
     sub_category: Optional[str] = None
     composition: Optional[str] = None

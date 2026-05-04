@@ -23,8 +23,11 @@ from __future__ import annotations
 
 import logging
 from typing import Dict, List, Optional, Tuple
+from urllib.parse import urlparse
 
+import aiohttp
 import requests
+from core.models import RawProductBronze
 
 logger = logging.getLogger("VTEXExtractor")
 
@@ -440,3 +443,152 @@ def extract_composition(specs: Dict[str, str]) -> Optional[str]:
         if value:
             return value
     return None
+
+
+# ---------------------------------------------------------------------------
+# Motor de Extração Assíncrono (aiohttp)
+# ---------------------------------------------------------------------------
+
+async def buscar_familia_de_cores_async(
+    session: aiohttp.ClientSession,
+    product_reference: str,
+    product_id: str,
+    domain: str,
+) -> List[str]:
+    """
+    Versão assíncrona da busca de cores 'irmãs' de um produto.
+    """
+    cores_familia: set[str] = set()
+
+    # Estratégia 1: API de Cross-Selling
+    if product_id:
+        try:
+            url_similares = (
+                f"https://{domain}/api/catalog_system/pub/products/crossselling/similars/{product_id}"
+            )
+            async with session.get(url_similares, timeout=5) as res_sim:
+                if res_sim.status == 200:
+                    dados = await res_sim.json()
+                    for prod in dados:
+                        for field_name in COLOR_FIELD_NAMES:
+                            raw = prod.get(field_name)
+                            if isinstance(raw, list) and raw:
+                                cores_familia.add(raw[0].strip().upper())
+                                break
+                            elif isinstance(raw, str) and raw:
+                                cores_familia.add(raw.strip().upper())
+                                break
+                        # Busca em itens
+                        for item in prod.get("items", []):
+                            for field_name in COLOR_FIELD_NAMES:
+                                raw = item.get(field_name)
+                                if isinstance(raw, list) and raw:
+                                    cores_familia.add(raw[0].strip().upper())
+                                    break
+                                elif isinstance(raw, str) and raw:
+                                    cores_familia.add(raw.strip().upper())
+                                    break
+        except Exception:
+            pass
+
+    # Estratégia 2: Busca por Raiz
+    if not cores_familia and product_reference:
+        referencia_raiz = _derive_reference_root(product_reference)
+        if referencia_raiz:
+            try:
+                url_busca = (
+                    f"https://{domain}/api/io/_v/api/intelligent-search/product_search?query={referencia_raiz}"
+                )
+                async with session.get(url_busca, timeout=5) as res_busca:
+                    if res_busca.status == 200:
+                        dados = await res_busca.json()
+                        for prod in dados.get("products", []):
+                            for cor in extract_colors(prod):
+                                cores_familia.add(cor)
+            except Exception:
+                pass
+
+    return sorted(cores_familia)
+
+
+async def extrair_pagina_categoria(
+    session: aiohttp.ClientSession,
+    url_categoria: str,
+    marca: str,
+    pagina: int,
+) -> List[RawProductBronze]:
+    """
+    Busca uma página inteira de categoria via API de forma assíncrona.
+    Converte a URL amigável na query string map=c,c nativa da VTEX.
+    
+    Ex: /roupas/polos -> query=roupas/polos & map=c,c
+    """
+    parsed_url = urlparse(url_categoria)
+    dominio = parsed_url.netloc
+    
+    # Monta a query e o map com base no caminho da URL
+    caminho = parsed_url.path.strip('/')
+    termos = caminho.split('/')
+    map_str = ",".join(["c"] * len(termos))
+    query_str = "/".join(termos)
+
+    url_api = f"https://{dominio}/api/io/_v/api/intelligent-search/product_search?query={query_str}&map={map_str}&page={pagina}"
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0",
+        "Accept": "application/json",
+    }
+
+    try:
+        async with session.get(url_api, headers=headers, timeout=15) as resposta:
+            if resposta.status != 200:
+                return []
+            dados = await resposta.json()
+
+        produtos_extraidos = []
+        for p in dados.get("products", []):
+            # Modularidade via funções pure python
+            cores = extract_colors(p)
+            cores_irmas = await buscar_familia_de_cores_async(
+                session,
+                p.get("productReference", ""),
+                p.get("productId", ""),
+                dominio
+            )
+            lista_final_cores = sorted(set(cores + cores_irmas))
+            
+            cat_principal, sub_cat = extract_category(p.get("categories", []))
+            
+            specs_dict = extract_specifications(p)
+            composicao = extract_composition(specs_dict)
+            
+            tamanhos_disponiveis = extract_sizes(p.get("items", []))
+            preco_full, preco_discount = extract_prices(p.get("items", []))
+            estoque_total = extract_stock(p.get("items", []))
+
+            # Ajusta o fallback para price_full para que não seja 0 se possível
+            if preco_full == 0.0 and preco_discount is not None:
+                preco_full = preco_discount
+
+            produto_bronze = RawProductBronze(
+                url=f"https://{dominio}/{p.get('linkText')}/p",
+                brand=marca,
+                raw_title=p.get("productName", ""),
+                raw_description=p.get("description", "Sem descrição"),
+                price_full=preco_full,
+                price_discount=preco_discount,
+                stock_availability=(estoque_total > 0),
+                stock_quantity=estoque_total,
+                category=cat_principal,
+                sub_category=sub_cat,
+                composition=composicao,
+                available_colors=lista_final_cores,
+                available_sizes=tamanhos_disponiveis,
+                specifications=specs_dict,
+            )
+            produtos_extraidos.append(produto_bronze)
+
+        return produtos_extraidos
+    except Exception as e:
+        logger.error(f"Erro no extrator assíncrono VTEX: {e}")
+        return []
