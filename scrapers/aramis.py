@@ -3,6 +3,7 @@ import logging
 from typing import Optional, Dict, Callable
 from playwright.async_api import async_playwright
 from core.models import RawProductBronze
+from services.review_service import get_single_review
 
 # ---------------------------------------------------------
 # Configuração Profissional de Log
@@ -122,6 +123,7 @@ async def scrape_competitor_product(product_url: str, brand_name: str) -> Option
                 let productName = "";
                 let description = "";
                 let price = 0.0;
+                let productId = null;
                 
                 let state = window.__STATE__ || {};
                 
@@ -149,10 +151,11 @@ async def scrape_competitor_product(product_url: str, brand_name: str) -> Option
                         }
                     }
 
-                    // 2. Título e Descrição
+                    // 2. Título, Descrição e ID
                     if (type === 'Product') {
                         if (obj.productName && !productName) productName = obj.productName;
                         if (obj.description && !description) description = obj.description;
+                        if (obj.productId && !productId) productId = obj.productId;
                     }
 
                     // 3. Oferta Comercial (Price)
@@ -208,7 +211,8 @@ async def scrape_competitor_product(product_url: str, brand_name: str) -> Option
                     description: description || "Sem descrição",
                     category: category,
                     sub_category: sub_category,
-                    specs: specs
+                    specs: specs,
+                    productId: productId
                 };
             }""")
 
@@ -230,6 +234,9 @@ async def scrape_competitor_product(product_url: str, brand_name: str) -> Option
                 merged_specs = {**dom_data["specs"], **api_specs}
                 composition = merged_specs.get("Composição") or merged_specs.get("Material")
                 
+                product_id_str = str(intercepted_api_data.get("productId") or dom_data.get("productId") or "")
+                rating, count = await get_single_review("aramis", product_id_str)
+                
                 # Merge entre dados da API interceptada e do DOM/React State
                 product_data = RawProductBronze(
                     url=product_url,
@@ -240,10 +247,16 @@ async def scrape_competitor_product(product_url: str, brand_name: str) -> Option
                     category=dom_data["category"],
                     sub_category=dom_data["sub_category"],
                     composition=composition,
+                    rating=rating,
+                    review_count=count,
                     specifications=merged_specs, # Junta as duas fontes
                 )
             else:
                 composition = dom_data["specs"].get("Composição") or dom_data["specs"].get("Material")
+                
+                product_id_str = str(dom_data.get("productId") or "")
+                rating, count = await get_single_review("aramis", product_id_str)
+                
                 product_data = RawProductBronze(
                     url=product_url,
                     brand=brand_name,
@@ -253,6 +266,8 @@ async def scrape_competitor_product(product_url: str, brand_name: str) -> Option
                     category=dom_data["category"],
                     sub_category=dom_data["sub_category"],
                     composition=composition,
+                    rating=rating,
+                    review_count=count,
                     specifications=dom_data["specs"],
                 )
 

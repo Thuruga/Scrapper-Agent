@@ -17,16 +17,22 @@ BRAND_REGISTRY: Dict[str, dict] = {
         "name": "Aramis",
         "domain": "www.aramis.com.br",
         "base_url": "https://www.aramis.com.br",
+        "review_provider": "trustvox",
+        "review_store_id": "114327",
     },
     "reserva": {
         "name": "Reserva",
         "domain": "www.usereserva.com",
         "base_url": "https://www.usereserva.com",
+        "review_provider": "vtex_native",
+        "review_store_id": None,
     },
     "tommy": {
         "name": "Tommy Hilfiger",
         "domain": "br.tommy.com",
         "base_url": "https://br.tommy.com",
+        "review_provider": None,
+        "review_store_id": None,
     },
 }
 

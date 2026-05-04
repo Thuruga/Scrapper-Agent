@@ -161,9 +161,13 @@ def _should_keep(url: str, name: str, brand: str) -> bool:
 
     # Filtros específicos por marca
     brand_filter = BRAND_FILTERS.get(brand)
-    if brand_filter and "require_any" in brand_filter:
-        if not any(term in url_lower for term in brand_filter["require_any"]):
-            return False
+    if brand_filter:
+        if "require_any" in brand_filter:
+            if not any(term in url_lower for term in brand_filter["require_any"]):
+                return False
+        if "block_any" in brand_filter:
+            if any(term in url_lower or term in name_lower for term in brand_filter["block_any"]):
+                return False
 
     return True
 

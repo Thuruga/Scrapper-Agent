@@ -3,6 +3,7 @@ import json
 from playwright.async_api import async_playwright
 from typing import Optional, Dict
 from core.models import RawProductBronze
+from services.review_service import get_single_review
 
 
 # ---------------------------------------------------------
@@ -120,6 +121,9 @@ async def scrape_competitor_product(
                             sub_category = parts[1]
 
                     composition = specs_dict.get("Composição") or specs_dict.get("Material")
+                    
+                    product_id_str = str(intercepted_api_data.get("productId", ""))
+                    rating, count = await get_single_review("tommy", product_id_str)
 
                     product_data = RawProductBronze(
                         url=product_url,
@@ -133,7 +137,9 @@ async def scrape_competitor_product(
                         specifications=specs_dict,
                         category=category,
                         sub_category=sub_category,
-                        composition=composition
+                        composition=composition,
+                        rating=rating,
+                        review_count=count
                     )
                 except Exception:
                     pass
@@ -170,14 +176,16 @@ async def scrape_competitor_product(
                     return meta ? meta.content : "Descrição não encontrada.";
                 }""")
 
-                dom_specs = await page.evaluate("""() => {
+                dom_result = await page.evaluate("""() => {
                     let specs = {};
+                    let productId = null;
                     const chavesDesejadas = ['Composição', 'Atributos', 'Cor', 'Cor Real', 'Material', 'Modelagem'];
                     
                     // 1. Busca no Estado do React
                     let state = window.__STATE__ || {};
                     Object.values(state).forEach(obj => {
                         if (obj && typeof obj === 'object') {
+                            if (obj.__typename === 'Product' && obj.productId && !productId) productId = obj.productId;
                             let name = obj.name || obj.originalName || obj.Name;
                             if (chavesDesejadas.includes(name)) {
                                 let val = obj.values || obj.Values;
@@ -223,8 +231,12 @@ async def scrape_competitor_product(
                     });
                     if(tamanhos.length > 0) specs["Tamanhos"] = tamanhos.join(", ");
 
-                    return specs;
+                    return {specs: specs, productId: productId};
                 }""")
+                
+                dom_specs = dom_result["specs"]
+                product_id_str = str(dom_result.get("productId") or "")
+                rating, count = await get_single_review("tommy", product_id_str)
 
                 dom_category = await page.evaluate("""() => {
                     let breadcrumbs = Array.from(document.querySelectorAll('.vtex-breadcrumb-1-x-link, [class*="breadcrumb"] a'));
@@ -251,6 +263,9 @@ async def scrape_competitor_product(
                         product_data.sub_category = dom_category['sub_category']
                     if not product_data.composition:
                         product_data.composition = comp
+                    if not product_data.rating:
+                        product_data.rating = rating
+                        product_data.review_count = count
                 else:
                     product_data = RawProductBronze(
                         url=product_url,
@@ -263,7 +278,9 @@ async def scrape_competitor_product(
                         specifications=dom_specs,
                         category=dom_category['category'],
                         sub_category=dom_category['sub_category'],
-                        composition=comp
+                        composition=comp,
+                        rating=rating,
+                        review_count=count
                     )
                 print("[SUCESSO] Extração do estado do React/DOM concluída!")
 
