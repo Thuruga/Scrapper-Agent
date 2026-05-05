@@ -2,13 +2,14 @@ import asyncio
 import json
 import os
 import logging
+import random
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
 
 from config import settings
 from core.models import PriceMonitorConfig, PriceHistoryEntry
 from core.websocket import manager
-from scrapers import get_scraper
+from services.vtex_api_scraper import VtexApiClient
 
 logger = logging.getLogger("PriceMonitorService")
 
@@ -96,17 +97,18 @@ class PriceMonitorService:
         duration_seconds = config.duration_hours * 3600
         start_dt = datetime.fromisoformat(config.start_time)
         end_dt = start_dt + timedelta(seconds=duration_seconds)
-        
-        try:
-            scraper_module = get_scraper(config.brand)
-        except Exception as e:
-            await manager.send_message({"type": "error", "message": f"Erro ao carregar scraper: {e}"}, job_id)
-            return
+
+        # Jitter inicial para não disparar centenas de requests ao mesmo tempo (ex: no boot do servidor)
+        # Sorteia um atraso entre 5 e 45 segundos para a primeira execução
+        initial_jitter = random.uniform(5, 45)
+        logger.info(f"Monitor {job_id} aguardando jitter inicial de {initial_jitter:.1f}s...")
+        await asyncio.sleep(initial_jitter)
 
         while datetime.now(timezone.utc) < end_dt and config.active:
             try:
-                # Realiza o scrape
-                product = await scraper_module.scrape_competitor_product(config.url, config.brand)
+                # Realiza o scrape via API direta (VTEX) - Muito mais leve que Playwright
+                async with VtexApiClient(config.brand) as client:
+                    product = await client.get_product_by_url(config.url)
                 
                 if product:
                     current_price = product.price_full
@@ -150,8 +152,13 @@ class PriceMonitorService:
             except Exception as e:
                 await manager.send_message({"type": "error", "message": f"Erro no monitor: {e}"}, job_id)
 
-            # Aguarda o próximo intervalo
-            await asyncio.sleep(config.interval_minutes * 60)
+            # Aguarda o próximo intervalo com um pequeno jitter (±5%) para evitar sincronização
+            base_sleep = config.interval_minutes * 60
+            jitter_range = base_sleep * 0.05
+            sleep_time = base_sleep + random.uniform(-jitter_range, jitter_range)
+            
+            logger.info(f"Monitor {job_id} concluído. Próxima checagem em {sleep_time/60:.1f} min.")
+            await asyncio.sleep(max(1, sleep_time))
 
         # Fim do tempo de monitoramento
         config.active = False
