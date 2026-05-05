@@ -1,14 +1,9 @@
-"""
-Rotas de Extração de Produto Único.
-
-POST /scrape — Extrai dados de um produto a partir de sua URL.
-"""
-
-from fastapi import APIRouter, HTTPException
-from fastapi.concurrency import run_in_threadpool
+import uuid
+from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
+from typing import Optional
 
-from scrapers import get_scraper
+from services.price_monitor_service import monitor_service
 
 router = APIRouter()
 
@@ -16,48 +11,46 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 # Models
 # ---------------------------------------------------------------------------
-class ScrapeProductRequest(BaseModel):
+class MonitorStartRequest(BaseModel):
     url: str
     brand: str
-
-
-# ---------------------------------------------------------------------------
-# Utils
-# ---------------------------------------------------------------------------
-def clean_url(url: str) -> str:
-    """Corrige caso a URL venha duplicada (ex: http...http...) ou com espaços."""
-    url = url.strip()
-    if url.count("http") > 1:
-        idx = url.rfind("http")
-        url = url[idx:]
-    return url
+    interval: int = 10  # minutos
+    duration: int = 24  # horas
 
 
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
-@router.post("/scrape")
-async def scrape_product(request: ScrapeProductRequest):
-    """Extrai dados de um produto único a partir da URL informada."""
-    request.url = clean_url(request.url)
-
+@router.post("/monitor/start")
+async def start_monitoring(request: MonitorStartRequest):
+    """Inicia o monitoramento de um produto."""
+    job_id = str(uuid.uuid4())
+    
+    # Inicia o monitoramento em background
     try:
-        scraper_module = get_scraper(request.brand)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Brand not supported")
-
-    def run_scraper():
-        import asyncio as _asyncio
-        return _asyncio.run(
-            scraper_module.scrape_competitor_product(request.url, request.brand)
+        config = await monitor_service.start_monitor(
+            job_id=job_id,
+            url=request.url,
+            brand=request.brand,
+            interval=request.interval,
+            duration=request.duration
         )
-
-    try:
-        result = await run_in_threadpool(run_scraper)
-        if not result:
-            raise HTTPException(status_code=500, detail="Failed to scrape product")
-        return result.model_dump()
-    except HTTPException:
-        raise
+        return {"job_id": job_id, "status": "started", "config": config.model_dump()}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/monitor/stop/{job_id}")
+async def stop_monitoring(job_id: str):
+    """Interrompe um monitoramento ativo."""
+    await monitor_service.stop_monitor(job_id)
+    return {"status": "stopped"}
+
+
+@router.get("/monitor/history/{job_id}")
+async def get_monitor_history(job_id: str):
+    """Retorna o histórico de um monitor específico."""
+    if job_id not in monitor_service.monitors:
+        raise HTTPException(status_code=404, detail="Monitor not found")
+    return monitor_service.monitors[job_id].model_dump()
+

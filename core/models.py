@@ -71,3 +71,28 @@ class ComparisonResult(BaseModel):
     searched_at: str = Field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
+
+
+# ---------------------------------------------------------------------------
+# Monitoramento de Preços
+# ---------------------------------------------------------------------------
+
+class PriceHistoryEntry(BaseModel):
+    """Registro de uma variação de preço ou disponibilidade no tempo."""
+    timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    price: float
+    available: bool
+
+
+class PriceMonitorConfig(BaseModel):
+    """Configuração e estado de um monitoramento ativo."""
+    job_id: str
+    url: str
+    brand: str
+    interval_minutes: int = 10
+    duration_hours: int = 24
+    start_time: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    last_price: Optional[float] = None
+    history: List[PriceHistoryEntry] = Field(default_factory=list)
+    active: bool = True
+

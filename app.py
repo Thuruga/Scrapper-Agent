@@ -38,6 +38,13 @@ app.add_middleware(
 )
 
 
+@app.on_event("startup")
+async def startup_event():
+    from services.price_monitor_service import monitor_service
+    monitor_service.load_monitors()
+
+
+
 # ---------------------------------------------------------------------------
 # Rotas
 # ---------------------------------------------------------------------------
