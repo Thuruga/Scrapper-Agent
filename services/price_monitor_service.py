@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
 
@@ -8,6 +9,9 @@ from config import settings
 from core.models import PriceMonitorConfig, PriceHistoryEntry
 from core.websocket import manager
 from scrapers import get_scraper
+
+logger = logging.getLogger("PriceMonitorService")
+
 
 # Caminho para persistência local dos monitores
 STORAGE_FILE = "data/price_monitors.json"
@@ -35,7 +39,8 @@ class PriceMonitorService:
                             else:
                                 self.monitors[job_id].active = False
             except Exception as e:
-                print(f"Erro ao carregar monitores: {e}")
+                logger.error(f"Erro ao carregar monitores do disco: {e}")
+
 
     def _save_monitors(self):
         try:
@@ -44,7 +49,8 @@ class PriceMonitorService:
             with open(STORAGE_FILE, "w") as f:
                 json.dump(data, f, indent=2)
         except Exception as e:
-            print(f"Erro ao salvar monitores: {e}")
+            logger.error(f"Erro ao salvar monitores no disco: {e}")
+
 
     async def start_monitor(self, job_id: str, url: str, brand: str, interval: int, duration: int):
         config = PriceMonitorConfig(

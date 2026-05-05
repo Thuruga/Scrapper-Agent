@@ -1,10 +1,14 @@
 import asyncio
 import aiohttp
+import logging
 from typing import Optional, List, Dict
 from urllib.parse import urlparse
 
 from core.models import RawProductBronze
 from services.review_service import get_single_review
+
+# Configuração de Logs
+logger = logging.getLogger("VtexApiClient")
 
 class VtexApiClient:
     """
@@ -19,6 +23,9 @@ class VtexApiClient:
             "Accept": "application/json",
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
+        # Semáforo para controlar concorrência de requisições secundárias (evita WAF)
+        self.semaphore = asyncio.Semaphore(15)
+
 
     async def __aenter__(self):
         if self._owns_session and self.session is None:
@@ -81,8 +88,10 @@ class VtexApiClient:
                     for prod in similares:
                         for cor in self._extract_colors(prod):
                             cores_da_familia.add(cor)
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Falha ao buscar família de cores para {product_id} em {domain}: {e}")
             pass # Silencioso para fallback gracioso
+
             
         return list(cores_da_familia)
 
@@ -193,8 +202,9 @@ class VtexApiClient:
             )
 
         except Exception as e:
-            print(f"Erro no parse_product_dict para {product_url}: {e}")
+            logger.error(f"Erro no parse_product_dict para {product_url}: {e}")
             return None
+
 
     async def get_product_by_url(self, product_url: str) -> Optional[RawProductBronze]:
         """Extrai todos os dados estruturados de um produto VTEX usando apenas chamadas de API."""
@@ -218,8 +228,9 @@ class VtexApiClient:
                 return await self.parse_product_dict(p, product_url, domain)
                 
         except Exception as e:
-            print(f"Erro em VtexApiClient para {product_url}: {e}")
+            logger.error(f"Erro em VtexApiClient para {product_url}: {e}")
             return None
+
 
     async def scrape_category_paged(
         self,
@@ -320,9 +331,14 @@ class VtexApiClient:
                             log({"type": "success", "message": f"Sucesso: {prod.raw_title}"})
                         return prod
 
+                    async def build_product_safely(p):
+                        async with self.semaphore:
+                            return await build_product(p)
+
                     # Executa as chamadas secundárias (ex: familia de cores) concorrentemente para todos do chunk
-                    tarefas = [build_product(p) for p in raw_products]
+                    tarefas = [build_product_safely(p) for p in raw_products]
                     resultados_chunk = await asyncio.gather(*tarefas)
+
                     
                     # Filtra None
                     valid_produtos = [r for r in resultados_chunk if r is not None]

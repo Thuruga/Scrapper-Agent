@@ -4,12 +4,8 @@ from typing import Optional
 from core.models import RawProductBronze
 from services.vtex_api_scraper import VtexApiClient
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
 logger = logging.getLogger("ScraperAramis")
+
 
 async def scrape_competitor_product(
     product_url: str, brand_name: str
