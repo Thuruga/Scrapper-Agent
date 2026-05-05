@@ -12,7 +12,7 @@ from typing import Optional, Callable
 import pandas as pd
 
 from config import settings
-from crawler import varrer_categoria_vtex
+
 from scrapers import get_scraper
 
 

@@ -17,7 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
-from config import BRAND_REGISTRY
+from services.brand_service import brand_service
 
 
 # ---------------------------------------------------------------------------
@@ -209,11 +209,11 @@ def resolve_category_for_brands(
             missing_brands.append(bk)
             continue
 
-        registry = BRAND_REGISTRY.get(bk_lower, {})
-        base_url = registry.get("base_url", "")
+        brand_data = brand_service.get_brand(bk_lower)
+        domain = brand_data.domain if brand_data else ""
 
         result[bk_lower] = {
-            "url": f"{base_url}{brand_info.path}",
+            "url": f"https://{domain}{brand_info.path}",
             "path": brand_info.path,
             "label": cat.label,
         }
@@ -254,15 +254,15 @@ def get_category_preview(
         if not brand_info:
             continue
 
-        registry = BRAND_REGISTRY.get(bk_lower, {})
-        base_url = registry.get("base_url", "")
-        brand_name = registry.get("name", bk)
+        brand_data = brand_service.get_brand(bk_lower)
+        domain = brand_data.domain if brand_data else ""
+        brand_name = brand_data.brand_name if brand_data else bk
 
         mappings.append({
             "brand": bk_lower,
             "brand_name": brand_name,
             "path": brand_info.path,
-            "url": f"{base_url}{brand_info.path}",
+            "url": f"https://{domain}{brand_info.path}",
         })
 
     return {

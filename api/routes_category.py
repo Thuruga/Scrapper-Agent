@@ -17,7 +17,7 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks, WebSocket, WebSoc
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict
 
-from config import BRAND_REGISTRY
+from services.brand_service import brand_service
 from core.websocket import manager
 from core.job_manager import JOB_CANCEL_FLAGS
 from services.vtex_catalog import vtex_catalog
@@ -53,9 +53,9 @@ class ScrapeCategoryRequest(BaseModel):
     def resolved_url(self) -> str:
         if self.custom_url:
             return clean_url(self.custom_url)
-        brand_info = BRAND_REGISTRY.get(self.brand.lower(), {})
-        base = brand_info.get("base_url", "")
-        return f"{base}{self.category_path}"
+        brand_info = brand_service.get_brand(self.brand.lower())
+        domain = brand_info.domain if brand_info else ""
+        return f"https://{domain}{self.category_path}"
 
 
 class ScrapeMultiBrandRequest(BaseModel):
@@ -112,7 +112,7 @@ def run_orchestrator_sync(
 async def get_categories(brand: str):
     """Retorna categorias agrupadas da marca, buscando dinamicamente da VTEX API."""
     brand_key = brand.lower()
-    if brand_key not in BRAND_REGISTRY:
+    if not brand_service.get_brand(brand_key):
         raise HTTPException(status_code=404, detail=f"Marca '{brand}' não suportada.")
 
     categories = await vtex_catalog.get_categories(brand_key)
@@ -180,7 +180,8 @@ async def scrape_category_multi(
     garantindo que cada marca use o path VTEX correto para a mesma categoria.
     """
     # Validar marcas
-    invalid_brands = [b for b in request.brands if b.lower() not in BRAND_REGISTRY]
+    all_brands = [b.brand_key for b in brand_service.list_brands()]
+    invalid_brands = [b for b in request.brands if b.lower() not in all_brands]
     if invalid_brands:
         raise HTTPException(
             status_code=400,

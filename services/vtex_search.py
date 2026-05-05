@@ -18,7 +18,7 @@ from typing import List, Optional
 
 import aiohttp
 
-from config import BRAND_REGISTRY
+from services.brand_service import brand_service
 from core.models import BrandSearchResult, SearchProductResult
 from services.vtex_catalog import _should_keep
 from services.category_resolver import resolve_query_to_vtex_category_path
@@ -113,9 +113,9 @@ def _map_vtex_product(raw: dict, brand_key: str, rating: Optional[float] = None,
     # URL do produto
     product_url = raw.get("link", "")
     if product_url and not product_url.startswith("http"):
-        brand_info = BRAND_REGISTRY.get(brand_key, {})
-        base_url = brand_info.get("base_url", "")
-        product_url = f"{base_url}{product_url}"
+        brand_info = brand_service.get_brand(brand_key)
+        domain = brand_info.domain if brand_info else ""
+        product_url = f"https://{domain}{product_url}"
 
     return SearchProductResult(
         brand=brand_key,
@@ -146,17 +146,17 @@ async def _search_brand(
     Usa paginação segura (chunk=10) para evitar crash 500 na VTEX em queries muito amplas,
     mas continua até encontrar a quantidade pedida (limitado a 5 páginas para segurança).
     """
-    brand_info = BRAND_REGISTRY.get(brand_key)
-    brand_name = brand_info["name"] if brand_info else brand_key.capitalize()
+    brand_info = brand_service.get_brand(brand_key)
+    brand_name = brand_info.brand_name if brand_info else brand_key.capitalize()
 
     if not brand_info:
         return BrandSearchResult(
             brand_key=brand_key,
             brand_name=brand_name,
-            error=f"Marca '{brand_key}' não registrada no BRAND_REGISTRY.",
+            error=f"Marca '{brand_key}' não registrada no brand_service.",
         )
 
-    domain = brand_info["domain"]
+    domain = brand_info.domain
     
     # Sanitize query for VTEX Search API: remove hyphens and other special chars 
     # that cause internal 500 Object Reference errors
@@ -310,7 +310,7 @@ async def search_all_brands(
     if not query or not query.strip():
         return []
 
-    target_brands = brands or list(BRAND_REGISTRY.keys())
+    target_brands = brands or [b.brand_key for b in brand_service.list_brands()]
     # Garante chaves em lowercase
     target_brands = [b.lower() for b in target_brands]
 

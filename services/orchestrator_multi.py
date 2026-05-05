@@ -20,8 +20,9 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-from config import settings, BRAND_REGISTRY
-from crawler import varrer_categoria_vtex
+from config import settings
+from services.brand_service import brand_service
+
 from scrapers import get_scraper
 
 logger = logging.getLogger("OrchestratorMulti")
@@ -55,8 +56,8 @@ async def _run_brand_pipeline(
     """
     Pipeline completo para uma marca: varredura paginada na API.
     """
-    brand_info = BRAND_REGISTRY.get(brand_key, {})
-    brand_name = brand_info.get("name", brand_key.title())
+    brand_info = brand_service.get_brand(brand_key)
+    brand_name = brand_info.brand_name if brand_info else brand_key.title()
     result = BrandJobResult(brand_key=brand_key, brand_name=brand_name)
 
     def emit(msg_dict):

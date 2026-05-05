@@ -114,9 +114,16 @@ class PriceMonitorService:
                     current_price = product.price_full
                     available = product.stock_availability
                     
-                    # Atualiza imagem na config se ainda não tiver
+                    # Atualiza metadados (imagem e nome) na config se ainda não tiver
+                    needs_save = False
                     if product.image_url and not config.image_url:
                         config.image_url = product.image_url
+                        needs_save = True
+                    if product.raw_title and not config.product_name:
+                        config.product_name = product.raw_title
+                        needs_save = True
+                    
+                    if needs_save:
                         self._save_monitors()
 
                     # Verifica se houve mudança de preço ou disponibilidade

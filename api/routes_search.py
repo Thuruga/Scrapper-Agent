@@ -12,7 +12,7 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from config import BRAND_REGISTRY
+from services.brand_service import brand_service
 from core.models import ComparisonResult
 from services.vtex_search import search_all_brands
 
@@ -74,21 +74,22 @@ async def search_products(request: SearchRequest) -> ComparisonResult:
     3. Retorna ComparisonResult com resultados por marca
     """
     # Valida marcas fornecidas, se explicitadas
+    all_brands = [b.brand_key for b in brand_service.list_brands()]
     if request.brands:
-        invalid = [b for b in request.brands if b.lower() not in BRAND_REGISTRY]
+        invalid = [b for b in request.brands if b.lower() not in all_brands]
         if invalid:
             raise HTTPException(
                 status_code=400,
                 detail=(
                     f"Marcas inválidas: {invalid}. "
-                    f"Marcas suportadas: {list(BRAND_REGISTRY.keys())}"
+                    f"Marcas suportadas: {all_brands}"
                 ),
             )
 
     target_brands = (
         [b.lower() for b in request.brands]
         if request.brands
-        else list(BRAND_REGISTRY.keys())
+        else all_brands
     )
 
     brand_results = await search_all_brands(
@@ -123,6 +124,6 @@ async def search_products_get(
 
     return ComparisonResult(
         query=q,
-        brands_searched=list(BRAND_REGISTRY.keys()),
+        brands_searched=[b.brand_key for b in brand_service.list_brands()],
         results=brand_results,
     )

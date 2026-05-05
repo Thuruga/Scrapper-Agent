@@ -19,7 +19,7 @@ from typing import List, Dict, Tuple, Optional
 
 import aiohttp
 
-from config import BRAND_REGISTRY
+from services.brand_service import brand_service
 
 logger = logging.getLogger("ReviewService")
 
@@ -44,11 +44,9 @@ async def _fetch_trustvox_single(
     params = {
         "store_id": store_id,
         "code": product_id,
-        "url": "https://www.aramis.com.br/p",  # URL obrigatória mas pode ser genérica
     }
     headers = {
         "Accept": "application/vnd.trustvox-v2+json",
-        "Origin": "https://www.aramis.com.br",
         "User-Agent": _USER_AGENT,
     }
 
@@ -63,7 +61,7 @@ async def _fetch_trustvox_single(
             average = rate_info.get("average")
             count = rate_info.get("count", 0)
 
-            if average is not None and count > 0:
+            if average is not None:
                 return product_id, (round(float(average), 1), int(count))
 
     except Exception as e:
@@ -181,19 +179,20 @@ async def get_bulk_reviews(
     if not product_ids:
         return {}
 
-    brand_config = BRAND_REGISTRY.get(brand_key)
+    brand_config = brand_service.get_brand(brand_key)
     if not brand_config:
         return {}
 
-    provider = brand_config.get("review_provider")
+    provider = brand_config.review_provider
+    logger.info(f"🔍 Buscando reviews para {brand_key} usando provedor: {provider}")
 
     if provider == "trustvox":
-        store_id = brand_config.get("review_store_id")
+        store_id = brand_config.review_store_id
         if store_id:
             return await _fetch_trustvox_bulk(store_id, product_ids)
 
     elif provider == "vtex_native":
-        domain = brand_config.get("domain")
+        domain = brand_config.domain
         if domain:
             return await _fetch_vtex_native_bulk(domain, product_ids)
 

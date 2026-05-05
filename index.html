@@ -302,29 +302,30 @@
             display: inline-block;
             padding: 0.35rem 1rem;
             border-radius: 9999px;
-            font-size: 0.8rem;
-            font-weight: 700;
+            font-size: 0.75rem;
+            font-weight: 800;
             text-transform: uppercase;
-            letter-spacing: 0.08em;
-            margin-bottom: 1.2rem;
+            letter-spacing: 0.06em;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
         }
 
         .badge.aramis {
-            background: rgba(59, 130, 246, 0.15);
-            color: #93c5fd;
-            border: 1px solid rgba(59, 130, 246, 0.3);
+            background: rgba(59, 130, 246, 0.12);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.25);
         }
 
         .badge.reserva {
-            background: rgba(239, 68, 68, 0.15);
-            color: #fca5a5;
-            border: 1px solid rgba(239, 68, 68, 0.3);
+            background: rgba(239, 68, 68, 0.12);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.25);
         }
 
         .badge.tommy {
-            background: rgba(16, 185, 129, 0.15);
-            color: #6ee7b7;
-            border: 1px solid rgba(16, 185, 129, 0.3);
+            background: rgba(16, 185, 129, 0.12);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.25);
         }
 
         .price {
@@ -812,52 +813,107 @@
         }
 
         .monitor-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
+            background: linear-gradient(145deg, rgba(30, 41, 59, 0.4), rgba(15, 23, 42, 0.6));
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
             padding: 1.5rem;
             display: flex;
             flex-direction: column;
-            gap: 1rem;
-            transition: all 0.3s ease;
+            gap: 1.2rem;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             position: relative;
             overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .monitor-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
 
         .monitor-card:hover {
-            border-color: rgba(139, 92, 246, 0.4);
-            background: rgba(255, 255, 255, 0.05);
-            transform: translateY(-2px);
+            border-color: rgba(59, 130, 246, 0.3);
+            background: linear-gradient(145deg, rgba(30, 41, 59, 0.6), rgba(15, 23, 42, 0.8));
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .monitor-card:hover::before {
+            opacity: 1;
         }
 
         .monitor-card .price {
-            font-size: 1.8rem;
-            margin: 0.5rem 0;
+            font-size: 2rem;
+            font-weight: 800;
+            margin: 0.2rem 0;
+            background: linear-gradient(135deg, #10b981, #34d399);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -1px;
         }
 
         .monitor-card .history-mini {
-            font-size: 0.8rem;
+            font-size: 0.78rem;
             color: var(--text-muted);
-            max-height: 100px;
+            max-height: 120px;
             overflow-y: auto;
-            background: rgba(0,0,0,0.2);
-            padding: 0.5rem;
-            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 0.8rem;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            line-height: 1.5;
+        }
+
+        .monitor-card .history-entry {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.3rem;
+            padding-bottom: 0.3rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .monitor-card .history-entry:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
         }
 
         .monitor-card .status-tag {
             position: absolute;
-            top: 1rem;
-            right: 1rem;
-            font-size: 0.7rem;
-            padding: 0.2rem 0.6rem;
+            top: 1.2rem;
+            right: 1.2rem;
+            font-size: 0.65rem;
+            padding: 0.3rem 0.8rem;
             border-radius: 999px;
-            font-weight: 700;
+            font-weight: 800;
             text-transform: uppercase;
+            letter-spacing: 0.05em;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
         }
 
-        .status-active { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; }
-        .status-stopped { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+        .status-active { 
+            background: rgba(16, 185, 129, 0.15); 
+            color: #6ee7b7;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+        .status-stopped { 
+            background: rgba(239, 68, 68, 0.15); 
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+        .status-done { 
+            background: rgba(59, 130, 246, 0.15); 
+            color: #93c5fd;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
 
 
         .rating-row {
@@ -1183,6 +1239,92 @@
         .console-line.brand_stats {
             color: #c084fc;
         }
+        /* ── Settings Tab ───────────────────────────────────────────── */
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+        }
+
+        @media(min-width: 860px) {
+            .settings-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .category-tree {
+            max-height: 400px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 1rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            margin-top: 1rem;
+        }
+
+        .tree-item {
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .tree-item label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            color: var(--text-main);
+        }
+
+        .tree-item input[type="checkbox"] {
+            width: auto;
+        }
+
+        .sub-categories {
+            margin-left: 1.5rem;
+            margin-top: 0.5rem;
+            border-left: 1px solid var(--border-color);
+            padding-left: 0.5rem;
+        }
+
+        .brand-list-card {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .brand-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 0.8rem 1.2rem;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+        }
+
+        .brand-item-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .brand-item-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .brand-item-domain {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .mapping-badge {
+            background: rgba(139, 92, 246, 0.2);
+            color: #c084fc;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
     </style>
 </head>
 
@@ -1197,19 +1339,19 @@
         <button class="tab-btn active" onclick="switchTab('single')">Monitor de Preço</button>
         <button class="tab-btn" onclick="switchTab('category')">Varrer Categoria</button>
         <button class="tab-btn" onclick="switchTab('compare')" id="compareTabBtn">🔍 Busca Comparativa</button>
+        <button class="tab-btn" onclick="switchTab('settings')">⚙️ Configurações</button>
     </div>
 
     <!-- TAB: MONITOR DE PREÇO -->
     <div id="tab-single" class="tab-content active">
         <div class="container">
             <div class="glass-card">
+                <h3 style="margin-bottom: 1.5rem; font-weight: 700; font-size: 1.25rem; background: linear-gradient(135deg, #fff, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Monitorar Novo Produto</h3>
                 <form id="monitorForm">
                     <div class="form-group">
                         <label for="brand">Marca Concorrente</label>
                         <select id="brand" required>
-                            <option value="aramis">Aramis</option>
-                            <option value="reserva">Reserva</option>
-                            <option value="tommy">Tommy Hilfiger</option>
+                            <!-- Dynamic brands will be loaded here -->
                         </select>
                     </div>
                     <div class="form-group">
@@ -1262,27 +1404,7 @@
                     <div class="form-group">
                         <label>Marcas para Varrer</label>
                         <div class="multi-brand-selector" id="multiBrandSelector">
-                            <label class="brand-checkbox aramis-check">
-                                <input type="checkbox" id="orchChkAramis" value="aramis" checked>
-                                <span class="brand-chip">
-                                    <span class="chip-dot" style="background:#3b82f6;"></span>
-                                    Aramis
-                                </span>
-                            </label>
-                            <label class="brand-checkbox reserva-check">
-                                <input type="checkbox" id="orchChkReserva" value="reserva" checked>
-                                <span class="brand-chip">
-                                    <span class="chip-dot" style="background:#ef4444;"></span>
-                                    Reserva
-                                </span>
-                            </label>
-                            <label class="brand-checkbox tommy-check">
-                                <input type="checkbox" id="orchChkTommy" value="tommy">
-                                <span class="brand-chip">
-                                    <span class="chip-dot" style="background:#10b981;"></span>
-                                    Tommy Hilfiger
-                                </span>
-                            </label>
+                            <!-- Dynamic checkboxes will be loaded here -->
                         </div>
                     </div>
 
@@ -1373,14 +1495,8 @@
                             <div class="spinner"></div>
                         </button>
                     </div>
-                    <div class="search-options">
-                        <label><input type="checkbox" id="chkAramis" checked> Aramis</label>
-                        <label><input type="checkbox" id="chkReserva" checked> Reserva</label>
-                        <label><input type="checkbox" id="chkTommy" checked> Tommy Hilfiger</label>
-                        <div class="max-input">
-                            <span style="font-size:0.85rem;color:var(--text-muted);">Resultados por marca:</span>
-                            <input type="number" id="maxPerBrand" value="10" min="1" max="50">
-                        </div>
+                    <div class="search-options" id="compareBrandOptions">
+                        <!-- Dynamic checkboxes will be loaded here -->
                     </div>
                 </form>
             </div>
@@ -1407,6 +1523,80 @@
         </div>
     </div>
 
+    <!-- TAB: CONFIGURAÇÕES -->
+    <div id="tab-settings" class="tab-content">
+        <div class="settings-grid">
+            <!-- Brand Registration -->
+            <div class="glass-card">
+                <h3 style="margin-bottom: 1.5rem; font-weight: 700;">Cadastrar Concorrente</h3>
+                <form id="brandForm">
+                    <div class="form-group">
+                        <label for="b_key">Brand Key (ID Interno)</label>
+                        <input type="text" id="b_key" placeholder="ex: brooksfield" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="b_name">Nome Amigável</label>
+                        <input type="text" id="b_name" placeholder="ex: Brooksfield Menswear" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="b_domain">Domínio da Loja</label>
+                        <input type="text" id="b_domain" placeholder="ex: www.brooksfield.com.br" required>
+                    </div>
+                    <button type="submit" id="saveBrandBtn">
+                        <span class="btn-text">💾 Salvar Marca</span>
+                        <div class="spinner"></div>
+                    </button>
+                </form>
+
+                <h3 style="margin-top: 2.5rem; margin-bottom: 1.5rem; font-weight: 700;">Marcas Cadastradas</h3>
+                <div id="brandList" class="brand-list-card">
+                    <!-- Dynamic brand list -->
+                </div>
+            </div>
+
+            <!-- Category Discovery & Mapping -->
+            <div class="glass-card">
+                <h3 style="margin-bottom: 1.5rem; font-weight: 700;">Mapeamento Inteligente</h3>
+                <div class="form-group">
+                    <label for="mappingBrandSelect">Selecionar Marca</label>
+                    <select id="mappingBrandSelect">
+                        <option value="">Escolha uma marca...</option>
+                    </select>
+                </div>
+                <button type="button" id="discoverBtn" onclick="discoverCategories()" style="background: linear-gradient(135deg, #10b981, #059669);">
+                    <span class="btn-text">🔎 Descobrir Árvore VTEX</span>
+                    <div class="spinner"></div>
+                </button>
+
+                <div id="mappingArea" style="display:none; margin-top: 2rem;">
+                    <div class="form-group">
+                        <label for="canonicalSlug">Mapear para Categoria Interna</label>
+                        <select id="canonicalSlug">
+                            <option value="polos">Polos</option>
+                            <option value="camisas">Camisas</option>
+                            <option value="camisetas">Camisetas</option>
+                            <option value="calcas">Calças</option>
+                            <option value="bermudas">Bermudas</option>
+                            <option value="tricots">Tricots</option>
+                            <option value="jaquetas">Jaquetas</option>
+                            <option value="calcados">Calçados</option>
+                        </select>
+                    </div>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">Selecione as categorias da VTEX que compõem este grupo:</p>
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <input type="text" id="treeSearch" placeholder="🔍 Filtrar categorias..." oninput="filterTree()" style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: white; padding: 0.6rem; border-radius: 8px; width: 100%;">
+                    </div>
+                    <div id="categoryTree" class="category-tree">
+                        <!-- Dynamic tree -->
+                    </div>
+                    <button type="button" onclick="saveMappings()" style="margin-top: 1.5rem;">
+                        <span class="btn-text">🔗 Salvar Mapeamento</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         function switchTab(tabId) {
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -1415,6 +1605,10 @@
             document.querySelector(`button[onclick="switchTab('${tabId}')"]`).classList.add('active');
             document.getElementById(`tab-${tabId}`).classList.add('active');
         }
+
+        // Global brand state
+        let BRAND_COLORS = {};
+        let BRAND_META = {};
 
         // ── Monitor Logic (Multi-Product) ──────────────────────────────
         let monitorWebSockets = {};
@@ -1435,35 +1629,41 @@
                         ${config.active ? 'Ativo' : 'Parado'}
                     </span>
                     <div class="badge ${config.brand}">${brandMeta.name}</div>
-                    <div style="display: flex; gap: 1rem; align-items: center; margin-top: 0.5rem;">
-                        <img src="${config.image_url || ''}" class="product-thumb" style="width: 50px; height: 50px; border-radius: 8px; background: rgba(0,0,0,0.2); object-fit: contain; display: ${config.image_url ? 'block' : 'none'};">
+                    <div style="display: flex; gap: 1.2rem; align-items: center; margin-top: 0.2rem;">
+                        <img src="${config.image_url || ''}" class="product-thumb" style="width: 60px; height: 60px; border-radius: 12px; background: rgba(255,255,255,0.05); object-fit: contain; display: ${config.image_url ? 'block' : 'none'}; border: 1px solid rgba(255,255,255,0.1);">
                         <div style="flex: 1; min-width: 0;">
-                            <div style="font-weight: 600; font-size: 0.85rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;" title="${config.url || ''}">
-                                ${config.url ? config.url.split('/').filter(p => p).pop().toUpperCase() : 'PRODUTO'}
+                            <div style="font-weight: 600; font-size: 0.95rem; line-height: 1.3; margin-bottom: 0.3rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;" title="${config.product_name || config.url || ''}">
+                                ${config.product_name || (config.url ? config.url.split('/').filter(p => p).pop().toUpperCase() : 'PRODUTO')}
                             </div>
-                            <div style="font-size: 0.7rem; color: var(--text-muted); text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">
+                            <div style="font-size: 0.75rem; color: var(--text-muted); text-overflow: ellipsis; white-space: nowrap; overflow: hidden; opacity: 0.7;">
                                 ${config.url || ''}
                             </div>
                         </div>
                     </div>
 
-                    <div class="price" id="price-${jobId}">R$ ${config.last_price ? config.last_price.toFixed(2) : '---'}</div>
-                    <div style="font-size: 0.75rem; color: var(--text-muted);">
-                        Int: ${config.interval_minutes}m | Dur: ${config.duration_hours}h
+                    <div style="display: flex; align-items: baseline; gap: 0.5rem;">
+                        <div class="price" id="price-${jobId}">R$ ${config.last_price ? config.last_price.toFixed(2) : '---'}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">
+                            / ${config.interval_minutes}m
+                        </div>
                     </div>
                     
                     <div class="history-mini" id="history-${jobId}">
                         ${config.history.length > 0 
-                            ? config.history.reverse().map(e => `<div>• R$ ${e.price.toFixed(2)} (${new Date(e.timestamp).toLocaleTimeString()})</div>`).join('')
-                            : 'Aguardando mudanças...'}
+                            ? config.history.slice().reverse().map(e => `
+                                <div class="history-entry">
+                                    <span style="color: #6ee7b7; font-weight: 600;">R$ ${e.price.toFixed(2)}</span>
+                                    <span style="opacity: 0.5;">${new Date(e.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                </div>`).join('')
+                            : '<div style="text-align: center; opacity: 0.5; padding: 0.5rem;">Aguardando check...</div>'}
                     </div>
 
-                    <div style="display: flex; gap: 0.5rem; margin-top: auto;">
-                        <button class="tab-btn" style="padding: 0.4rem; flex: 1; font-size: 0.8rem; background: rgba(239, 68, 68, 0.1); color: #fca5a5;" onclick="stopMonitoring('${jobId}')" id="stop-btn-${jobId}" ${!config.active ? 'disabled' : ''}>
+                    <div style="display: flex; gap: 0.75rem; margin-top: 0.5rem;">
+                        <button class="tab-btn" style="padding: 0.6rem; flex: 1; font-size: 0.85rem; background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.1);" onclick="stopMonitoring('${jobId}')" id="stop-btn-${jobId}" ${!config.active ? 'disabled' : ''}>
                             Parar
                         </button>
-                        <button class="tab-btn" style="padding: 0.4rem; font-size: 0.8rem; background: rgba(255, 255, 255, 0.1); color: var(--text-muted);" onclick="deleteMonitor('${jobId}')">
-                            🗑️ Remover
+                        <button class="tab-btn" style="padding: 0.6rem; font-size: 0.85rem; background: rgba(255, 255, 255, 0.08); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.05);" onclick="deleteMonitor('${jobId}')">
+                            🗑️
                         </button>
                     </div>
                 </div>
@@ -1488,7 +1688,11 @@
                 if (msg.type === 'price_update') {
                     document.getElementById(`price-${jobId}`).textContent = `R$ ${msg.price.toFixed(2)}`;
                     const hist = document.getElementById(`history-${jobId}`);
-                    hist.innerHTML = msg.history.reverse().map(e => `<div>• R$ ${e.price.toFixed(2)} (${new Date(e.timestamp).toLocaleTimeString()})</div>`).join('');
+                    hist.innerHTML = msg.history.slice().reverse().map(e => `
+                        <div class="history-entry">
+                            <span style="color: #6ee7b7; font-weight: 600;">R$ ${e.price.toFixed(2)}</span>
+                            <span style="opacity: 0.5;">${new Date(e.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                        </div>`).join('');
                 } else if (msg.type === 'done') {
                     const tag = document.getElementById(`status-${jobId}`);
                     tag.className = 'status-tag status-stopped';
@@ -1586,21 +1790,83 @@
         });
 
         // Chamada inicial
+        loadBrands();
         loadExistingMonitors();
 
 
         // ── Category Mode Controller ────────────────────────────────────────
-        const BRAND_COLORS = {
-            aramis: { color: '#3b82f6', name: 'Aramis' },
-            reserva: { color: '#ef4444', name: 'Reserva' },
-            tommy: { color: '#10b981', name: 'Tommy Hilfiger' },
-        };
+
+        async function loadBrands() {
+            try {
+                const res = await fetch('/brands/');
+                const brands = await res.json();
+                
+                // Update Global Metadata
+                BRAND_COLORS = {};
+                BRAND_META = {};
+                const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#c084fc', '#06b6d4'];
+                
+                brands.forEach((b, i) => {
+                    const color = colors[i % colors.length];
+                    BRAND_COLORS[b.brand_key] = { color, name: b.brand_name };
+                    BRAND_META[b.brand_key] = { name: b.brand_name, cls: b.brand_key, emoji: '📦' };
+                });
+
+                // Update UI: Monitor Select
+                const monitorSelect = document.getElementById('brand');
+                monitorSelect.innerHTML = brands.map(b => `<option value="${b.brand_key}">${b.brand_name}</option>`).join('');
+
+                // Update UI: Multi-Brand Selector
+                const multiSelector = document.getElementById('multiBrandSelector');
+                multiSelector.innerHTML = brands.map(b => `
+                    <label class="brand-checkbox ${b.brand_key}-check">
+                        <input type="checkbox" name="orchBrand" value="${b.brand_key}" onchange="switchCategoryMode()">
+                        <span class="brand-chip">
+                            <span class="chip-dot" style="background:${BRAND_COLORS[b.brand_key].color};"></span>
+                            ${b.brand_name}
+                        </span>
+                    </label>
+                `).join('');
+
+                // Update UI: Search Checkboxes
+                const searchOptions = document.getElementById('compareBrandOptions');
+                searchOptions.innerHTML = brands.map(b => `
+                    <label><input type="checkbox" value="${b.brand_key}" checked> ${b.brand_name}</label>
+                `).join('') + `
+                    <div class="max-input">
+                        <span style="font-size:0.85rem;color:var(--text-muted);">Resultados por marca:</span>
+                        <input type="number" id="maxPerBrand" value="10" min="1" max="50">
+                    </div>
+                `;
+
+                // Update UI: Settings
+                const mappingSelect = document.getElementById('mappingBrandSelect');
+                mappingSelect.innerHTML = '<option value="">Escolha uma marca...</option>' + 
+                    brands.map(b => `<option value="${b.brand_key}">${b.brand_name}</option>`).join('');
+                
+                const brandList = document.getElementById('brandList');
+                brandList.innerHTML = brands.map(b => `
+                    <div class="brand-item">
+                        <div class="brand-item-info">
+                            <span class="brand-item-name">${b.brand_name}</span>
+                            <span class="brand-item-domain">${b.domain}</span>
+                        </div>
+                        <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                            ${b.mappings.map(m => `<span class="mapping-badge">${m.canonical_slug}</span>`).join('')}
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch (e) {
+                console.error('Erro ao carregar marcas:', e);
+            }
+        }
+
+
 
         function getSelectedBrands() {
             const brands = [];
-            if (document.getElementById('orchChkAramis').checked) brands.push('aramis');
-            if (document.getElementById('orchChkReserva').checked) brands.push('reserva');
-            if (document.getElementById('orchChkTommy').checked) brands.push('tommy');
+            document.querySelectorAll('input[name="orchBrand"]:checked').forEach(el => brands.push(el.value));
             return brands;
         }
 
@@ -1947,12 +2213,6 @@
         // BUSCA COMPARATIVA
         // ================================================================
 
-        const BRAND_META = {
-            aramis: { name: 'Aramis', cls: 'aramis', emoji: '🔵' },
-            reserva: { name: 'Reserva', cls: 'reserva', emoji: '🔴' },
-            tommy: { name: 'Tommy Hilfiger', cls: 'tommy', emoji: '🟢' },
-        };
-
         let lastComparisonData = null;
 
         // Render skeleton columns while loading
@@ -2027,11 +2287,11 @@
                 ? `<div class="product-category">${product.category}</div>`
                 : '';
 
-            const ratingHtml = product.rating
+            const ratingHtml = (product.rating !== null && product.rating !== undefined)
                 ? `<div class="rating-row">
                     <div class="rating-stars">${buildStars(product.rating)}</div>
                     <span style="font-weight:600;">${product.rating.toFixed(1)}</span>
-                    <span class="rating-count">(${product.review_count})</span>
+                    <span class="rating-count">(${product.review_count || 0})</span>
                    </div>`
                 : '';
 
@@ -2160,9 +2420,7 @@
             const query = document.getElementById('searchQuery').value.trim();
             if (!query) return;
 
-            const brands = ['aramis', 'reserva', 'tommy'].filter(b =>
-                document.getElementById(`chk${b.charAt(0).toUpperCase() + b.slice(1)}`).checked
-            );
+            const brands = Array.from(document.querySelectorAll('#compareBrandOptions input[type="checkbox"]:checked')).map(el => el.value);
 
             if (brands.length === 0) {
                 alert('Selecione ao menos uma marca para buscar.');
@@ -2205,6 +2463,176 @@
                 btn.disabled = false;
             }
         });
+        // ================================================================
+        // CONFIGURAÇÕES & MARCAS
+        // ================================================================
+
+        document.getElementById('brandForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('saveBrandBtn');
+            btn.classList.add('button-loading');
+            
+            const payload = {
+                brand_key: document.getElementById('b_key').value,
+                brand_name: document.getElementById('b_name').value,
+                domain: document.getElementById('b_domain').value
+            };
+
+            try {
+                const res = await fetch('/brands/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!res.ok) throw new Error('Falha ao salvar marca');
+                
+                alert('Marca salva com sucesso!');
+                document.getElementById('brandForm').reset();
+                loadBrands();
+            } catch (err) {
+                alert('Erro: ' + err.message);
+            } finally {
+                btn.classList.remove('button-loading');
+            }
+        });
+
+        async function discoverCategories() {
+            const brandKey = document.getElementById('mappingBrandSelect').value;
+            if (!brandKey) return alert('Selecione uma marca');
+
+            const btn = document.getElementById('discoverBtn');
+            btn.classList.add('button-loading');
+            document.getElementById('mappingArea').style.display = 'none';
+
+            try {
+                // Fetch categories
+                const res = await fetch(`/brands/${brandKey}/discover`);
+                if (!res.ok) throw new Error('Não foi possível descobrir categorias');
+                const categories = await res.json();
+
+                // Fetch current mappings to pre-check
+                const mapRes = await fetch(`/brands/${brandKey}/mappings`);
+                const currentMappings = mapRes.ok ? await mapRes.json() : [];
+                const mappedPaths = currentMappings.map(m => m.vtex_fq_path);
+
+                renderCategoryTree(categories, null, mappedPaths);
+                document.getElementById('mappingArea').style.display = 'block';
+            } catch (err) {
+                alert('Erro: ' + err.message);
+            } finally {
+                btn.classList.remove('button-loading');
+            }
+        }
+
+        function renderCategoryTree(categories, container = null, mappedPaths = []) {
+            if (!container) {
+                container = document.getElementById('categoryTree');
+                container.innerHTML = '';
+            }
+
+            categories.forEach(cat => {
+                const item = document.createElement('div');
+                item.className = 'tree-item';
+                
+                const hasChildren = cat.children && cat.children.length > 0;
+                
+                // Get relative path
+                let path = cat.url || '';
+                if (path.includes('http')) {
+                    path = '/' + path.split('/').slice(3).join('/');
+                }
+                if (!path.startsWith('/')) path = '/' + path;
+
+                const isChecked = mappedPaths.includes(path);
+                
+                item.innerHTML = `
+                    <label>
+                        <input type="checkbox" value="${path}" data-name="${cat.name}" ${isChecked ? 'checked' : ''}>
+                        <span style="${isChecked ? 'font-weight:700; color:var(--accent);' : ''}">${cat.name}</span>
+                    </label>
+                `;
+
+                if (hasChildren) {
+                    const sub = document.createElement('div');
+                    sub.className = 'sub-categories';
+                    renderCategoryTree(cat.children, sub, mappedPaths);
+                    item.appendChild(sub);
+                }
+
+                container.appendChild(item);
+            });
+        }
+
+        function filterTree() {
+            const q = document.getElementById('treeSearch').value.toLowerCase();
+            const items = document.querySelectorAll('.tree-item');
+            
+            items.forEach(item => {
+                const span = item.querySelector('span');
+                const text = span.textContent.toLowerCase();
+                const isMatch = text.includes(q);
+                
+                item.setAttribute('data-matches', isMatch);
+                item.style.display = 'none';
+            });
+
+            if (!q) {
+                items.forEach(item => item.style.display = 'block');
+                return;
+            }
+
+            // Show matches and their parents
+            document.querySelectorAll('.tree-item[data-matches="true"]').forEach(item => {
+                item.style.display = 'block';
+                let parent = item.parentElement.closest('.tree-item');
+                while (parent) {
+                    parent.style.display = 'block';
+                    parent = parent.parentElement.closest('.tree-item');
+                }
+                // Also show children if it's a match
+                item.querySelectorAll('.tree-item').forEach(child => child.style.display = 'block');
+            });
+        }
+
+        async function saveMappings() {
+            const brandKey = document.getElementById('mappingBrandSelect').value;
+            const slug = document.getElementById('canonicalSlug').value;
+            if (!brandKey || !slug) return alert('Selecione a marca e a categoria canônica');
+            
+            const selected = Array.from(document.querySelectorAll('#categoryTree input:checked'));
+            
+            try {
+                // 1. Fetch current mappings to merge
+                const mapRes = await fetch(`/brands/${brandKey}/mappings`);
+                let allMappings = mapRes.ok ? await mapRes.json() : [];
+                
+                // 2. Remove old mappings for THIS slug
+                allMappings = allMappings.filter(m => m.canonical_slug !== slug);
+                
+                // 3. Add new mappings for THIS slug
+                const newSelections = selected.map(el => ({
+                    canonical_slug: slug,
+                    vtex_fq_path: el.value,
+                    label: el.getAttribute('data-name')
+                }));
+                
+                allMappings = [...allMappings, ...newSelections];
+
+                // 4. Save entire list
+                const res = await fetch(`/brands/${brandKey}/mappings`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(allMappings)
+                });
+                
+                if (!res.ok) throw new Error('Falha ao salvar mapeamento');
+                
+                alert(`Sucesso! ${newSelections.length} caminhos vinculados a "${slug}".`);
+                loadBrands();
+            } catch (err) {
+                alert('Erro: ' + err.message);
+            }
+        }
     </script>
 </body>
 

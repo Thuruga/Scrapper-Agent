@@ -12,7 +12,8 @@ from typing import Dict, List, Optional
 
 import aiohttp
 
-from config import settings, BRAND_REGISTRY
+from config import settings
+from services.brand_service import brand_service
 
 logger = logging.getLogger("VTEXCatalog")
 
@@ -206,14 +207,14 @@ class VTEXCatalogService:
             return cached.data
 
         # 2. Tentar buscar da API VTEX
-        brand_info = BRAND_REGISTRY.get(brand_key)
+        brand_info = brand_service.get_brand(brand_key)
         if not brand_info:
-            logger.warning(f"[{brand_key}] Marca não registrada. Usando fallback.")
+            logger.warning(f"[{brand_key}] Marca não registrada no brand_service. Usando fallback.")
             return STATIC_FALLBACK.get(brand_key, [])
 
         try:
             categories = await self._fetch_and_transform(
-                brand_info["domain"], brand_key
+                brand_info.domain, brand_key
             )
             if categories:
                 self._cache[brand_key] = _CacheEntry(data=categories)

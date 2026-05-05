@@ -69,6 +69,10 @@ app.add_middleware(
 # Registra todos os endpoints da API sob o prefixo principal (ou sem prefixo)
 app.include_router(api_router)
 
+@app.get("/health-check")
+async def health_check():
+    return {"status": "ok", "message": "Backend is alive"}
+
 
 # ---------------------------------------------------------------------------
 # Frontend Estático

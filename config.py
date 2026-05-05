@@ -6,35 +6,26 @@ Carrega variáveis do arquivo .env e fornece defaults robustos.
 
 from pydantic_settings import BaseSettings
 from pydantic import Field
-from typing import Dict
+from typing import Dict, List
 
 
 # ---------------------------------------------------------------------------
-# Brand Registry — Mapeamento de marcas → domínios e URLs base
+# Identidade e Evasão (Anti-Bot)
 # ---------------------------------------------------------------------------
-BRAND_REGISTRY: Dict[str, dict] = {
-    "aramis": {
-        "name": "Aramis",
-        "domain": "www.aramis.com.br",
-        "base_url": "https://www.aramis.com.br",
-        "review_provider": "trustvox",
-        "review_store_id": "114327",
-    },
-    "reserva": {
-        "name": "Reserva",
-        "domain": "www.usereserva.com",
-        "base_url": "https://www.usereserva.com",
-        "review_provider": "vtex_native",
-        "review_store_id": None,
-    },
-    "tommy": {
-        "name": "Tommy Hilfiger",
-        "domain": "br.tommy.com",
-        "base_url": "https://br.tommy.com",
-        "review_provider": None,
-        "review_store_id": None,
-    },
-}
+DEFAULT_USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edge/120.0.0.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0",
+]
+
+
+# ---------------------------------------------------------------------------
+# Brand Registry — [DEPRECATED]
+# Agora as marcas são geridas dinamicamente via brand_service e data/brands.json
+# ---------------------------------------------------------------------------
+# BRAND_REGISTRY removido para evitar múltiplas fontes de verdade.
 
 
 class Settings(BaseSettings):
@@ -59,6 +50,19 @@ class Settings(BaseSettings):
         default=2.0,
         description="Pausa entre extrações para simular comportamento humano.",
     )
+
+    # Evasão e Robustez
+    ENABLE_PROXY: bool = Field(default=False, description="Habilita uso de proxies.")
+    PROXY_LIST: List[str] = Field(
+        default_factory=list,
+        description="Lista de proxies no formato ['http://user:pass@ip:port', ...]",
+    )
+    USER_AGENTS: List[str] = Field(
+        default_factory=lambda: DEFAULT_USER_AGENTS,
+        description="Lista de User-Agents para rotação.",
+    )
+    REQUEST_TIMEOUT_SECONDS: int = 15
+    MAX_RETRIES: int = 3
 
     model_config = {
         "env_file": ".env",

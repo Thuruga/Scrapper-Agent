@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Brands - PoC</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #0f172a;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            width: 100%;
+            font-size: 1em;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        pre {
+            background-color: #1e293b;
+            color: #f8fafc;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            max-height: 400px;
+            font-size: 0.85em;
+        }
+
+        .flex-row {
+            display: flex;
+            gap: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <h1>⚙️ Painel Dynamic Brands</h1>
+        <p>Frontend de Validação (PoC)</p>
+    </div>
+
+    <div class="card">
+        <h3>1. Cadastrar Novo Concorrente</h3>
+        <div class="form-group">
+            <label>Brand Key (ID Interno)</label>
+            <input type="text" id="b_key" placeholder="ex: brooksfield">
+        </div>
+        <div class="form-group">
+            <label>Nome Amigável</label>
+            <input type="text" id="b_name" placeholder="ex: Brooksfield Menswear">
+        </div>
+        <div class="form-group">
+            <label>Domínio da Loja</label>
+            <input type="text" id="b_domain" placeholder="ex: www.brooksfield.com.br">
+        </div>
+        <button onclick="cadastrarMarca()">Salvar Marca no Banco</button>
+    </div>
+
+    <div class="card">
+        <h3>2. Extrair Árvore da VTEX</h3>
+        <div class="flex-row">
+            <div class="form-group" style="flex: 3;">
+                <label>Brand Key Cadastrada</label>
+                <input type="text" id="s_key" placeholder="ex: brooksfield">
+            </div>
+            <div class="form-group" style="flex: 1;">
+                <label>Profundidade (Depth)</label>
+                <input type="number" id="s_depth" value="2" min="1" max="3">
+            </div>
+        </div>
+        <button onclick="puxarArvore()" style="background-color: #0f766e;">🔎 Extrair Estrutura (Bypass WAF)</button>
+    </div>
+
+    <div class="card">
+        <h3>📡 Console / Resultado</h3>
+        <pre id="output">Aguardando ações do usuário...</pre>
+    </div>
+
+    <script>
+        // Aponta para a nossa API FastAPI local
+        const API_URL = 'http://localhost:8001';
+
+        // Função utilitária para jogar o resultado na tela preta
+        function printLog(data) {
+            const output = document.getElementById('output');
+            if (typeof data === 'object') {
+                output.textContent = JSON.stringify(data, null, 2);
+            } else {
+                output.textContent = data;
+            }
+        }
+
+        // Função para Cadastrar
+        async function cadastrarMarca() {
+            const payload = {
+                brand_key: document.getElementById('b_key').value,
+                brand_name: document.getElementById('b_name').value,
+                domain: document.getElementById('b_domain').value
+            };
+
+            printLog("⏳ Enviando dados para a API...");
+
+            try {
+                const response = await fetch(`${API_URL}/brands`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    printLog("✅ Sucesso! Marca cadastrada:\n\n" + JSON.stringify(data, null, 2));
+                } else {
+                    printLog("❌ Erro da API:\n\n" + data.detail);
+                }
+            } catch (error) {
+                printLog("⚠️ Erro de Rede (O servidor está rodando?):\n\n" + error);
+            }
+        }
+
+        // Função para Puxar a Árvore
+        async function puxarArvore() {
+            const key = document.getElementById('s_key').value;
+            const depth = document.getElementById('s_depth').value;
+
+            if (!key) {
+                printLog("⚠️ Preencha o campo Brand Key primeiro.");
+                return;
+            }
+
+            printLog(`⏳ Infiltrando na VTEX para extrair nível ${depth}...\nIsso pode levar alguns segundos dependendo da loja.`);
+
+            try {
+                const response = await fetch(`${API_URL}/brands/${key}/vtex-tree?depth=${depth}`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    printLog(data);
+                } else {
+                    printLog("❌ Erro da API:\n\n" + data.detail);
+                }
+            } catch (error) {
+                printLog("⚠️ Erro de Rede:\n\n" + error);
+            }
+        }
+    </script>
+</body>
+
+</html>
