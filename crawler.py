@@ -1,8 +1,8 @@
 import asyncio
+import aiohttp
 import threading
 from typing import Optional, Callable
-from playwright.async_api import async_playwright
-
+from urllib.parse import urlparse
 
 async def varrer_categoria_vtex(
     url_categoria: str,
@@ -18,96 +18,80 @@ async def varrer_categoria_vtex(
     def is_cancelled() -> bool:
         return cancel_event is not None and cancel_event.is_set()
 
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        context = await browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0"
-        )
-        page = await context.new_page()
+    parsed = urlparse(url_categoria)
+    domain = parsed.netloc
+    path = parsed.path.strip("/")
+    
+    # A VTEX aceita mapeamento de diretório diretamente na busca
+    api_base_url = f"https://{domain}/api/catalog_system/pub/products/search/{path}"
+    
+    links_produtos = set()
+    pagina = 0
+    chunk_size = 50
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0",
+        "Accept": "application/json"
+    }
 
-        links_produtos = set()
+    log(f"[SPIDER] Entrando na categoria via API-First: {url_categoria}")
 
-        try:
-            log(f"[SPIDER] Entrando na categoria: {url_categoria}")
-            await page.goto(url_categoria, wait_until="domcontentloaded", timeout=30000)
-            await page.wait_for_timeout(3000)
+    connector = aiohttp.TCPConnector(limit=10)
+    async with aiohttp.ClientSession(connector=connector, headers=headers) as session:
+        while True:
+            if is_cancelled():
+                log("[SPIDER] Varredura interrompida pelo usuário.")
+                break
 
-            rolagens = 0
-            max_rolagens = 10
-
-            while rolagens < max_rolagens:
-                if is_cancelled():
-                    log("[SPIDER] Varredura interrompida pelo usuário.")
-                    break
-
-                log(f"Rolando página (Scroll {rolagens + 1}/{max_rolagens})...")
-
-                await page.evaluate("window.scrollBy(0, document.body.scrollHeight)")
-                await page.wait_for_timeout(2000)
-
-                # Tenta clicar em "Carregar mais"
-                try:
-                    botao_mais = page.locator(
-                        "text='Carregar mais', text='Ver mais', text='Mostrar mais'"
-                    )
-                    if (
-                        await botao_mais.count() > 0
-                        and await botao_mais.first.is_visible()
-                    ):
-                        await botao_mais.first.click()
-                        await page.wait_for_timeout(2000)
-                except Exception:
-                    pass
-
-                # Blacklist de termos que não são produtos reais ou são serviços
-                blacklist = ["assinatura", "prime", "servicos", "gift-card", "vale-presente", "customizacao"]
-
-                # ESTRATÉGIA ROBUSTA E PROFISSIONAL (Sem Hardcode)
-                # Seleciona todos os links da página, EXCETO os que estão em áreas de "cross-selling", 
-                # rodapé, cabeçalho ou minicart. Lojas VTEX usam 'slider' ou 'carousel' para recomendações.
-                seletor_seguro = (
-                    "a"
-                    ":not(footer a)"
-                    ":not(header a)"
-                    ":not([class*='recommendation'] a)"
-                    ":not([class*='slider'] a)"
-                    ":not([class*='carousel'] a)"
-                    ":not([class*='minicart'] a)"
-                    ":not([id*='minicart'] a)"
-                )
-                
-                elementos_a = await page.locator(seletor_seguro).all()
-
-                for el in elementos_a:
-                    href = await el.get_attribute("href")
-                    if href and ("/p?" in href or href.endswith("/p")):
-                        # 1. Normalização
-                        if href.startswith("/"):
-                            dominio = url_categoria.split("/")[2]
-                            href = f"https://{dominio}{href}"
+            _from = pagina * chunk_size
+            _to = _from + chunk_size - 1
+            url = f"{api_base_url}?_from={_from}&_to={_to}"
+            
+            log(f"Buscando página {pagina + 1} (itens de {_from} a {_to})...")
+            
+            try:
+                async with session.get(url, timeout=15) as response:
+                    if response.status not in (200, 206):
+                        log(f"[SPIDER ERRO] API retornou HTTP {response.status}")
+                        break
                         
-                        link_limpo = href.split("?")[0]
-
-                        # 2. Filtro de Blacklist
-                        if any(term in link_limpo.lower() for term in blacklist):
-                            continue
+                    raw_products = await response.json()
+                    
+                    if not raw_products or not isinstance(raw_products, list):
+                        log("✅ Fim da categoria alcançado!")
+                        break
+                        
+                    novos_links = 0
+                    for p in raw_products:
+                        link = p.get("link")
+                        if link:
+                            # Trata link para garantir que seja absoluto
+                            if link.startswith("http"):
+                                produto_url = link
+                            else:
+                                produto_url = f"https://{domain}{link}"
+                                
+                            links_produtos.add(produto_url)
+                            novos_links += 1
+                        else:
+                            link_text = p.get("linkText")
+                            if link_text:
+                                produto_url = f"https://{domain}/{link_text}/p"
+                                links_produtos.add(produto_url)
+                                novos_links += 1
                             
-                        # 3. Filtro de Segurança (evita capturar links fora do domínio principal)
-                        if url_categoria.split("/")[2] not in link_limpo:
-                            continue
+                    if novos_links == 0:
+                        break
+                        
+            except Exception as e:
+                log(f"[SPIDER ERRO] Falha ao varrer página {pagina + 1}: {e}")
+                break
 
-                        links_produtos.add(link_limpo)
+            pagina += 1
+            await asyncio.sleep(0.5) # Respeito ao rate limit
 
-                rolagens += 1
-
-            log(f"[SPIDER SUCESSO] {len(links_produtos)} links únicos encontrados na categoria!")
-            await browser.close()
-            return list(links_produtos)
-
-        except Exception as e:
-            log(f"[SPIDER ERRO] Falha ao varrer categoria: {e}")
-            await browser.close()
-            return list(links_produtos)
+    log(f"[SPIDER SUCESSO] {len(links_produtos)} links únicos encontrados na categoria!")
+    return list(links_produtos)
 
 
 # --- Teste direto ---

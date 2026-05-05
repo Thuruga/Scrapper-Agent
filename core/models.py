@@ -23,6 +23,8 @@ class RawProductBronze(BaseModel):
     category: Optional[str] = None
     sub_category: Optional[str] = None
     composition: Optional[str] = None
+    available_colors: List[str] = Field(default_factory=list)
+    available_sizes: List[str] = Field(default_factory=list)
     rating: Optional[float] = None
     review_count: Optional[int] = None
     specifications: Dict[str, str] = Field(default_factory=dict)

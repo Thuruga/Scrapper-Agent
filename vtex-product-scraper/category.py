@@ -1,136 +1,214 @@
-"""
-Orquestrador de Extração em Lote (Alta Performance).
-
-Pipeline: Varredura de Categoria via API VTEX (Intelligent Search) → Consolidação em Excel.
-Suporta cancelamento gracioso com salvamento de dados parciais.
-"""
-
 import asyncio
-import threading
-from typing import Optional, Callable
-import pandas as pd
 import aiohttp
+import json
+from typing import Optional, Tuple, List
 
-# Importa o novo motor de extração focado em API
-from services.vtex_extractor import extrair_pagina_categoria
+# =====================================================================
+# 1. O "De/Para" Inteligente
+# =====================================================================
+CATEGORY_MAPPING = {
+    "aramis": {
+        "domain": "www.aramis.com.br",
+        "categories": {
+            "polos": "C:/480/523/",
+            "camisas": "C:/480/507/"
+        }
+    },
+    "reserva": {
+        "domain": "www.usereserva.com",
+        "categories": {
+            "polos": "C:/1/101/10113/",
+            "camisas": "C:/1/101/10103/"
+        }
+    }
+}
 
-async def run_orchestrator(
-    marca: str,
-    url_categoria: str,
-    log_callback: Optional[Callable] = None,
-    cancel_event: Optional[threading.Event] = None,
-):
-    def emit_log(msg):
-        """Função auxiliar para emissão de logs estruturados ou em texto."""
-        if log_callback:
-            if isinstance(msg, dict): 
-                log_callback(msg)
-            else: 
-                log_callback({"type": "info", "message": str(msg)})
-
-    def is_cancelled() -> bool:
-        """Verifica se o utilizador solicitou o cancelamento da extração."""
-        return cancel_event is not None and cancel_event.is_set()
-
-    # Define o nome do ficheiro de saída (ex: dados_aramis_categoria.xlsx)
-    module_key = marca.lower().split()[0]
-    arquivo_saida = f"dados_{module_key}_categoria.xlsx"
-
-    # ── ETAPA 1: INICIALIZAÇÃO DA EXTRAÇÃO VIA API ──────────────────────────
-    emit_log("==================================================")
-    emit_log(f" INICIANDO EXTRAÇÃO DE ALTA PERFORMANCE: {marca}")
-    emit_log(f" Alvo: {url_categoria}")
-    emit_log("==================================================")
-
-    produtos_totais = []
-    pagina = 1
-
-    # Inicia a sessão HTTP uma única vez para garantir a máxima velocidade
-    async with aiohttp.ClientSession() as session:
-        while True:
-            # Verificação de cancelamento antes de cada página
-            if is_cancelled():
-                emit_log({"type": "cancelled", "message": "Operação interrompida pelo utilizador."})
-                break
-
-            emit_log({"type": "info", "message": f"A extrair Página {pagina}..."})
+# =====================================================================
+# 2. Funções de Extração Limpa
+# =====================================================================
+def extrair_precos(items: list) -> Tuple[Optional[float], Optional[float]]:
+    best_full = None
+    best_discount = None
+    for item in items:
+        for seller in item.get("sellers", []):
+            offer = seller.get("commertialOffer", {})
+            list_price = offer.get("ListPrice") or offer.get("Price")
+            sale_price = offer.get("Price")
             
-            try:
-                # Pede à API a página completa (já devolve a lista de objetos limpos!)
-                produtos_pagina = await extrair_pagina_categoria(session, url_categoria, marca, pagina)
-            except Exception as e:
-                emit_log({"type": "error", "message": f"Erro fatal ao consultar a página {pagina}: {e}"})
+            if not sale_price or not offer.get("IsAvailable", False):
+                continue
+
+            if best_full is None or list_price < best_full:
+                best_full = float(list_price) if list_price else None
+                best_discount = float(sale_price) if sale_price < list_price else None
+    return best_full, best_discount
+
+def calcular_estoque_total(items: list) -> int:
+    estoque_total = 0
+    for item in items:
+        for seller in item.get("sellers", []):
+            estoque_total += seller.get("commertialOffer", {}).get("AvailableQuantity", 0)
+    return estoque_total
+
+def extrair_tamanhos(items: list) -> List[str]:
+    tamanhos = []
+    for item in items:
+        tem_estoque = False
+        for seller in item.get("sellers", []):
+            if seller.get("commertialOffer", {}).get("AvailableQuantity", 0) > 0:
+                tem_estoque = True
                 break
+                
+        if tem_estoque:
+            nome_tamanho = item.get("name", "")
+            if " - " in nome_tamanho:
+                nome_tamanho = nome_tamanho.split(" - ")[-1].strip()
+                
+            if nome_tamanho and nome_tamanho not in tamanhos:
+                tamanhos.append(nome_tamanho)
+    return tamanhos
 
-            # Se a API devolver uma lista vazia, significa que chegámos ao fim da categoria
-            if not produtos_pagina:
-                emit_log({"type": "info", "message": f"Fim da categoria alcançado na página {pagina}."})
-                break
+def extrair_cores(produto: dict) -> List[str]:
+    """Varre as variações e especificações em busca das cores na API Catalog System."""
+    cores_encontradas = set()
+    nomes_chaves_cor = ["Cor", "Color", "Cor Real", "Cores"]
 
-            produtos_totais.extend(produtos_pagina)
-            emit_log({"type": "success", "message": f"Página {pagina} concluída. +{len(produtos_pagina)} produtos capturados."})
-            
-            pagina += 1
+    # Tentativa 1: Procurar nas Variações dos SKUs (nível de Item)
+    for item in produto.get("items", []):
+        variations = item.get("variations", [])
+        for var_name in variations:
+            if isinstance(var_name, str) and var_name in nomes_chaves_cor:
+                valores = item.get(var_name, [])
+                for valor in valores:
+                    cores_encontradas.add(str(valor).strip().upper())
 
-    # ── ETAPA 2: CONSOLIDAÇÃO E EXPORTAÇÃO PARA A CAMADA BRONZE ─────────────
-    emit_log("\n==================================================")
-    emit_log(" A GERAR DADOS PARA A CAMADA BRONZE (EXCEL)")
-    emit_log("==================================================")
+    # Tentativa 2: Fallback para as Especificações Gerais (nível de Produto)
+    if not cores_encontradas:
+        all_specs = produto.get("allSpecifications", [])
+        for spec_name in all_specs:
+            if spec_name in nomes_chaves_cor:
+                valores = produto.get(spec_name, [])
+                for valor in valores:
+                    cores_encontradas.add(str(valor).strip().upper())
 
-    # Converte os modelos Pydantic para dicionários
-    produtos_validos = [res.model_dump() for res in produtos_totais if res]
+    return list(cores_encontradas)
 
-    if produtos_validos:
-        df = pd.DataFrame(produtos_validos)
-        
-        # Converte as listas de cores e tamanhos para strings separadas por vírgula para suportar o formato Excel
-        if 'available_colors' in df.columns:
-            df['available_colors'] = df['available_colors'].apply(lambda x: ", ".join(x) if isinstance(x, list) else x)
-        if 'available_sizes' in df.columns:
-            df['available_sizes'] = df['available_sizes'].apply(lambda x: ", ".join(x) if isinstance(x, list) else x)
-        
-        # Expande o dicionário de especificações em colunas separadas
-        if "specifications" in df.columns:
-            specs_df = df["specifications"].apply(pd.Series)
-            df = pd.concat([df.drop("specifications", axis=1), specs_df], axis=1)
-            
-        # Guarda o resultado final no disco
-        df.to_excel(arquivo_saida, index=False)
-
-        if is_cancelled():
-            emit_log({
-                "type": "cancelled_done",
-                "valid_products": len(produtos_validos),
-                "output_file": arquivo_saida,
-                "message": f"Cancelamento concluído. Salvos {len(produtos_validos)} produtos parciais em {arquivo_saida}.",
-            })
-        else:
-            emit_log({
-                "type": "done",
-                "valid_products": len(produtos_validos),
-                "output_file": arquivo_saida,
-                "message": f"GOLAÇO! Dados de {len(produtos_validos)} produtos salvos em {arquivo_saida} numa fração do tempo.",
-            })
-    else:
-        emit_log({"type": "error", "message": "Nenhum produto foi extraído no total."})
-
-
-# ---------------------------------------------------------------------------
-# Ponto de Entrada para Testes Locais
-# ---------------------------------------------------------------------------
-async def main():
-    """Função para testar o orquestrador diretamente no terminal."""
-    marca_teste = "Aramis"
-    url_teste = "https://www.aramis.com.br/roupas/polos"
+async def buscar_familia_de_cores_api(session: aiohttp.ClientSession, dominio: str, product_id: str) -> List[str]:
+    """Chama a API de Cross-Selling da VTEX para achar as outras cores do mesmo modelo."""
+    cores_da_familia = set()
+    url_similares = f"https://{dominio}/api/catalog_system/pub/products/crossselling/similars/{product_id}"
     
-    # Callback simples para imprimir no terminal se não estivermos a usar a API/WebSockets
-    def console_logger(msg):
-        if isinstance(msg, dict):
-            print(f"[{msg.get('type', 'info').upper()}] {msg.get('message', '')}")
-        else:
-            print(msg)
+    try:
+        async with session.get(url_similares) as res:
+            if res.status in (200, 206):
+                similares = await res.json()
+                for prod in similares:
+                    for cor in extrair_cores(prod):
+                        cores_da_familia.add(cor)
+    except Exception as e:
+        print(f"⚠️ Erro ao buscar similares para {product_id}: {e}")
+        
+    return list(cores_da_familia)
 
-    await run_orchestrator(marca_teste, url_teste, log_callback=console_logger)
+# =====================================================================
+# 3. O Motor de Paginação e Orquestração Assíncrona
+# =====================================================================
+async def varrer_categoria_api(marca: str, categoria: str, chunk_size: int = 50):
+    config = CATEGORY_MAPPING.get(marca.lower())
+    if not config:
+        print(f"Marca {marca} não configurada.")
+        return
 
+    domain = config["domain"]
+    fq_path = config["categories"].get(categoria.lower())
+    
+    if not fq_path:
+        print(f"Categoria {categoria} não configurada para {marca}.")
+        return
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "application/json"
+    }
+
+    produtos_extraidos = []
+    pagina = 0
+
+    print(f"🚀 Iniciando extração API-First: {marca.upper()} -> {categoria.upper()}")
+    print("-" * 50)
+
+    # Limite de conexões simultâneas para não derrubar a API da VTEX (ou ser bloqueado)
+    connector = aiohttp.TCPConnector(limit=20)
+    
+    async with aiohttp.ClientSession(connector=connector, headers=headers) as session:
+        while True:
+            _from = pagina * chunk_size
+            _to = _from + chunk_size - 1
+
+            url = (
+                f"https://{domain}/api/catalog_system/pub/products/search"
+                f"?fq={fq_path}&_from={_from}&_to={_to}"
+            )
+
+            print(f"📥 Buscando página {pagina + 1} (itens de {_from} a {_to})...")
+            
+            async with session.get(url) as response:
+                if response.status not in (200, 206):
+                    print(f"❌ Erro na API: HTTP {response.status}")
+                    break
+
+                raw_products = await response.json()
+
+                if not raw_products:
+                    print("✅ Fim da categoria alcançado!")
+                    break
+
+                # Função interna para processar um único produto de forma assíncrona
+                async def processar_produto(p):
+                    items = p.get("items", [])
+                    price_full, price_discount = extrair_precos(items)
+                    estoque = calcular_estoque_total(items)
+                    
+                    if estoque >= 10000:
+                        estoque = 999 
+
+                    cor_atual = extrair_cores(p)
+                    product_id = str(p.get("productId"))
+                    
+                    # Busca cores irmãs na API de similares
+                    cores_irmas = await buscar_familia_de_cores_api(session, domain, product_id)
+                    todas_as_cores = list(set(cor_atual + cores_irmas))
+
+                    return {
+                        "id": product_id,
+                        "nome": p.get("productName"),
+                        "preco_cheio": price_full,
+                        "preco_desconto": price_discount,
+                        "estoque": estoque,
+                        "tamanhos_disponiveis": extrair_tamanhos(items),
+                        "cores_disponiveis": todas_as_cores,
+                        "url": p.get("link")
+                    }
+
+                # Dispara o processamento para todos os produtos deste "chunk" simultaneamente
+                tarefas = [processar_produto(p) for p in raw_products]
+                produtos_limpos = await asyncio.gather(*tarefas)
+                
+                produtos_extraidos.extend(produtos_limpos)
+
+            pagina += 1
+            # Pausa de segurança para respeitar Rate Limits
+            await asyncio.sleep(0.5) 
+
+    print("-" * 50)
+    print(f"🎉 Extração concluída! {len(produtos_extraidos)} produtos capturados estruturalmente.")
+    
+    if produtos_extraidos:
+        print("\n🔎 Amostra do primeiro produto estruturado com a família de cores:")
+        print(json.dumps(produtos_extraidos[0], indent=2, ensure_ascii=False))
+
+# =====================================================================
+# 4. Execução Principal
+# =====================================================================
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(varrer_categoria_api(marca="aramis", categoria="polos"))

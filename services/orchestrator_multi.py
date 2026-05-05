@@ -53,7 +53,7 @@ async def _run_brand_pipeline(
     log_callback: Optional[Callable] = None,
 ) -> BrandJobResult:
     """
-    Pipeline completo para uma marca: crawl → scrape → retorna produtos.
+    Pipeline completo para uma marca: varredura paginada na API.
     """
     brand_info = BRAND_REGISTRY.get(brand_key, {})
     brand_name = brand_info.get("name", brand_key.title())
@@ -69,74 +69,40 @@ async def _run_brand_pipeline(
     def is_cancelled() -> bool:
         return cancel_event.is_set()
 
-    # ── Carregar scraper ───────────────────────────────────────────────
-    try:
-        scraper_module = get_scraper(brand_key)
-    except ValueError as e:
-        result.error_message = str(e)
-        result.finished = True
-        emit({"type": "error", "message": f"[{brand_name}] {e}"})
-        return result
+    # ── ETAPA 1: VARREDURA E EXTRAÇÃO PAGINADA ─────────────────────────────
+    emit({"type": "info", "message": f"[{brand_name}] Iniciando varredura paginada: {url}"})
 
-    # ── ETAPA 1: VARREDURA ─────────────────────────────────────────────
-    emit({"type": "info", "message": f"[{brand_name}] Iniciando varredura: {url}"})
+    from services.vtex_api_scraper import VtexApiClient
 
-    links = await varrer_categoria_vtex(
-        url,
-        log_callback=lambda msg: emit(
-            msg if isinstance(msg, dict) else {"type": "info", "message": f"[{brand_name}] {msg}"}
-        ),
-        cancel_event=cancel_event,
-    )
+    async with VtexApiClient(brand_key) as client:
+        try:
+            resultados_brutos = await client.scrape_category_paged(
+                category_url=url,
+                log_callback=lambda msg: emit(
+                    msg if isinstance(msg, dict) else {"type": "info", "message": f"[{brand_name}] {msg}"}
+                ),
+                cancel_event=cancel_event,
+                chunk_size=50
+            )
+        except Exception as e:
+            result.error_message = str(e)
+            result.finished = True
+            emit({"type": "error", "message": f"[{brand_name}] Erro: {e}"})
+            return result
 
-    if is_cancelled():
+    if is_cancelled() and not resultados_brutos:
         emit({"type": "cancelled", "message": f"[{brand_name}] Varredura cancelada."})
         result.finished = True
         return result
 
-    if not links:
-        emit({"type": "error", "message": f"[{brand_name}] Nenhum link encontrado."})
+    if not resultados_brutos:
+        emit({"type": "error", "message": f"[{brand_name}] Nenhum produto encontrado."})
         result.finished = True
         return result
 
-    result.total_links = len(links)
-    emit({
-        "type": "brand_stats",
-        "total_links": len(links),
-        "message": f"[{brand_name}] {len(links)} links encontrados. Iniciando extração...",
-    })
-
-    # ── ETAPA 2: EXTRAÇÃO ──────────────────────────────────────────────
-    semaforo = asyncio.Semaphore(settings.MAX_CONCURRENCY)
-
-    async def extract_one(link: str):
-        if is_cancelled():
-            return None
-        async with semaforo:
-            if is_cancelled():
-                return None
-            emit({"type": "info", "message": f"[{brand_name}] Extraindo: {link}"})
-            try:
-                produto = await scraper_module.scrape_competitor_product(link, brand_key)
-                await asyncio.sleep(settings.SCRAPER_DELAY_SECONDS)
-                if produto:
-                    result.success_count += 1
-                    emit({"type": "brand_success", "message": f"[{brand_name}] ✓ {produto.raw_title}"})
-                else:
-                    result.error_count += 1
-                    emit({"type": "brand_error", "message": f"[{brand_name}] ✗ Falha: {link}"})
-                return produto
-            except asyncio.CancelledError:
-                return None
-            except Exception as e:
-                result.error_count += 1
-                emit({"type": "brand_error", "message": f"[{brand_name}] ✗ Erro: {e}"})
-                return None
-
-    tasks = [extract_one(link) for link in links]
-    resultados_brutos = await asyncio.gather(*tasks)
-
-    result.products = [r for r in resultados_brutos if r is not None]
+    result.products = resultados_brutos
+    result.success_count = len(resultados_brutos)
+    result.total_links = len(resultados_brutos)
     result.finished = True
 
     emit({
@@ -244,6 +210,11 @@ def run_multi_orchestrator_sync(
 
     if all_products:
         df = pd.DataFrame(all_products)
+
+        # Converter listas para strings separadas por vírgula para ficar legível no Excel
+        for col in ["available_colors", "available_sizes"]:
+            if col in df.columns:
+                df[col] = df[col].apply(lambda x: ", ".join(x) if isinstance(x, list) else x)
 
         # Mover coluna 'brand' para a primeira posição
         cols = df.columns.tolist()
