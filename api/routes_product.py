@@ -54,3 +54,18 @@ async def get_monitor_history(job_id: str):
         raise HTTPException(status_code=404, detail="Monitor not found")
     return monitor_service.monitors[job_id].model_dump()
 
+
+@router.get("/monitors")
+async def list_monitors():
+    """Lista todos os monitores (ativos e inativos)."""
+    return {job_id: config.model_dump() for job_id, config in monitor_service.monitors.items()}
+
+
+@router.delete("/monitor/{job_id}")
+async def delete_monitor(job_id: str):
+    """Remove permanentemente um monitoramento."""
+    await monitor_service.delete_monitor(job_id)
+    return {"status": "deleted"}
+
+
+

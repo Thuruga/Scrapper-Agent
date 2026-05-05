@@ -803,6 +803,63 @@
             background: var(--error);
         }
 
+        /* Monitor Grid & Cards */
+        .monitor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1.5rem;
+            width: 100%;
+        }
+
+        .monitor-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .monitor-card:hover {
+            border-color: rgba(139, 92, 246, 0.4);
+            background: rgba(255, 255, 255, 0.05);
+            transform: translateY(-2px);
+        }
+
+        .monitor-card .price {
+            font-size: 1.8rem;
+            margin: 0.5rem 0;
+        }
+
+        .monitor-card .history-mini {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            max-height: 100px;
+            overflow-y: auto;
+            background: rgba(0,0,0,0.2);
+            padding: 0.5rem;
+            border-radius: 8px;
+        }
+
+        .monitor-card .status-tag {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            font-size: 0.7rem;
+            padding: 0.2rem 0.6rem;
+            border-radius: 999px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .status-active { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; }
+        .status-stopped { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+
+
         .rating-row {
             display: flex;
             align-items: center;
@@ -1184,32 +1241,15 @@
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
-                    <h3>Painel de Monitoramento</h3>
-                    <p>Configure o intervalo e inicie o robô para acompanhar variações de preço em tempo real.</p>
+                    <h3>Lista de Monitoramento</h3>
+                    <p>Adicione URLs acima para acompanhar vários produtos ao mesmo tempo.</p>
                 </div>
                 
-                <div id="monitorPanel" style="display:none; animation: fadeIn 0.5s ease;">
-                    <div class="badge aramis" id="monitorBadge">Aramis</div>
-                    <h2 id="monitorTitle" style="margin-bottom:0.5rem;">Aguardando primeiro dado...</h2>
-                    <div class="price" id="monitorCurrentPrice">R$ 0,00</div>
-                    <div id="monitorStatus" style="font-size:0.9rem; margin-bottom:1.5rem; color:var(--text-muted);">
-                        Status: <span style="color:var(--success);">Iniciado</span> | Intervalo: <span id="monitorIntervalLabel">10</span> min
-                    </div>
-
-                    <div style="margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
-                        <h3 style="font-size: 1.1rem; margin-bottom: 1rem; color: #a78bfa;">📈 Histórico de Mudanças</h3>
-                        <div id="priceHistoryList" style="display: flex; flex-direction: column; gap: 0.6rem; max-height: 250px; overflow-y: auto; padding-right: 0.5rem;">
-                            <!-- History items will appear here -->
-                            <div style="color: var(--text-muted); font-style: italic; font-size: 0.9rem;">Nenhuma alteração detectada ainda...</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Console de Log Local do Monitor -->
-                <div class="console-feed" id="monitorConsole" style="height: 150px; margin-top: auto; font-size: 0.8rem; padding: 0.8rem;">
-                    <div class="console-line info">> Monitor pronto para iniciar.</div>
+                <div id="monitorGrid" class="monitor-grid">
+                    <!-- Monitor cards will be appended here -->
                 </div>
             </div>
+
         </div>
     </div>
 
@@ -1376,41 +1416,148 @@
             document.getElementById(`tab-${tabId}`).classList.add('active');
         }
 
-        // ── Monitor Logic ──────────────────────────────────────────────
-        let monitorWs = null;
-        let activeMonitorJobId = null;
+        // ── Monitor Logic (Multi-Product) ──────────────────────────────
+        let monitorWebSockets = {};
 
-        function monitorLog(msg, type = 'info') {
-            const feed = document.getElementById('monitorConsole');
-            const line = document.createElement('div');
-            line.className = `console-line ${type}`;
-            line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
-            feed.appendChild(line);
-            feed.scrollTop = feed.scrollHeight;
-        }
+        function addMonitorCard(jobId, config) {
+            const grid = document.getElementById('monitorGrid');
+            document.getElementById('monitorEmptyState').style.display = 'none';
 
-        async function stopMonitoring() {
-            if (!activeMonitorJobId) return;
-            const btn = document.getElementById('monitorStopBtn');
-            btn.classList.add('button-loading');
-            try {
-                await fetch(`/api/monitor/stop/${activeMonitorJobId}`, { method: 'POST' });
-                monitorLog('⏹ Monitoramento interrompido.', 'cancelled');
-                document.getElementById('monitorStatus').innerHTML = 'Status: <span style="color:var(--error);">Parado</span>';
-                if (monitorWs) monitorWs.close();
-                btn.style.display = 'none';
-                document.getElementById('monitorSubmitBtn').disabled = false;
-            } catch (e) {
-                monitorLog('Erro ao parar: ' + e.message, 'error');
-            } finally {
-                btn.classList.remove('button-loading');
+            // Remove existing card if re-adding
+            const existing = document.getElementById(`card-${jobId}`);
+            if (existing) existing.remove();
+
+            const brandMeta = BRAND_COLORS[config.brand] || { color: '#94a3b8', name: config.brand };
+            
+            const cardHtml = `
+                <div class="monitor-card" id="card-${jobId}">
+                    <span class="status-tag ${config.active ? 'status-active' : 'status-stopped'}" id="status-${jobId}">
+                        ${config.active ? 'Ativo' : 'Parado'}
+                    </span>
+                    <div class="badge ${config.brand}">${brandMeta.name}</div>
+                    <div style="display: flex; gap: 1rem; align-items: center; margin-top: 0.5rem;">
+                        <img src="${config.image_url || ''}" class="product-thumb" style="width: 50px; height: 50px; border-radius: 8px; background: rgba(0,0,0,0.2); object-fit: contain; display: ${config.image_url ? 'block' : 'none'};">
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-weight: 600; font-size: 0.85rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;" title="${config.url || ''}">
+                                ${config.url ? config.url.split('/').filter(p => p).pop().toUpperCase() : 'PRODUTO'}
+                            </div>
+                            <div style="font-size: 0.7rem; color: var(--text-muted); text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">
+                                ${config.url || ''}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="price" id="price-${jobId}">R$ ${config.last_price ? config.last_price.toFixed(2) : '---'}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">
+                        Int: ${config.interval_minutes}m | Dur: ${config.duration_hours}h
+                    </div>
+                    
+                    <div class="history-mini" id="history-${jobId}">
+                        ${config.history.length > 0 
+                            ? config.history.reverse().map(e => `<div>• R$ ${e.price.toFixed(2)} (${new Date(e.timestamp).toLocaleTimeString()})</div>`).join('')
+                            : 'Aguardando mudanças...'}
+                    </div>
+
+                    <div style="display: flex; gap: 0.5rem; margin-top: auto;">
+                        <button class="tab-btn" style="padding: 0.4rem; flex: 1; font-size: 0.8rem; background: rgba(239, 68, 68, 0.1); color: #fca5a5;" onclick="stopMonitoring('${jobId}')" id="stop-btn-${jobId}" ${!config.active ? 'disabled' : ''}>
+                            Parar
+                        </button>
+                        <button class="tab-btn" style="padding: 0.4rem; font-size: 0.8rem; background: rgba(255, 255, 255, 0.1); color: var(--text-muted);" onclick="deleteMonitor('${jobId}')">
+                            🗑️ Remover
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            grid.insertAdjacentHTML('afterbegin', cardHtml);
+
+            if (config.active) {
+                connectMonitorWs(jobId);
             }
         }
+
+        function connectMonitorWs(jobId) {
+            if (monitorWebSockets[jobId]) return;
+
+            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const ws = new WebSocket(`${protocol}//${location.host}/ws/${jobId}`);
+            monitorWebSockets[jobId] = ws;
+
+            ws.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                if (msg.type === 'price_update') {
+                    document.getElementById(`price-${jobId}`).textContent = `R$ ${msg.price.toFixed(2)}`;
+                    const hist = document.getElementById(`history-${jobId}`);
+                    hist.innerHTML = msg.history.reverse().map(e => `<div>• R$ ${e.price.toFixed(2)} (${new Date(e.timestamp).toLocaleTimeString()})</div>`).join('');
+                } else if (msg.type === 'done') {
+                    const tag = document.getElementById(`status-${jobId}`);
+                    tag.className = 'status-tag status-stopped';
+                    tag.textContent = 'Concluído';
+                    document.getElementById(`stop-btn-${jobId}`).disabled = true;
+                    ws.close();
+                }
+            };
+
+            ws.onclose = () => delete monitorWebSockets[jobId];
+        }
+
+        async function stopMonitoring(jobId) {
+            try {
+                await fetch(`/monitor/stop/${jobId}`, { method: 'POST' });
+                const tag = document.getElementById(`status-${jobId}`);
+                if (tag) {
+                    tag.className = 'status-tag status-stopped';
+                    tag.textContent = 'Parado';
+                }
+                const btn = document.getElementById(`stop-btn-${jobId}`);
+                if (btn) btn.disabled = true;
+                if (monitorWebSockets[jobId]) monitorWebSockets[jobId].close();
+            } catch (e) {
+                console.error('Erro ao parar monitor:', e);
+            }
+        }
+
+        async function deleteMonitor(jobId) {
+            if (!confirm('Tem certeza que deseja remover este produto do monitoramento?')) return;
+            
+            try {
+                await fetch(`/monitor/${jobId}`, { method: 'DELETE' });
+                const card = document.getElementById(`card-${jobId}`);
+                if (card) card.remove();
+                if (monitorWebSockets[jobId]) monitorWebSockets[jobId].close();
+                
+                // Se a grade ficar vazia, mostra empty state
+                if (document.getElementById('monitorGrid').children.length === 0) {
+                    document.getElementById('monitorEmptyState').style.display = 'block';
+                }
+            } catch (e) {
+                console.error('Erro ao remover monitor:', e);
+            }
+        }
+
+        async function loadExistingMonitors() {
+
+            try {
+                const res = await fetch('/monitors');
+                if (!res.ok) {
+                    console.warn("Endpoint /monitors não encontrado. Reinicie o servidor.");
+                    return;
+                }
+                const monitors = await res.json();
+                Object.keys(monitors).forEach(jobId => {
+                    if (monitors[jobId]) {
+                        addMonitorCard(jobId, monitors[jobId]);
+                    }
+                });
+            } catch (e) {
+                console.error('Erro ao carregar monitores:', e);
+            }
+        }
+
 
         document.getElementById('monitorForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('monitorSubmitBtn');
-            const stopBtn = document.getElementById('monitorStopBtn');
             const brand = document.getElementById('brand').value;
             const url = document.getElementById('url').value;
             const interval = document.getElementById('interval').value;
@@ -1418,70 +1565,29 @@
 
             btn.classList.add('button-loading');
             btn.disabled = true;
-            document.getElementById('monitorEmptyState').style.display = 'none';
-            document.getElementById('monitorPanel').style.display = 'none';
-            document.getElementById('monitorConsole').innerHTML = '';
-            document.getElementById('priceHistoryList').innerHTML = '<div style="color: var(--text-muted); font-style: italic; font-size: 0.9rem;">Buscando primeiro dado...</div>';
 
             try {
-                const res = await fetch('/api/monitor/start', {
+                const res = await fetch('/monitor/start', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ url, brand, interval: parseInt(interval), duration: parseInt(duration) })
                 });
                 if (!res.ok) throw new Error('Falha ao iniciar monitoramento');
                 const data = await res.json();
-                activeMonitorJobId = data.job_id;
-
-                document.getElementById('monitorPanel').style.display = 'block';
-                document.getElementById('monitorBadge').textContent = brand;
-                document.getElementById('monitorBadge').className = `badge ${brand}`;
-                document.getElementById('monitorIntervalLabel').textContent = interval;
-                stopBtn.style.display = 'flex';
-
-                monitorLog(`Monitor iniciado para Job ${activeMonitorJobId}`, 'success');
-
-                // Conectar WebSocket para atualizações
-                const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-                monitorWs = new WebSocket(`${protocol}//${location.host}/ws/${activeMonitorJobId}`);
                 
-                monitorWs.onmessage = (event) => {
-                    const msg = JSON.parse(event.data);
-                    if (msg.type === 'price_update') {
-                        document.getElementById('monitorTitle').textContent = "Acompanhando: " + url.split('/').pop();
-                        document.getElementById('monitorCurrentPrice').textContent = `R$ ${msg.price.toFixed(2)}`;
-                        
-                        // Atualiza lista de histórico
-                        const historyList = document.getElementById('priceHistoryList');
-                        historyList.innerHTML = msg.history.reverse().map(entry => `
-                            <div style="background: rgba(255,255,255,0.05); padding: 0.8rem; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid var(--success);">
-                                <div>
-                                    <div style="font-weight: 700; color: var(--success); font-size: 1.1rem;">R$ ${entry.price.toFixed(2)}</div>
-                                    <div style="font-size: 0.75rem; color: var(--text-muted);">${new Date(entry.timestamp).toLocaleString()}</div>
-                                </div>
-                                <div style="font-size: 0.8rem; color: #f8fafc;">${entry.available ? '✅ Disponível' : '❌ Esgotado'}</div>
-                            </div>
-                        `).join('');
-                        
-                        monitorLog(msg.message, 'success');
-                    } else if (msg.type === 'done') {
-                        monitorLog(msg.message, 'stats');
-                        stopBtn.style.display = 'none';
-                        btn.disabled = false;
-                    } else {
-                        monitorLog(msg.message || JSON.stringify(msg), msg.type || 'info');
-                    }
-                };
-                
-                monitorWs.onerror = () => monitorLog('Erro na conexão de tempo real.', 'error');
-
+                addMonitorCard(data.job_id, data.config);
+                alert("Monitor iniciado com sucesso!");
             } catch (err) {
-                monitorLog("Erro: " + err.message, 'error');
-                btn.disabled = false;
+                alert("Erro: " + err.message);
             } finally {
                 btn.classList.remove('button-loading');
+                btn.disabled = false;
             }
         });
+
+        // Chamada inicial
+        loadExistingMonitors();
+
 
         // ── Category Mode Controller ────────────────────────────────────────
         const BRAND_COLORS = {

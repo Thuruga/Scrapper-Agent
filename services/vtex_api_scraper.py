@@ -165,6 +165,14 @@ class VtexApiClient:
             
             composition = specs_dict.get("Composição") or specs_dict.get("Material")
 
+            # Imagem
+            items = p.get("items", [])
+            image_url = None
+            if items:
+                images = items[0].get("images", [])
+                if images:
+                    image_url = images[0].get("imageUrl")
+
             return RawProductBronze(
                 url=product_url,
                 brand=self.brand_name,
@@ -180,8 +188,10 @@ class VtexApiClient:
                 available_sizes=self._extract_sizes(p.get("items", [])),
                 rating=rating,
                 review_count=count,
-                specifications=specs_dict
+                specifications=specs_dict,
+                image_url=image_url
             )
+
         except Exception as e:
             print(f"Erro no parse_product_dict para {product_url}: {e}")
             return None

@@ -64,12 +64,22 @@ class PriceMonitorService:
         return config
 
     async def stop_monitor(self, job_id: str):
-        if job_id in self.monitors:
-            self.monitors[job_id].active = False
-            self._save_monitors()
         if job_id in self.tasks:
             self.tasks[job_id].cancel()
             del self.tasks[job_id]
+        
+        if job_id in self.monitors:
+            self.monitors[job_id].active = False
+            self._save_monitors()
+
+    async def delete_monitor(self, job_id: str):
+        # Para se estiver rodando
+        await self.stop_monitor(job_id)
+        
+        # Remove dos registros
+        if job_id in self.monitors:
+            del self.monitors[job_id]
+            self._save_monitors()
 
     async def _monitor_loop(self, job_id: str):
         config = self.monitors.get(job_id)
@@ -96,7 +106,13 @@ class PriceMonitorService:
                     current_price = product.price_full
                     available = product.stock_availability
                     
+                    # Atualiza imagem na config se ainda não tiver
+                    if product.image_url and not config.image_url:
+                        config.image_url = product.image_url
+                        self._save_monitors()
+
                     # Verifica se houve mudança de preço ou disponibilidade
+
                     has_change = False
                     if config.last_price is None or config.last_price != current_price:
                         has_change = True

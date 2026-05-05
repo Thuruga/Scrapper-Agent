@@ -23,10 +23,21 @@ from api import api_router
 # ---------------------------------------------------------------------------
 # App Initialization
 # ---------------------------------------------------------------------------
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup logic
+    from services.price_monitor_service import monitor_service
+    monitor_service.load_monitors()
+    yield
+    # Shutdown logic (optional)
+
 app = FastAPI(
     title="Intelligence Scraper API",
     description="API robusta para extração de dados da Camada Bronze.",
     version="2.0.0",
+    lifespan=lifespan
 )
 
 # Enable CORS
@@ -38,10 +49,6 @@ app.add_middleware(
 )
 
 
-@app.on_event("startup")
-async def startup_event():
-    from services.price_monitor_service import monitor_service
-    monitor_service.load_monitors()
 
 
 

@@ -28,6 +28,8 @@ class RawProductBronze(BaseModel):
     rating: Optional[float] = None
     review_count: Optional[int] = None
     specifications: Dict[str, str] = Field(default_factory=dict)
+    image_url: Optional[str] = None
+
 
 
 # ---------------------------------------------------------------------------
@@ -95,4 +97,6 @@ class PriceMonitorConfig(BaseModel):
     last_price: Optional[float] = None
     history: List[PriceHistoryEntry] = Field(default_factory=list)
     active: bool = True
+    image_url: Optional[str] = None
+
 
