@@ -88,6 +88,12 @@ class PriceMonitorService:
             del self.monitors[job_id]
             self._save_monitors()
 
+    async def delete_monitors_by_brand(self, brand_key: str):
+        """Para e remove todos os monitores associados a uma marca."""
+        to_delete = [job_id for job_id, config in self.monitors.items() if config.brand.lower() == brand_key.lower()]
+        for job_id in to_delete:
+            await self.delete_monitor(job_id)
+
     async def _monitor_loop(self, job_id: str):
         config = self.monitors.get(job_id)
         if not config:

@@ -42,13 +42,26 @@ class VtexApiClient:
         self.session = session
         self._owns_session = session is None
         self.semaphore = asyncio.Semaphore(15)
+        self.resolved_account = None
+        self.use_stable_fallback = False
+
+    @staticmethod
+    def _discover_account_from_html(domain: str, html_content: str) -> str:
+        """Extrai o nome da conta VTEX de um HTML bruto."""
+        # 1. Procura pela CDN
+        vtexassets_match = re.search(r"https:\/\/([^.]+)\.vtexassets\.com", html_content)
+        if vtexassets_match:
+            return vtexassets_match.group(1)
+        
+        # 2. Fallback pelo domínio
+        account_match = re.search(r"^(?:www\.)?([^.]+)", domain)
+        return account_match.group(1) if account_match else domain.split(".")[0]
 
     @staticmethod
     async def fetch_categories(domain: str, depth: int = 3) -> List[Dict[str, Any]]:
         """
         Motor de extração com Auto-Discovery do nome da conta VTEX.
         Perfeito para contornar setups Headless/FastStore sem depender de input manual.
-        Utiliza curl_cffi para emular um browser real e evitar bloqueios iniciais.
         """
         domain = domain.replace("https://", "").replace("http://", "").strip("/")
         url_principal = f"https://{domain}/api/catalog_system/pub/category/tree/{depth}"
@@ -63,34 +76,21 @@ class VtexApiClient:
                 logger.info(f"📥 Tentando domínio principal: {url_principal}")
                 response = await session.get(url_principal, headers=headers)
 
-                conteudo_bruto = response.text
-
                 if response.status_code == 200:
                     try:
-                        return response.json()
-                    except json.JSONDecodeError:
-                        logger.warning("⚠️ O frontend devorou a requisição (Retornou HTML).")
+                        dados = response.json()
+                        if isinstance(dados, list) and len(dados) > 0:
+                            return dados
+                        logger.warning("⚠️ Árvore vazia ou inválida no domínio principal.")
+                    except (json.JSONDecodeError, Exception):
+                        logger.warning("⚠️ O domínio principal retornou HTML ou JSON inválido.")
                 else:
                     logger.warning(f"⚠️ Status HTTP {response.status_code} no domínio principal.")
 
-                # ─── MÓDULO DE AUTO-DISCOVERY (O "Pulo do Gato") ───
+                # ─── MÓDULO DE AUTO-DISCOVERY ───
                 logger.info("🔍 Inspecionando o HTML para descobrir o ID real da conta VTEX...")
-
-                # Caça qualquer URL da CDN da VTEX dentro do HTML para extrair o nome verdadeiro da conta
-                vtexassets_match = re.search(
-                    r"https:\/\/([^.]+)\.vtexassets\.com", conteudo_bruto
-                )
-
-                if vtexassets_match:
-                    account_name = vtexassets_match.group(1)
-                    logger.info(f"🎯 Bingo! Conta VTEX descoberta no código-fonte: '{account_name}'")
-                else:
-                    # Fallback de segurança se não encontrar a CDN no HTML
-                    account_match = re.search(r"^(?:www\.)?([^.]+)", domain)
-                    account_name = (
-                        account_match.group(1) if account_match else domain.split(".")[0]
-                    )
-                    logger.info(f"⚠️ CDN não encontrada. A inferir a conta pelo domínio: '{account_name}'")
+                account_name = VtexApiClient._discover_account_from_html(domain, response.text)
+                logger.info(f"🎯 Conta identificada: '{account_name}'")
 
                 url_fallback = f"https://{account_name}.vtexcommercestable.com.br/api/catalog_system/pub/category/tree/{depth}"
 
@@ -103,16 +103,83 @@ class VtexApiClient:
                         dados = response_fb.json()
                         logger.info("✅ Sucesso! Conectado diretamente ao Backend da VTEX.")
                         return dados
-                    except json.JSONDecodeError:
-                        logger.error("❌ Falha: O Fallback oculto também retornou HTML.")
+                    except Exception:
+                        logger.error("❌ Falha: O Fallback oculto também retornou dados inválidos.")
                         return []
                 else:
-                    logger.error(f"❌ O Fallback falhou com Status HTTP {response_fb.status_code}")
-                    return []
+                    logger.warning(f"❌ O Fallback falhou com Status HTTP {response_fb.status_code}")
+
+                # ─── MÓDULO 3: EXTREME DISCOVERY ───
+                # ... (resto do código igual)
+                response_home = await session.get(f"https://{domain}/", headers=headers)
+                if response_home.status_code == 200:
+                    html = response_home.text.lower()
+                    # Procura links que pareçam categorias (evita links de sistema, contato, etc)
+                    # Busca por padrões como href="/categoria", href="/departamento/categoria"
+                    paths = re.findall(r'href="(/[^"]+)"', html)
+                    discovered = []
+                    seen_paths = set()
+                    
+                    # Filtros de ruído
+                    noise = [".js", ".css", ".png", ".jpg", "login", "carrinho", "checkout", "minha-conta", "institucional", "fale-conosco"]
+                    
+                    for p in paths:
+                        p = p.split("?")[0].split("#")[0].strip("/")
+                        if not p or p in seen_paths or any(n in p for n in noise):
+                            continue
+                        
+                        # Categorias costumam ter entre 1 e 3 níveis de path
+                        if 1 <= p.count("/") <= 3:
+                            name = p.split("/")[-1].replace("-", " ").capitalize()
+                            discovered.append({"name": name, "url": f"/{p}"})
+                            seen_paths.add(p)
+                    
+                    if discovered:
+                        logger.info(f"🕸️ Extreme Discovery encontrou {len(discovered)} links potenciais.")
+                        return discovered
+
+                return []
 
         except Exception as e:
-            logger.error(f"❌ Erro crítico de rede na descoberta de categorias: {e}")
+            logger.error(f"❌ Erro crítico na descoberta: {e}")
             return []
+
+    @staticmethod
+    async def validate_url(url: str) -> bool:
+        """
+        Valida se uma URL de categoria é funcional e contém produtos.
+        Utiliza curl_cffi para bypass de WAF básico e emulação de browser.
+        """
+        headers = {
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        }
+        try:
+            async with AsyncSession(impersonate="chrome", timeout=10) as session:
+                logger.info(f"🧪 Validando URL: {url}")
+                resp = await session.get(url, headers=headers, allow_redirects=True)
+                
+                if resp.status_code != 200:
+                    logger.warning(f"🚫 URL inválida ({resp.status_code}): {url}")
+                    return False
+                
+                # Heurística: se a página for muito pequena, provavelmente está vazia ou deu erro
+                if len(resp.text) < 1000:
+                    logger.warning(f"🚫 URL com conteúdo insuficiente: {url}")
+                    return False
+
+                # Busca por indícios de "vazio"
+                content = resp.text.lower()
+                empty_markers = ["nenhum produto encontrado", "0 produtos", "não encontramos produtos", "Ops!"]
+                if any(marker in content for marker in empty_markers):
+                    logger.warning(f"🚫 URL parece estar vazia: {url}")
+                    return False
+                
+                logger.info(f"✅ URL válida: {url}")
+                return True
+        except Exception as e:
+            logger.warning(f"⚠️ Erro ao validar URL {url}: {e}")
+            return False
 
     def _get_headers(self) -> Dict[str, str]:
         return {
@@ -146,17 +213,19 @@ class VtexApiClient:
         
         for attempt in range(settings.MAX_RETRIES):
             try:
-                # Rotaciona proxy em cada tentativa de retry se habilitado
-                current_proxy = IdentityManager.get_random_proxy() if attempt > 0 else proxy
+                current_url = self._get_api_url(url)
+                current_proxy = IdentityManager.get_random_proxy()
                 
-                async with self.session.request(method, url, proxy=current_proxy, **kwargs) as resp:
+                async with self.session.request(method, current_url, proxy=current_proxy, **kwargs) as resp:
                     if resp.status in (200, 201, 206):
-                        # Forçamos a leitura aqui pois o context manager da response vai fechar
-                        # Mas como queremos usar o json() depois, retornaremos a response 
-                        # se o chamador souber lidar, ou faremos o parse aqui.
-                        # Para facilitar, retornaremos a response e o chamador deve usar context manager ou read.
-                        # No entanto, aiohttp não permite usar a response fora do 'async with'.
-                        # Refatoraremos para que o chamador passe um callback ou processe dentro.
+                        # Se for HTML onde deveria ser JSON, aciona fallback
+                        if "text/html" in resp.headers.get("Content-Type", "") and "api/" in current_url:
+                             if not self.use_stable_fallback:
+                                logger.warning(f"⚠️ Detectado HTML em API. Tentando fallback...")
+                                parsed = urlparse(current_url)
+                                await self._ensure_account_resolved(parsed.netloc)
+                                self.use_stable_fallback = True
+                                continue
                         return resp
                     
                     if resp.status == 429: # Rate Limit
@@ -182,33 +251,87 @@ class VtexApiClient:
         if self._owns_session and self.session:
             await self.session.close()
 
+    async def _ensure_account_resolved(self, domain: str):
+        """Garante que a conta VTEX foi identificada para uso de fallback."""
+        if self.resolved_account:
+            return
+        
+        logger.info(f"🔍 Identificando conta VTEX para {domain}...")
+        headers = {"User-Agent": IdentityManager.get_random_user_agent()}
+        try:
+            # Tenta pegar a home para descobrir a conta
+            async with AsyncSession(impersonate="chrome", timeout=10) as session:
+                resp = await session.get(f"https://{domain}/", headers=headers)
+                if resp.status_code == 200:
+                    self.resolved_account = self._discover_account_from_html(domain, resp.text)
+                    logger.info(f"🎯 Conta resolvida: {self.resolved_account}")
+                else:
+                    # Fallback básico pelo domínio
+                    self.resolved_account = domain.split(".")[0] if "www" not in domain else domain.split(".")[1]
+        except Exception as e:
+            logger.warning(f"⚠️ Falha ao resolver conta via HTML: {e}. Usando fallback de domínio.")
+            self.resolved_account = domain.split(".")[0] if "www" not in domain else domain.split(".")[1]
+
+    def _get_api_url(self, original_url: str) -> str:
+        """Retorna a URL da API, possivelmente usando o domínio estável se habilitado."""
+        if not self.use_stable_fallback or not self.resolved_account:
+            return original_url
+        
+        parsed = urlparse(original_url)
+        stable_domain = f"{self.resolved_account}.vtexcommercestable.com.br"
+        return original_url.replace(parsed.netloc, stable_domain)
+
+    def _sanitize_product_url(self, url: str, public_domain: str) -> str:
+        """Garante que o link aponte para o domínio público (www.brand.com.br)."""
+        if not url: return url
+        parsed_p = urlparse(url)
+        if "vtexcommercestable" in parsed_p.netloc or "vtexcommerce" in parsed_p.netloc:
+            return url.replace(parsed_p.netloc, public_domain)
+        return url
+
     async def _request_json(self, url: str, **kwargs) -> Optional[Any]:
-        """Realiza requisições GET e retorna o JSON validado."""
+        """Realiza requisições GET e retorna o JSON validado, com auto-fallback."""
         if not self.session:
             return None
 
-        proxy = IdentityManager.get_random_proxy()
+        parsed = urlparse(url)
+        domain = parsed.netloc
         
         for attempt in range(settings.MAX_RETRIES):
             try:
-                current_proxy = IdentityManager.get_random_proxy() if attempt > 0 else proxy
+                current_url = self._get_api_url(url)
+                current_proxy = IdentityManager.get_random_proxy()
                 
-                async with self.session.get(url, proxy=current_proxy, **kwargs) as resp:
+                async with self.session.get(current_url, proxy=current_proxy, **kwargs) as resp:
                     if resp.status in (200, 206):
-                        return await resp.json()
+                        try:
+                            # Verifica se o content type é mesmo JSON
+                            if "text/html" in resp.headers.get("Content-Type", ""):
+                                raise ValueError("Recebido HTML em vez de JSON")
+                            return await resp.json()
+                        except (aiohttp.ContentTypeError, ValueError, json.JSONDecodeError):
+                            if not self.use_stable_fallback:
+                                logger.warning(f"⚠️ {domain} retornou HTML. Tentando resolver fallback estável...")
+                                await self._ensure_account_resolved(domain)
+                                self.use_stable_fallback = True
+                                # Recomeça o loop com a nova URL
+                                continue
+                            else:
+                                logger.error(f"❌ Fallback estável também falhou em {current_url}")
+                                return None
                     
                     if resp.status == 429:
                         wait = (attempt + 1) * 5
-                        logger.warning(f"Rate limit (429) em {url}. Aguardando {wait}s...")
+                        logger.warning(f"Rate limit (429) em {current_url}. Aguardando {wait}s...")
                         await asyncio.sleep(wait)
                         continue
                         
                     if resp.status >= 500:
-                        logger.warning(f"Erro de servidor ({resp.status}) em {url}. Retry {attempt+1}/{settings.MAX_RETRIES}")
+                        logger.warning(f"Erro de servidor ({resp.status}) em {current_url}. Retry {attempt+1}/{settings.MAX_RETRIES}")
                         await asyncio.sleep(2 ** attempt)
                         continue
                     
-                    logger.debug(f"HTTP {resp.status} em {url}")
+                    logger.debug(f"HTTP {resp.status} em {current_url}")
                     return None
 
             except Exception as e:
@@ -380,7 +503,8 @@ class VtexApiClient:
         
         json_data = await self._request_json(api_url, timeout=10)
         if json_data and isinstance(json_data, list) and len(json_data) > 0:
-            return await self.parse_product_dict(json_data[0], product_url, domain)
+            final_url = self._sanitize_product_url(product_url, domain)
+            return await self.parse_product_dict(json_data[0], final_url, domain)
             
         return None
 
@@ -439,8 +563,19 @@ class VtexApiClient:
             log(f"📥 Buscando página {pagina + 1} (itens de {_from} a {_to})...")
             
             try:
-                # Usamos _request para ter acesso aos headers (total de produtos)
-                async with self.session.get(url, proxy=IdentityManager.get_random_proxy(), timeout=15) as response:
+                current_url = self._get_api_url(url)
+                async with self.session.get(current_url, proxy=IdentityManager.get_random_proxy(), timeout=15) as response:
+                    # Detecta se retornou HTML em vez de JSON
+                    if "text/html" in response.headers.get("Content-Type", ""):
+                        if not self.use_stable_fallback:
+                            logger.warning(f"⚠️ {domain} retornou HTML em busca. Tentando fallback...")
+                            await self._ensure_account_resolved(domain)
+                            self.use_stable_fallback = True
+                            continue # Tenta a mesma página com a nova URL
+                        else:
+                            log(f"❌ Fallback estável também falhou (HTML) em {current_url}")
+                            break
+
                     if response.status not in (200, 206):
                         log(f"❌ API retornou HTTP {response.status}")
                         break
@@ -473,9 +608,11 @@ class VtexApiClient:
                             if link_text:
                                 link = f"https://{domain}/{link_text}/p"
                         
-                        # Garante link absoluto
-                        if link and not link.startswith("http"):
-                            link = f"https://{domain}{link}"
+                        # Garante link absoluto e aponta para o domínio público
+                        if link:
+                            if not link.startswith("http"):
+                                link = f"https://{domain}{link}"
+                            link = self._sanitize_product_url(link, domain)
                             
                         if not link:
                             return None

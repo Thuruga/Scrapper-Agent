@@ -10,7 +10,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
-import aiohttp
+# import aiohttp (Removido em favor do VtexApiClient robusto)
 
 from config import settings
 from services.brand_service import brand_service
@@ -245,30 +245,11 @@ class VTEXCatalogService:
     async def _fetch_from_vtex(self, domain: str) -> list:
         """
         Chama /api/catalog_system/pub/category/tree/3 e retorna o JSON bruto.
+        Utiliza o motor robusto do VtexApiClient para suportar fallbacks e auto-discovery.
         """
-        url = f"https://{domain}/api/catalog_system/pub/category/tree/3"
-        headers = {
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 Chrome/120.0.0.0"
-            ),
-            "Accept": "application/json",
-        }
+        from services.vtex_api_scraper import VtexApiClient
+        return await VtexApiClient.fetch_categories(domain)
 
-        timeout = aiohttp.ClientTimeout(total=15)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(url, headers=headers) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    logger.info(
-                        f"VTEX API ({domain}): {len(data)} departamentos retornados."
-                    )
-                    return data
-                else:
-                    logger.error(
-                        f"VTEX API ({domain}): Status {response.status}"
-                    )
-                    return []
 
     def _transform_tree(self, raw_tree: list, brand_key: str) -> List[dict]:
         """

@@ -1325,6 +1325,26 @@
             font-size: 0.75rem;
             font-weight: 600;
         }
+
+        .btn-delete-small {
+            background: rgba(239, 68, 68, 0.1);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            padding: 0.4rem 0.7rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: auto;
+            margin: 0;
+            box-shadow: none;
+        }
+
+        .btn-delete-small:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.4);
+            transform: scale(1.05);
+        }
     </style>
 </head>
 
@@ -1844,21 +1864,41 @@
                 mappingSelect.innerHTML = '<option value="">Escolha uma marca...</option>' + 
                     brands.map(b => `<option value="${b.brand_key}">${b.brand_name}</option>`).join('');
                 
-                const brandList = document.getElementById('brandList');
                 brandList.innerHTML = brands.map(b => `
                     <div class="brand-item">
-                        <div class="brand-item-info">
-                            <span class="brand-item-name">${b.brand_name}</span>
-                            <span class="brand-item-domain">${b.domain}</span>
+                        <div style="display:flex; align-items:center; gap:1rem;">
+                            <div class="brand-item-info">
+                                <span class="brand-item-name">${b.brand_name}</span>
+                                <span class="brand-item-domain">${b.domain}</span>
+                            </div>
+                            <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+                                ${[...new Set(b.mappings.map(m => m.canonical_slug))].map(slug => `<span class="mapping-badge">${slug}</span>`).join('')}
+                            </div>
                         </div>
-                        <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-                            ${b.mappings.map(m => `<span class="mapping-badge">${m.canonical_slug}</span>`).join('')}
-                        </div>
+                        <button class="btn-delete-small" onclick="deleteBrand('${b.brand_key}')" title="Excluir Marca">
+                            🗑️
+                        </button>
                     </div>
                 `).join('');
 
             } catch (e) {
                 console.error('Erro ao carregar marcas:', e);
+            }
+        }
+
+        async function deleteBrand(brandKey) {
+            if (!confirm(`Tem certeza que deseja excluir a marca "${brandKey}"? Todos os mapeamentos serão perdidos.`)) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`/brands/${brandKey}`, { method: 'DELETE' });
+                if (!res.ok) throw new Error('Falha ao excluir marca');
+                
+                alert('Marca excluída com sucesso!');
+                loadBrands(); // Recarrega a lista e os dropdowns
+            } catch (e) {
+                alert('Erro ao excluir marca: ' + e.message);
             }
         }
 

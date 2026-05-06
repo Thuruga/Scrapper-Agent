@@ -118,6 +118,7 @@ class DynamicBrandCreate(BaseModel):
     domain: str         # ex: "www.usereserva.com"
     review_provider: Optional[str] = "none" # ex: "trustvox", "vtex_native"
     review_store_id: Optional[str] = None   # ex: "78800"
+    vtex_account: Optional[str] = None      # ex: "foxton" (se diferente do domínio)
 
 class DynamicBrand(DynamicBrandCreate):
     """Marca completa com seus mapeamentos e estado."""

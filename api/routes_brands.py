@@ -60,3 +60,18 @@ async def update_brand_mappings(brand_key: str, mappings: List[CategoryMapping])
         raise HTTPException(status_code=404, detail="Marca não encontrada")
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/brands/{brand_key}")
+async def delete_brand(brand_key: str):
+    """Exclui uma marca do sistema e limpa monitores ativos."""
+    from services.price_monitor_service import monitor_service
+    
+    # 1. Limpa monitores ativos desta marca
+    await monitor_service.delete_monitors_by_brand(brand_key)
+    
+    # 2. Exclui a marca do banco
+    success = brand_service.delete_brand(brand_key)
+    if not success:
+        raise HTTPException(status_code=404, detail="Marca não encontrada")
+    return {"message": f"Marca '{brand_key}' excluída com sucesso (monitores também removidos)."}

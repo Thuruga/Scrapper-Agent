@@ -17,6 +17,8 @@ import urllib.parse
 from typing import List, Optional
 
 import aiohttp
+import re
+from curl_cffi.requests import AsyncSession
 
 from services.brand_service import brand_service
 from core.models import BrandSearchResult, SearchProductResult
@@ -110,12 +112,19 @@ def _map_vtex_product(raw: dict, brand_key: str, rating: Optional[float] = None,
         valid_parts = [p for p in parts if p.lower() not in ignore_levels]
         category = valid_parts[-1] if valid_parts else (parts[-1] if parts else None)
 
-    # URL do produto
+    # URL do produto: Forçamos o uso do domínio público registrado na marca,
+    # mesmo que a API retorne um link absoluto (ex: vtexcommercestable)
     product_url = raw.get("link", "")
-    if product_url and not product_url.startswith("http"):
+    if product_url:
         brand_info = brand_service.get_brand(brand_key)
-        domain = brand_info.domain if brand_info else ""
-        product_url = f"https://{domain}{product_url}"
+        public_domain = brand_info.domain.replace("https://", "").replace("http://", "").strip("/") if brand_info else ""
+        
+        # Extrai apenas o path (ex: /produto-xyz/p) caso venha absoluto
+        path_match = re.search(r"https?://[^/]+(/.+)$", product_url)
+        path = path_match.group(1) if path_match else product_url
+        if not path.startswith("/"): path = "/" + path
+        
+        product_url = f"https://{public_domain}{path}"
 
     return SearchProductResult(
         brand=brand_key,
@@ -156,7 +165,7 @@ async def _search_brand(
             error=f"Marca '{brand_key}' não registrada no brand_service.",
         )
 
-    domain = brand_info.domain
+    domain = brand_info.domain.replace("https://", "").replace("http://", "").strip("/")
     
     # Sanitize query for VTEX Search API: remove hyphens and other special chars 
     # that cause internal 500 Object Reference errors
@@ -203,31 +212,50 @@ async def _search_brand(
         logger.info(f"[{brand_key}] Buscando pag {page}: {url}")
 
         try:
-            status = None
             raw_products = []
             
-            async with session.get(url, headers=headers) as response:
-                status = response.status
-                if status in (200, 206):
-                    raw_products = await response.json(content_type=None)
-
-            # VTEX às vezes retorna 500 por bugs internos de indexação/sorting (ex: "bermuda").
-            # Fallback: tentar com wildcard '*' e remover a ordenação que causa o crash.
-            if status == 500:
-                logger.warning(f"[{brand_key}] VTEX retornou 500. Retentando sem Sort e com '*'...")
-                url_retry = url.replace(f"ft={encoded_query}", f"ft={encoded_query}%2A")
-                url_retry = url_retry.replace("&O=OrderByScoreDESC", "")
+            # Usamos AsyncSession do curl_cffi para emular um browser real e bypassar WAF (ex: Foxton)
+            async with AsyncSession(impersonate="chrome", timeout=15) as curl_session:
+                response = await curl_session.get(url, headers=headers)
                 
-                async with session.get(url_retry, headers=headers) as response_retry:
-                    status = response_retry.status
-                    if status in (200, 206):
-                        raw_products = await response_retry.json(content_type=None)
+                # Se retornar HTML (Headless/NextJS) ou Erro, tentamos o fallback estável
+                should_retry = (
+                    response.status_code == 500 or 
+                    response.status_code == 404 or
+                    "text/html" in response.headers.get("Content-Type", "").lower()
+                )
 
-            # Se mesmo após o retry (ou se não foi 500) continuar sem sucesso:
-            if status not in (200, 206):
-                last_error = f"HTTP {status} na busca de '{brand_key}'"
-                logger.warning(f"[{brand_key}] {last_error}")
-                break
+                if should_retry:
+                    logger.warning(f"[{brand_key}] Domínio principal falhou (Status {response.status_code}). Tentando Fallback Estável...")
+                    
+                    # Prioriza conta explícita se houver no brand_info
+                    if brand_info.vtex_account:
+                        account_name = brand_info.vtex_account
+                    else:
+                        # Inferir conta VTEX do domínio (legado/auto-discovery)
+                        account_match = re.search(r"^(?:www\.)?([^.]+)", domain)
+                        account_name = account_match.group(1) if account_match else domain.split(".")[0]
+                    
+                    stable_domain = f"{account_name}.vtexcommercestable.com.br"
+                    url_fallback = url.replace(domain, stable_domain)
+                    
+                    # No fallback, se for 500, também limpamos o sorting
+                    if response.status_code == 500:
+                        url_fallback = url_fallback.replace(f"ft={encoded_query}", f"ft={encoded_query}%2A")
+                        url_fallback = url_fallback.replace("&O=OrderByScoreDESC", "")
+                    
+                    response = await curl_session.get(url_fallback, headers=headers)
+                
+                if response.status_code in (200, 206):
+                    try:
+                        raw_products = response.json()
+                    except:
+                        logger.error(f"[{brand_key}] Falha ao decodificar JSON após todas as tentativas.")
+                        break
+                else:
+                    last_error = f"HTTP {response.status_code} na busca de '{brand_key}'"
+                    logger.warning(f"[{brand_key}] {last_error}")
+                    break
 
             if not raw_products:
                 # Acabaram os resultados da API
@@ -236,6 +264,8 @@ async def _search_brand(
             # Pre-filtrar os produtos que passam nas regras
             valid_raw_products = []
             for p in raw_products:
+                if not isinstance(p, dict):
+                    continue
                 name = p.get("productName", "")
                 link = p.get("link", "")
                 categories = p.get("categories", [])
@@ -243,7 +273,7 @@ async def _search_brand(
                 if not name:
                     continue
                     
-                cat_string = " ".join(categories)
+                cat_string = " ".join(categories) if categories else ""
                 check_url = f"{link} {cat_string}"
                 
                 if not _should_keep(check_url, name, brand_key):
