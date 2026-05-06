@@ -899,18 +899,20 @@
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
         }
 
-        .status-active { 
-            background: rgba(16, 185, 129, 0.15); 
+        .status-active {
+            background: rgba(16, 185, 129, 0.15);
             color: #6ee7b7;
             border: 1px solid rgba(16, 185, 129, 0.3);
         }
-        .status-stopped { 
-            background: rgba(239, 68, 68, 0.15); 
+
+        .status-stopped {
+            background: rgba(239, 68, 68, 0.15);
             color: #fca5a5;
             border: 1px solid rgba(239, 68, 68, 0.3);
         }
-        .status-done { 
-            background: rgba(59, 130, 246, 0.15); 
+
+        .status-done {
+            background: rgba(59, 130, 246, 0.15);
             color: #93c5fd;
             border: 1px solid rgba(59, 130, 246, 0.3);
         }
@@ -1239,6 +1241,7 @@
         .console-line.brand_stats {
             color: #c084fc;
         }
+
         /* ── Settings Tab ───────────────────────────────────────────── */
         .settings-grid {
             display: grid;
@@ -1366,7 +1369,9 @@
     <div id="tab-single" class="tab-content active">
         <div class="container">
             <div class="glass-card">
-                <h3 style="margin-bottom: 1.5rem; font-weight: 700; font-size: 1.25rem; background: linear-gradient(135deg, #fff, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Monitorar Novo Produto</h3>
+                <h3
+                    style="margin-bottom: 1.5rem; font-weight: 700; font-size: 1.25rem; background: linear-gradient(135deg, #fff, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                    Monitorar Novo Produto</h3>
                 <form id="monitorForm">
                     <div class="form-group">
                         <label for="brand">Marca Concorrente</label>
@@ -1392,7 +1397,8 @@
                         <span class="btn-text">🚀 Iniciar Monitoramento</span>
                         <div class="spinner"></div>
                     </button>
-                    <button type="button" id="monitorStopBtn" class="btn-cancel" style="display:none; margin-top:0.5rem;" onclick="stopMonitoring()">
+                    <button type="button" id="monitorStopBtn" class="btn-cancel"
+                        style="display:none; margin-top:0.5rem;" onclick="stopMonitoring()">
                         <span class="btn-text">⏹ Parar Monitoramento</span>
                         <div class="spinner"></div>
                     </button>
@@ -1401,12 +1407,13 @@
             <div class="glass-card results-area">
                 <div id="monitorEmptyState" class="empty-state">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2"
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                     <h3>Lista de Monitoramento</h3>
                     <p>Adicione URLs acima para acompanhar vários produtos ao mesmo tempo.</p>
                 </div>
-                
+
                 <div id="monitorGrid" class="monitor-grid">
                     <!-- Monitor cards will be appended here -->
                 </div>
@@ -1575,46 +1582,35 @@
             </div>
 
             <!-- Category Discovery & Mapping -->
-            <div class="glass-card">
-                <h3 style="margin-bottom: 1.5rem; font-weight: 700;">Mapeamento Inteligente</h3>
+            <div id="mappingArea" style="display:none; margin-top: 2rem;">
                 <div class="form-group">
-                    <label for="mappingBrandSelect">Selecionar Marca</label>
-                    <select id="mappingBrandSelect">
-                        <option value="">Escolha uma marca...</option>
+                    <label for="canonicalSlug">Mapear para Categoria Interna</label>
+                    <select id="canonicalSlug">
+                        <option value="polos">Polos</option>
+                        <option value="camisas">Camisas</option>
+                        <option value="camisetas">Camisetas</option>
+                        <option value="calcas">Calças</option>
+                        <option value="bermudas">Bermudas</option>
+                        <option value="tricots">Tricots</option>
+                        <option value="jaquetas">Jaquetas</option>
+                        <option value="calcados">Calçados</option>
                     </select>
                 </div>
-                <button type="button" id="discoverBtn" onclick="discoverCategories()" style="background: linear-gradient(135deg, #10b981, #059669);">
-                    <span class="btn-text">🔎 Descobrir Árvore VTEX</span>
-                    <div class="spinner"></div>
-                </button>
-
-                <div id="mappingArea" style="display:none; margin-top: 2rem;">
-                    <div class="form-group">
-                        <label for="canonicalSlug">Mapear para Categoria Interna</label>
-                        <select id="canonicalSlug">
-                            <option value="polos">Polos</option>
-                            <option value="camisas">Camisas</option>
-                            <option value="camisetas">Camisetas</option>
-                            <option value="calcas">Calças</option>
-                            <option value="bermudas">Bermudas</option>
-                            <option value="tricots">Tricots</option>
-                            <option value="jaquetas">Jaquetas</option>
-                            <option value="calcados">Calçados</option>
-                        </select>
-                    </div>
-                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">Selecione as categorias da VTEX que compõem este grupo:</p>
-                    <div class="form-group" style="margin-bottom: 1rem;">
-                        <input type="text" id="treeSearch" placeholder="🔍 Filtrar categorias..." oninput="filterTree()" style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: white; padding: 0.6rem; border-radius: 8px; width: 100%;">
-                    </div>
-                    <div id="categoryTree" class="category-tree">
-                        <!-- Dynamic tree -->
-                    </div>
-                    <button type="button" onclick="saveMappings()" style="margin-top: 1.5rem;">
-                        <span class="btn-text">🔗 Salvar Mapeamento</span>
-                    </button>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">Selecione as categorias
+                    da VTEX que compõem este grupo:</p>
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <input type="text" id="treeSearch" placeholder="🔍 Filtrar categorias..." oninput="filterTree()"
+                        style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: white; padding: 0.6rem; border-radius: 8px; width: 100%;">
                 </div>
+                <div id="categoryTree" class="category-tree">
+                    <!-- Dynamic tree -->
+                </div>
+                <button type="button" onclick="saveMappings()" style="margin-top: 1.5rem;">
+                    <span class="btn-text">🔗 Salvar Mapeamento</span>
+                </button>
             </div>
         </div>
+    </div>
     </div>
 
     <script>
@@ -1642,7 +1638,7 @@
             if (existing) existing.remove();
 
             const brandMeta = BRAND_COLORS[config.brand] || { color: '#94a3b8', name: config.brand };
-            
+
             const cardHtml = `
                 <div class="monitor-card" id="card-${jobId}">
                     <span class="status-tag ${config.active ? 'status-active' : 'status-stopped'}" id="status-${jobId}">
@@ -1669,13 +1665,13 @@
                     </div>
                     
                     <div class="history-mini" id="history-${jobId}">
-                        ${config.history.length > 0 
-                            ? config.history.slice().reverse().map(e => `
+                        ${config.history.length > 0
+                    ? config.history.slice().reverse().map(e => `
                                 <div class="history-entry">
                                     <span style="color: #6ee7b7; font-weight: 600;">R$ ${e.price.toFixed(2)}</span>
-                                    <span style="opacity: 0.5;">${new Date(e.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                    <span style="opacity: 0.5;">${new Date(e.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                 </div>`).join('')
-                            : '<div style="text-align: center; opacity: 0.5; padding: 0.5rem;">Aguardando check...</div>'}
+                    : '<div style="text-align: center; opacity: 0.5; padding: 0.5rem;">Aguardando check...</div>'}
                     </div>
 
                     <div style="display: flex; gap: 0.75rem; margin-top: 0.5rem;">
@@ -1711,7 +1707,7 @@
                     hist.innerHTML = msg.history.slice().reverse().map(e => `
                         <div class="history-entry">
                             <span style="color: #6ee7b7; font-weight: 600;">R$ ${e.price.toFixed(2)}</span>
-                            <span style="opacity: 0.5;">${new Date(e.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                            <span style="opacity: 0.5;">${new Date(e.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>`).join('');
                 } else if (msg.type === 'done') {
                     const tag = document.getElementById(`status-${jobId}`);
@@ -1743,13 +1739,13 @@
 
         async function deleteMonitor(jobId) {
             if (!confirm('Tem certeza que deseja remover este produto do monitoramento?')) return;
-            
+
             try {
                 await fetch(`/monitor/${jobId}`, { method: 'DELETE' });
                 const card = document.getElementById(`card-${jobId}`);
                 if (card) card.remove();
                 if (monitorWebSockets[jobId]) monitorWebSockets[jobId].close();
-                
+
                 // Se a grade ficar vazia, mostra empty state
                 if (document.getElementById('monitorGrid').children.length === 0) {
                     document.getElementById('monitorEmptyState').style.display = 'block';
@@ -1798,7 +1794,7 @@
                 });
                 if (!res.ok) throw new Error('Falha ao iniciar monitoramento');
                 const data = await res.json();
-                
+
                 addMonitorCard(data.job_id, data.config);
                 alert("Monitor iniciado com sucesso!");
             } catch (err) {
@@ -1820,12 +1816,12 @@
             try {
                 const res = await fetch('/brands/');
                 const brands = await res.json();
-                
+
                 // Update Global Metadata
                 BRAND_COLORS = {};
                 BRAND_META = {};
                 const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#c084fc', '#06b6d4'];
-                
+
                 brands.forEach((b, i) => {
                     const color = colors[i % colors.length];
                     BRAND_COLORS[b.brand_key] = { color, name: b.brand_name };
@@ -1861,9 +1857,9 @@
 
                 // Update UI: Settings
                 const mappingSelect = document.getElementById('mappingBrandSelect');
-                mappingSelect.innerHTML = '<option value="">Escolha uma marca...</option>' + 
+                mappingSelect.innerHTML = '<option value="">Escolha uma marca...</option>' +
                     brands.map(b => `<option value="${b.brand_key}">${b.brand_name}</option>`).join('');
-                
+
                 brandList.innerHTML = brands.map(b => `
                     <div class="brand-item">
                         <div style="display:flex; align-items:center; gap:1rem;">
@@ -1894,7 +1890,7 @@
             try {
                 const res = await fetch(`/brands/${brandKey}`, { method: 'DELETE' });
                 if (!res.ok) throw new Error('Falha ao excluir marca');
-                
+
                 alert('Marca excluída com sucesso!');
                 loadBrands(); // Recarrega a lista e os dropdowns
             } catch (e) {
@@ -2511,7 +2507,7 @@
             e.preventDefault();
             const btn = document.getElementById('saveBrandBtn');
             btn.classList.add('button-loading');
-            
+
             const payload = {
                 brand_key: document.getElementById('b_key').value,
                 brand_name: document.getElementById('b_name').value,
@@ -2525,7 +2521,7 @@
                     body: JSON.stringify(payload)
                 });
                 if (!res.ok) throw new Error('Falha ao salvar marca');
-                
+
                 alert('Marca salva com sucesso!');
                 document.getElementById('brandForm').reset();
                 loadBrands();
@@ -2573,9 +2569,9 @@
             categories.forEach(cat => {
                 const item = document.createElement('div');
                 item.className = 'tree-item';
-                
+
                 const hasChildren = cat.children && cat.children.length > 0;
-                
+
                 // Get relative path
                 let path = cat.url || '';
                 if (path.includes('http')) {
@@ -2584,7 +2580,7 @@
                 if (!path.startsWith('/')) path = '/' + path;
 
                 const isChecked = mappedPaths.includes(path);
-                
+
                 item.innerHTML = `
                     <label>
                         <input type="checkbox" value="${path}" data-name="${cat.name}" ${isChecked ? 'checked' : ''}>
@@ -2606,12 +2602,12 @@
         function filterTree() {
             const q = document.getElementById('treeSearch').value.toLowerCase();
             const items = document.querySelectorAll('.tree-item');
-            
+
             items.forEach(item => {
                 const span = item.querySelector('span');
                 const text = span.textContent.toLowerCase();
                 const isMatch = text.includes(q);
-                
+
                 item.setAttribute('data-matches', isMatch);
                 item.style.display = 'none';
             });
@@ -2638,24 +2634,24 @@
             const brandKey = document.getElementById('mappingBrandSelect').value;
             const slug = document.getElementById('canonicalSlug').value;
             if (!brandKey || !slug) return alert('Selecione a marca e a categoria canônica');
-            
+
             const selected = Array.from(document.querySelectorAll('#categoryTree input:checked'));
-            
+
             try {
                 // 1. Fetch current mappings to merge
                 const mapRes = await fetch(`/brands/${brandKey}/mappings`);
                 let allMappings = mapRes.ok ? await mapRes.json() : [];
-                
+
                 // 2. Remove old mappings for THIS slug
                 allMappings = allMappings.filter(m => m.canonical_slug !== slug);
-                
+
                 // 3. Add new mappings for THIS slug
                 const newSelections = selected.map(el => ({
                     canonical_slug: slug,
                     vtex_fq_path: el.value,
                     label: el.getAttribute('data-name')
                 }));
-                
+
                 allMappings = [...allMappings, ...newSelections];
 
                 // 4. Save entire list
@@ -2664,9 +2660,9 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(allMappings)
                 });
-                
+
                 if (!res.ok) throw new Error('Falha ao salvar mapeamento');
-                
+
                 alert(`Sucesso! ${newSelections.length} caminhos vinculados a "${slug}".`);
                 loadBrands();
             } catch (err) {
