@@ -29,6 +29,7 @@ async def test_brands():
                 print(f"✅ Resultado: {len(products)} produtos extraídos.")
                 if products:
                     print(f"Primeiro produto: {products[0].raw_title} - {products[0].price_full}")
+                    print(f"URL: {products[0].url}")
             except Exception as e:
                 print(f"❌ Erro durante a extração: {e}")
 
