@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  LayoutDashboard, 
-  Search, 
-  Layers, 
-  Settings as SettingsIcon, 
-  Zap, 
-  Clock, 
+import {
+  LayoutDashboard,
+  Search,
+  Layers,
+  Settings as SettingsIcon,
+  Zap,
+  Clock,
   Package,
   CheckCircle2,
   Trash2,
@@ -23,7 +23,7 @@ import './App.css';
 // --- Components ---
 
 const SidebarItem = ({ icon: Icon, label, active, onClick }: any) => (
-  <button 
+  <button
     type="button"
     onClick={onClick}
     className={`sidebar-item ${active ? 'active' : ''}`}
@@ -34,7 +34,7 @@ const SidebarItem = ({ icon: Icon, label, active, onClick }: any) => (
 );
 
 const GlassCard = ({ children, title, className = "", subtitle }: any) => (
-  <motion.div 
+  <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     className={`glass-card ${className}`}
@@ -78,7 +78,7 @@ const MonitorPage = ({ brands }: { brands: any[] }) => {
   const [brand, setBrand] = useState('');
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error' | 'info', message: string } | null>(null);
-  
+
   const refreshMonitors = () => {
     ApiClient.getMonitors().then(data => {
       const list = Array.isArray(data) ? data : Object.values(data);
@@ -112,10 +112,10 @@ const MonitorPage = ({ brands }: { brands: any[] }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!url || !brand) return;
-    
+
     setLoading(true);
     setStatus({ type: 'info', message: 'Iniciando monitoramento...' });
-    
+
     try {
       await ApiClient.startMonitor({ url, brand });
       setUrl('');
@@ -137,9 +137,9 @@ const MonitorPage = ({ brands }: { brands: any[] }) => {
           <form className="form-stack" onSubmit={handleSubmit}>
             <div className="form-group">
               <label className="label">Marca Concorrente</label>
-              <select 
-                className="input" 
-                value={brand} 
+              <select
+                className="input"
+                value={brand}
                 onChange={e => setBrand(e.target.value)}
                 required
               >
@@ -149,10 +149,10 @@ const MonitorPage = ({ brands }: { brands: any[] }) => {
             </div>
             <div className="form-group">
               <label className="label">URL do Produto</label>
-              <input 
-                type="url" 
-                className="input" 
-                placeholder="https://..." 
+              <input
+                type="url"
+                className="input"
+                placeholder="https://..."
                 value={url}
                 onChange={e => setUrl(e.target.value)}
                 required
@@ -164,7 +164,7 @@ const MonitorPage = ({ brands }: { brands: any[] }) => {
             </button>
           </form>
         </GlassCard>
-        
+
         <GlassCard title="Lista de Monitoramento">
           <div className="monitor-list">
             {!monitors || monitors.length === 0 ? (
@@ -182,9 +182,9 @@ const MonitorPage = ({ brands }: { brands: any[] }) => {
                     <div className="monitor-main" style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '8px' }}>
                       <Package size={14} className="text-accent" />
                       <strong>{m.brand.toUpperCase()}</strong>
-                      <button 
-                        type="button" 
-                        className="btn-icon text-error" 
+                      <button
+                        type="button"
+                        className="btn-icon text-error"
                         style={{ marginLeft: 'auto' }}
                         onClick={() => handleDeleteMonitor(m.job_id)}
                         title="Excluir monitor"
@@ -196,15 +196,15 @@ const MonitorPage = ({ brands }: { brands: any[] }) => {
                     <span className="monitor-url">{m.url}</span>
                   </div>
                   <div className="monitor-pricing">
-                     {m.last_price ? (
-                       <div className="monitor-price-value">R$ {m.last_price.toFixed(2)}</div>
-                     ) : (
-                       <div className="monitor-price-pending">Aguardando...</div>
-                     )}
-                     <div className="monitor-badge">
-                       {m.active ? <span className="status-dot online"></span> : <span className="status-dot offline"></span>}
-                       <span>{m.active ? 'Ativo' : 'Inativo'}</span>
-                     </div>
+                    {m.last_price ? (
+                      <div className="monitor-price-value">R$ {m.last_price.toFixed(2)}</div>
+                    ) : (
+                      <div className="monitor-price-pending">Aguardando...</div>
+                    )}
+                    <div className="monitor-badge">
+                      {m.active ? <span className="status-dot online"></span> : <span className="status-dot offline"></span>}
+                      <span>{m.active ? 'Ativo' : 'Inativo'}</span>
+                    </div>
                   </div>
                 </div>
               ))
@@ -240,18 +240,18 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
   useEffect(() => {
     if (selectedBrands.length === 1) {
       ApiClient.request<any>(`/brands/${selectedBrands[0]}/categories`).then(data => {
-         if (data && data.categories) {
-           const flat = data.categories.reduce((acc: any[], group: any) => {
-             const items = group.items.map((i: any) => ({ slug: i.path, label: `${group.group} - ${i.label}` }));
-             return [...acc, ...items];
-           }, []);
-           setCanonicalCategories(flat);
-         }
+        if (data && data.categories) {
+          const flat = data.categories.reduce((acc: any[], group: any) => {
+            const items = group.items.map((i: any) => ({ slug: i.path, label: `${group.group} - ${i.label}` }));
+            return [...acc, ...items];
+          }, []);
+          setCanonicalCategories(flat);
+        }
       }).catch(console.error);
     } else {
       ApiClient.getCanonicalCategories().then(data => {
-         const flat = data.reduce((acc: any[], group: any) => [...acc, ...group.categories], []);
-         setCanonicalCategories(flat);
+        const flat = data.reduce((acc: any[], group: any) => [...acc, ...group.categories], []);
+        setCanonicalCategories(flat);
       }).catch(console.error);
     }
   }, [selectedBrands]);
@@ -261,14 +261,14 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
   }, [logs]);
 
   const toggleBrand = (key: string) => {
-    setSelectedBrands(prev => 
+    setSelectedBrands(prev =>
       prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
     );
   };
 
   const startScrape = async () => {
     if (selectedBrands.length === 0 || !selectedCategory) return;
-    
+
     setIsScraping(true);
     setOutputFile(null);
     setLogs([{ type: 'info', text: `Iniciando varredura para: ${selectedBrands.join(', ')}`, time: new Date().toLocaleTimeString() }]);
@@ -277,7 +277,7 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
     try {
       const isMulti = selectedBrands.length > 1;
       let payload: any;
-      
+
       if (isMulti) {
         payload = { brands: selectedBrands, category_slug: selectedCategory };
       } else {
@@ -289,7 +289,7 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
           payload = { brand, category_path: selectedCategory };
         }
       }
-      
+
       const res: any = await ApiClient.startScrape(payload, isMulti);
       const jobId = res.job_id;
 
@@ -312,7 +312,7 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
             setOutputFile(msg.output_file);
           }
         }
-        
+
         if (msg.message) {
           setLogs(prev => [...prev, { type: msg.type || 'info', text: msg.message, time: new Date().toLocaleTimeString() }]);
         }
@@ -327,7 +327,7 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
     if (selectedBrands.length === 0) return;
     setIsDiscovering(true);
     setLogs(prev => [...prev, { type: 'info', text: "Iniciando descoberta inteligente...", time: new Date().toLocaleTimeString() }]);
-    
+
     try {
       // Pega sugestões da primeira marca selecionada (para simplificar o MVP)
       const res = await ApiClient.discoverCategories(selectedBrands[0]);
@@ -356,13 +356,20 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
                 <label className="label">Marcas Alvo</label>
                 <div className="brand-selector-grid">
                   {brands.map(b => (
-                    <button 
+                    <button
                       type="button"
                       key={b.brand_key}
                       className={`brand-chip ${selectedBrands.includes(b.brand_key) ? 'active' : ''}`}
                       onClick={() => toggleBrand(b.brand_key)}
                     >
-                      {b.brand_name}
+                      <div className="brand-chip-icon">
+                        <img 
+                          src={b.logo_url || `https://www.google.com/s2/favicons?domain=${b.domain}&sz=64`} 
+                          alt={b.brand_name}
+                          onError={(e: any) => { e.target.src = `https://ui-avatars.com/api/?name=${b.brand_name}&background=6366f1&color=fff`; }}
+                        />
+                      </div>
+                      <span>{b.brand_name}</span>
                     </button>
                   ))}
                 </div>
@@ -370,9 +377,9 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
 
               <div className="form-group">
                 <label className="label">Categoria</label>
-                <select 
-                  className="input" 
-                  value={selectedCategory} 
+                <select
+                  className="input"
+                  value={selectedCategory}
                   onChange={e => setSelectedCategory(e.target.value)}
                 >
                   <option value="">Selecione...</option>
@@ -382,8 +389,8 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
                 </select>
               </div>
 
-              <button 
-                className="btn btn-primary w-full" 
+              <button
+                className="btn btn-primary w-full"
                 onClick={startScrape}
                 disabled={isScraping || selectedBrands.length === 0 || !selectedCategory}
               >
@@ -393,9 +400,9 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
 
               <div className="divider" />
 
-              <button 
+              <button
                 type="button"
-                className="btn btn-secondary w-full" 
+                className="btn btn-secondary w-full"
                 onClick={handleAutoDiscover}
                 disabled={isDiscovering || selectedBrands.length === 0}
               >
@@ -449,8 +456,8 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
             </div>
 
             <div className="progress-bar-large">
-              <div 
-                className="progress-fill-large" 
+              <div
+                className="progress-fill-large"
                 style={{ width: `${progress.total > 0 ? (progress.current / progress.total) * 100 : 0}%` }}
               />
             </div>
@@ -474,7 +481,7 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
 
             {outputFile && (
               <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
-                <a 
+                <a
                   href={`${import.meta.env.VITE_API_URL || ''}/download-report/${outputFile}`}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -518,9 +525,9 @@ const SearchPage = () => {
         <form onSubmit={handleSearch} className="search-form">
           <div className="search-input-wrapper">
             <Search className="search-icon" size={20} />
-            <input 
-              type="text" 
-              className="search-input" 
+            <input
+              type="text"
+              className="search-input"
               placeholder="Ex: Polo Piquet, Camisa Social..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -579,26 +586,9 @@ const SearchPage = () => {
 };
 
 const SettingsPage = ({ brands, onRefresh }: { brands: any[], onRefresh: () => void }) => {
-  const [newBrand, setNewBrand] = useState({ brand_key: '', brand_name: '', domain: '' });
+  const [newBrand, setNewBrand] = useState({ brand_key: '', brand_name: '', domain: '', logo_url: '' });
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error' | 'info', message: string } | null>(null);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setStatus({ type: 'info', message: 'Salvando marca...' });
-    try {
-      await ApiClient.saveBrand(newBrand);
-      setNewBrand({ brand_key: '', brand_name: '', domain: '' });
-      onRefresh();
-      setStatus({ type: 'success', message: 'Marca cadastrada com sucesso!' });
-    } catch (err: any) {
-      setStatus({ type: 'error', message: "Erro: " + err.message });
-    } finally {
-      setLoading(false);
-    }
-  };
-
 
   const handleDeleteBrand = async (key: string) => {
     if (!confirm(`Tem certeza que deseja excluir a marca ${key}?`)) return;
@@ -607,6 +597,21 @@ const SettingsPage = ({ brands, onRefresh }: { brands: any[], onRefresh: () => v
       onRefresh();
     } catch (err: any) {
       alert("Erro ao excluir: " + err.message);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await ApiClient.saveBrand(newBrand);
+      setNewBrand({ brand_key: '', brand_name: '', domain: '', logo_url: '' });
+      onRefresh();
+      setStatus({ type: 'success', message: 'Marca cadastrada com sucesso!' });
+    } catch (err: any) {
+      setStatus({ type: 'error', message: err.message });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -619,35 +624,45 @@ const SettingsPage = ({ brands, onRefresh }: { brands: any[], onRefresh: () => v
           <form onSubmit={handleSubmit} className="form-stack">
             <div className="form-group">
               <label className="label">ID Interno (Slug)</label>
-              <input 
-                type="text" 
-                className="input" 
-                placeholder="ex: brooksfield" 
+              <input
+                type="text"
+                className="input"
+                placeholder="ex: brooksfield"
                 value={newBrand.brand_key}
-                onChange={e => setNewBrand({...newBrand, brand_key: e.target.value})}
-                required 
+                onChange={e => setNewBrand({ ...newBrand, brand_key: e.target.value })}
+                required
               />
             </div>
             <div className="form-group">
               <label className="label">Nome da Marca</label>
-              <input 
-                type="text" 
-                className="input" 
-                placeholder="ex: Brooksfield Menswear" 
+              <input
+                type="text"
+                className="input"
+                placeholder="ex: Brooksfield Menswear"
                 value={newBrand.brand_name}
-                onChange={e => setNewBrand({...newBrand, brand_name: e.target.value})}
-                required 
+                onChange={e => setNewBrand({ ...newBrand, brand_name: e.target.value })}
+                required
               />
             </div>
             <div className="form-group">
               <label className="label">Domínio (sem https)</label>
-              <input 
-                type="text" 
-                className="input" 
-                placeholder="ex: www.brooksfield.com.br" 
+              <input
+                type="text"
+                className="input"
+                placeholder="ex: www.brooksfield.com.br"
                 value={newBrand.domain}
-                onChange={e => setNewBrand({...newBrand, domain: e.target.value})}
-                required 
+                onChange={e => setNewBrand({ ...newBrand, domain: e.target.value })}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label className="label">URL da Logo (Opcional)</label>
+              <input
+                type="url"
+                className="input"
+                placeholder="https://.../logo.png"
+                value={newBrand.logo_url}
+                onChange={e => setNewBrand({ ...newBrand, logo_url: e.target.value })}
               />
             </div>
             <button className="btn btn-primary w-full" disabled={loading}>
@@ -662,15 +677,21 @@ const SettingsPage = ({ brands, onRefresh }: { brands: any[], onRefresh: () => v
             {brands.map(b => (
               <div key={b.brand_key} className="brand-item">
                 <div className="brand-info">
-                  <div className="brand-avatar">{b.brand_name[0]}</div>
+                  <div className="brand-avatar">
+                    <img 
+                      src={b.logo_url || `https://www.google.com/s2/favicons?domain=${b.domain}&sz=64`} 
+                      alt={b.brand_name} 
+                      onError={(e: any) => { e.target.src = `https://ui-avatars.com/api/?name=${b.brand_name}&background=6366f1&color=fff`; }}
+                    />
+                  </div>
                   <div>
                     <p className="brand-name-text">{b.brand_name}</p>
                     <p className="brand-domain-text"><Globe size={12} /> {b.domain}</p>
                   </div>
                 </div>
                 <div className="brand-actions">
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     className="btn-icon text-error"
                     onClick={() => handleDeleteBrand(b.brand_key)}
                   >
@@ -721,30 +742,30 @@ function App() {
           <h2>E-Scraper</h2>
         </div>
         <nav className="sidebar-nav">
-          <SidebarItem 
-            icon={LayoutDashboard} 
-            label="Monitores" 
-            active={activeTab === 'monitor'} 
-            onClick={() => setActiveTab('monitor')} 
+          <SidebarItem
+            icon={LayoutDashboard}
+            label="Monitores"
+            active={activeTab === 'monitor'}
+            onClick={() => setActiveTab('monitor')}
           />
-          <SidebarItem 
-            icon={Search} 
-            label="Comparativo" 
-            active={activeTab === 'search'} 
-            onClick={() => setActiveTab('search')} 
+          <SidebarItem
+            icon={Search}
+            label="Comparativo"
+            active={activeTab === 'search'}
+            onClick={() => setActiveTab('search')}
           />
-          <SidebarItem 
-            icon={Layers} 
-            label="Categorias" 
-            active={activeTab === 'category'} 
-            onClick={() => setActiveTab('category')} 
+          <SidebarItem
+            icon={Layers}
+            label="Categorias"
+            active={activeTab === 'category'}
+            onClick={() => setActiveTab('category')}
           />
           <div className="sidebar-spacer" />
-          <SidebarItem 
-            icon={SettingsIcon} 
-            label="Configurações" 
-            active={activeTab === 'settings'} 
-            onClick={() => setActiveTab('settings')} 
+          <SidebarItem
+            icon={SettingsIcon}
+            label="Configurações"
+            active={activeTab === 'settings'}
+            onClick={() => setActiveTab('settings')}
           />
         </nav>
       </aside>
@@ -753,12 +774,12 @@ function App() {
         <header className="content-header">
           <div>
             <h1>{
-              activeTab === 'monitor' ? 'Painel de Monitoramento' : 
-              activeTab === 'search' ? 'Busca Comparativa' : 
-              activeTab === 'category' ? 'Varredura por Categoria' : 
-              'Configurações do Sistema'
+              activeTab === 'monitor' ? 'Painel de Monitoramento' :
+                activeTab === 'search' ? 'Busca Comparativa' :
+                  activeTab === 'category' ? 'Varredura por Categoria' :
+                    'Configurações do Sistema'
             }</h1>
-            <p className="header-subtitle">Intelligence Scraper v2.0</p>
+            <p className="header-subtitle">Intelligence Scraper</p>
           </div>
           <div className="user-badge">
             <CheckCircle2 size={14} className="text-success" />

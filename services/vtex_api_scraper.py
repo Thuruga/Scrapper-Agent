@@ -661,11 +661,11 @@ class VtexApiClient(BaseScraper):
         sanitized_query = query.replace("-", " ")
         encoded_query = urllib.parse.quote(sanitized_query)
 
-        # Mapeamento de Sort
+        # Mapeamento de Sort para VTEX Catalog System
         sort_map = {
-            "price_asc": "PriceASC",
-            "price_desc": "PriceDESC",
-            "top_selling": "TopSellingDESC",
+            "price_asc": "OrderByPriceASC",
+            "price_desc": "OrderByPriceDESC",
+            "top_selling": "OrderByTopSaleDESC",
             "relevance": "OrderByScoreDESC"
         }
         vtex_sort = sort_map.get(sort, "OrderByScoreDESC")
