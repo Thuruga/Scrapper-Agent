@@ -6,7 +6,7 @@ Carrega variáveis do arquivo .env e fornece defaults robustos.
 
 from pydantic_settings import BaseSettings
 from pydantic import Field
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 
 # ---------------------------------------------------------------------------
@@ -57,6 +57,14 @@ class Settings(BaseSettings):
         default_factory=list,
         description="Lista de proxies no formato ['http://user:pass@ip:port', ...]",
     )
+    
+    # Advanced Proxy Services
+    BRIGHTDATA_PROXY_URL: Optional[str] = Field(default=None, description="URL do proxy BrightData.")
+    SCRAPERAPI_KEY: Optional[str] = Field(default=None, description="Chave de API do ScraperAPI.")
+    
+    # Security
+    SCRAPER_API_KEY: str = Field(default="dev-key-123", description="Chave de API para proteger os endpoints.")
+    
     USER_AGENTS: List[str] = Field(
         default_factory=lambda: DEFAULT_USER_AGENTS,
         description="Lista de User-Agents para rotação.",

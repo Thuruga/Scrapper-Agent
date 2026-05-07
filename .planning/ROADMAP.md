@@ -6,24 +6,25 @@ Este roadmap foca na estabilização do frontend, automação da inteligência d
 
 ## Phases
 
-- [ ] **Phase 1: Frontend Stability** - Correção de instabilidades de UX no dashboard.
-- [ ] **Phase 2: Architectural Refactoring** - Criação da Engine Abstraction Layer para suporte multimarcas.
-- [ ] **Phase 3: Automated Mapping** - Implementação da descoberta automática de categorias.
-- [ ] **Phase 4: Reliability & Polish** - Logging avançado e resiliência de rede.
+- [ ] **Phase 1: Stabilization & Core Intelligence** - Fix frontend and automate category mapping.
+- [ ] **Phase 2: Architectural Refactoring** - Engine Abstraction Layer for multi-platform support.
+- [ ] **Phase 3: Reliability & Logging** - Advanced logging and network resilience.
+- [ ] **Phase 4: Expansion Spike** - Adding a non-VTEX pilot brand.
 
 ## Phase Details
 
-### Phase 1: Frontend Stability
-**Goal**: Eliminar o reload indesejado da página e melhorar o feedback visual.
+### Phase 1: Stabilization & Core Intelligence
+**Goal**: Resolver o bug de reload no frontend e automatizar a descoberta de categorias VTEX.
 **Depends on**: Nothing
-**Requirements**: UI-01, UI-02
+**Requirements**: UI-01, UI-02, AI-01, AI-02
 **Success Criteria**:
   1. O usuário adiciona um link de monitoramento sem que a página resete.
-  2. Notificações de sucesso/erro aparecem sem limpar o estado global.
-**Plans**: 1 plan
+  2. O sistema identifica categorias de uma nova marca VTEX automaticamente.
+**Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: Fix form submission event handling and state preservation.
+- [ ] 01-01: Frontend event handling fix and UI feedback improvement.
+- [ ] 01-02: Backend category auto-discovery and intelligent matching.
 
 ### Phase 2: Architectural Refactoring
 **Goal**: Desacoplar a lógica VTEX e preparar para novos motores.
@@ -32,43 +33,31 @@ Plans:
 **Success Criteria**:
   1. Existe uma classe abstrata `BaseEngine` definindo o contrato.
   2. `VTEXEngine` contém toda a lógica específica da VTEX.
-  3. `scraper_factory.py` instancia scrapers baseados em engine.
-**Plans**: 2 plans
-
-Plans:
-- [ ] 02-01: Implement BaseEngine and VTEXEngine abstraction.
-- [ ] 02-02: Refactor Factory and Scraper registration for dynamic loading.
-
-### Phase 3: Automated Mapping
-**Goal**: Eliminar a necessidade de mapeamento manual de categorias.
-**Depends on**: Phase 2
-**Requirements**: AI-01, AI-02, AI-03
-**Success Criteria**:
-  1. O sistema identifica categorias de uma nova marca VTEX automaticamente.
-  2. O relacionamento entre categorias externas e internas ocorre sem intervenção.
-**Plans**: 2 plans
-
-Plans:
-- [ ] 03-01: Develop category auto-discovery logic for VTEX.
-- [ ] 03-02: Implement auto-relationship engine for internal catalog.
-
-### Phase 4: Reliability & Polish
-**Goal**: Garantir que o sistema seja resiliente a falhas de rede e mudanças em sites.
-**Depends on**: Phase 3
-**Requirements**: LOG-01, LOG-02
-**Success Criteria**:
-  1. Logs detalhados explicam o motivo exato de uma falha de extração.
-  2. Falhas transientes de rede são recuperadas automaticamente via retry.
 **Plans**: 1 plan
 
 Plans:
-- [ ] 04-01: Implement enhanced logging and retry mechanisms.
+- [ ] 02-01: Implement Engine Abstraction Layer.
+
+### Phase 3: Reliability & Logging
+**Goal**: Garantir que o sistema seja resiliente a falhas de rede.
+**Depends on**: Phase 2
+**Requirements**: LOG-01, LOG-02
+**Success Criteria**:
+  1. Logs detalhados e retry automático funcionando.
+**Plans**: 1 plan
+
+### Phase 4: Expansion Spike
+**Goal**: Provar a arquitetura adicionando um motor não-VTEX.
+**Depends on**: Phase 3
+**Success Criteria**:
+  1. Uma marca de outro motor (ex: Shopify) é varrida com sucesso.
+**Plans**: 1 plan
 
 ## Progress
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Frontend Stability | 0/1 | Not started | - |
-| 2. Architectural Refactoring | 0/2 | Not started | - |
-| 3. Automated Mapping | 0/2 | Not started | - |
-| 4. Reliability & Polish | 0/1 | Not started | - |
+| 1. Stabilization & Core Intelligence | 0/2 | Not started | - |
+| 2. Architectural Refactoring | 0/1 | Not started | - |
+| 3. Reliability & Logging | 0/1 | Not started | - |
+| 4. Expansion Spike | 0/1 | Not started | - |

@@ -75,13 +75,13 @@ async def health_check():
 
 
 # ---------------------------------------------------------------------------
-# Frontend Estático
+# Frontend (React Build)
 # ---------------------------------------------------------------------------
 @app.get("/")
 async def read_index():
-    return FileResponse("index.html")
+    return FileResponse("frontend/dist/index.html")
 
-
+app.mount("/assets", StaticFiles(directory="frontend/dist/assets"), name="assets")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 

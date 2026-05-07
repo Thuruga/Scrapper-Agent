@@ -44,20 +44,20 @@ class BrandManagerService:
                     validated_db = BrandDatabase.model_validate(raw_data)
                     self.brands = validated_db.root
                     logger.info(
-                        f"✅ {len(self.brands)} marcas carregadas com sucesso de {DB_FILE}"
+                        f"[OK] {len(self.brands)} marcas carregadas com sucesso de {DB_FILE}"
                     )
             except json.JSONDecodeError as e:
-                logger.error(f"❌ Erro de sintaxe no JSON de marcas: {e}")
+                logger.error(f"[ERROR] Erro de sintaxe no JSON de marcas: {e}")
                 raise RuntimeError(
                     f"Arquivo {DB_FILE} corrompido: Erro de sintaxe JSON."
                 )
             except ValidationError as e:
-                logger.error(f"❌ Erro de validação no Schema de marcas: {e}")
+                logger.error(f"[ERROR] Erro de validação no Schema de marcas: {e}")
                 raise RuntimeError(
                     f"Arquivo {DB_FILE} não segue o contrato DynamicBrand."
                 )
             except Exception as e:
-                logger.error(f"❌ Erro inesperado ao carregar marcas: {e}")
+                logger.error(f"[ERROR] Erro inesperado ao carregar marcas: {e}")
                 raise
 
     def _save_db(self):
@@ -69,7 +69,7 @@ class BrandManagerService:
             self.updated_event.set()
             self.updated_event.clear()  # Limpa para o próximo sinal
         except Exception as e:
-            logger.error(f"❌ Erro ao salvar banco de marcas: {e}")
+            logger.error(f"[ERROR] Erro ao salvar banco de marcas: {e}")
 
     def add_brand(self, data: DynamicBrandCreate) -> DynamicBrand:
         key = data.brand_key.lower().strip()
@@ -106,14 +106,14 @@ class BrandManagerService:
             return
 
         logger.info(
-            f"🤖 Iniciando auto-mapeamento e validação de links para {brand_key} ({brand.domain})..."
+            f"[AUTO] Iniciando auto-mapeamento e validação de links para {brand_key} ({brand.domain})..."
         )
 
         try:
             # 1. Buscar árvore real da VTEX
             vtex_tree = await VtexApiClient.fetch_categories(brand.domain)
             if not vtex_tree:
-                logger.warning(f"⚠️ Não foi possível obter árvore VTEX para {brand_key}")
+                logger.warning(f"[WARNING] Não foi possível obter árvore VTEX para {brand_key}")
                 return
 
             # 2. Achatar a árvore para facilitar busca
@@ -166,7 +166,7 @@ class BrandManagerService:
 
                     if match:
                         test_url = f"https://{brand.domain}{match['path']}"
-                        logger.info(f"🔍 Testando link candidato: {test_url}")
+                        logger.info(f"[DEBUG] Testando link candidato: {test_url}")
 
                         try:
                             # Testa se a página existe e responde corretamente
@@ -184,28 +184,28 @@ class BrandManagerService:
                                         )
                                     )
                                     logger.info(
-                                        f"✅ Link Válido! Salvo: {slug} -> {match['path']}"
+                                        f"[OK] Link Válido! Salvo: {slug} -> {match['path']}"
                                     )
                                 else:
                                     logger.warning(
-                                        f"⚠️ Link quebrado ignorado (Status {resp.status}): {test_url}"
+                                        f"[WARNING] Link quebrado ignorado (Status {resp.status}): {test_url}"
                                     )
                         except Exception as e:
-                            logger.error(f"❌ Erro ao aceder à URL {test_url}: {e}")
+                            logger.error(f"[ERROR] Erro ao aceder à URL {test_url}: {e}")
 
             if new_mappings:
                 brand.mappings = new_mappings
                 self._save_db()
                 logger.info(
-                    f"✨ {len(new_mappings)} categorias testadas, validadas e mapeadas com sucesso para {brand_key}"
+                    f"[SUCCESS] {len(new_mappings)} categorias testadas, validadas e mapeadas com sucesso para {brand_key}"
                 )
             else:
                 logger.warning(
-                    f"⚠️ Nenhuma categoria com link a funcionar foi encontrada para {brand_key}."
+                    f"[WARNING] Nenhuma categoria com link a funcionar foi encontrada para {brand_key}."
                 )
 
         except Exception as e:
-            logger.error(f"❌ Erro no auto-mapeamento de {brand_key}: {e}")
+            logger.error(f"[ERROR] Erro no auto-mapeamento de {brand_key}: {e}")
 
     def list_brands(self) -> List[DynamicBrand]:
         return list(self.brands.values())
@@ -231,7 +231,7 @@ class BrandManagerService:
         if key in self.brands:
             del self.brands[key]
             self._save_db()
-            logger.info(f"🗑️ Marca '{key}' excluída com sucesso.")
+            logger.info(f"[DELETE] Marca '{key}' excluída com sucesso.")
             return True
         return False
 

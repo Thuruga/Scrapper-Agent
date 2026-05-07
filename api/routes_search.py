@@ -48,6 +48,14 @@ class SearchRequest(BaseModel):
         le=50,
         description="Número máximo de produtos retornados por marca (1-50).",
     )
+    sort: Optional[str] = Field(
+        default="relevance",
+        description="Ordenação: 'relevance', 'price_asc', 'price_desc', 'top_selling'.",
+    )
+    only_in_stock: bool = Field(
+        default=False,
+        description="Filtrar apenas produtos em estoque.",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -96,6 +104,8 @@ async def search_products(request: SearchRequest) -> ComparisonResult:
         query=request.query,
         brands=target_brands,
         max_per_brand=request.max_per_brand,
+        sort=request.sort,
+        only_in_stock=request.only_in_stock
     )
 
     return ComparisonResult(
@@ -114,12 +124,16 @@ async def search_products(request: SearchRequest) -> ComparisonResult:
 async def search_products_get(
     q: str = Query(..., min_length=2, max_length=100, description="Termo de busca"),
     max_per_brand: int = Query(default=10, ge=1, le=50),
+    sort: Optional[str] = Query(default="relevance"),
+    only_in_stock: bool = Query(default=False),
 ) -> ComparisonResult:
     """Atalho GET para facilitar testes direto pelo browser/swagger."""
     brand_results = await search_all_brands(
         query=q,
         brands=None,  # Todas as marcas
         max_per_brand=max_per_brand,
+        sort=sort,
+        only_in_stock=only_in_stock
     )
 
     return ComparisonResult(

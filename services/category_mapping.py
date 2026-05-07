@@ -143,23 +143,11 @@ for _raw in _RAW_CATEGORIES:
 def get_canonical_categories() -> List[dict]:
     """
     Retorna todas as categorias canônicas agrupadas, pronto para o frontend.
-
-    Returns:
-        [
-            {
-                "group": "Roupas",
-                "categories": [
-                    {
-                        "slug": "camisas",
-                        "label": "Camisas",
-                        "available_brands": ["aramis", "reserva", "tommy"]
-                    },
-                    ...
-                ]
-            }
-        ]
+    Agora também inclui categorias customizadas vindas das marcas dinâmicas.
     """
     groups: Dict[str, list] = {}
+    
+    # 1. Adiciona as hardcoded
     for cat in _CATEGORY_INDEX.values():
         if cat.group not in groups:
             groups[cat.group] = []
@@ -168,6 +156,31 @@ def get_canonical_categories() -> List[dict]:
             "label": cat.label,
             "available_brands": list(cat.brands.keys()),
         })
+
+    # 2. Adiciona as dinâmicas de todas as marcas (para garantir que apareçam no select)
+    for brand in brand_service.list_brands():
+        for mapping in brand.mappings:
+            # Verifica se já existe
+            exists = False
+            for group_items in groups.values():
+                if any(i["slug"] == mapping.canonical_slug for i in group_items):
+                    # Se já existe, apenas adiciona a marca na lista de disponíveis se não estiver lá
+                    for item in group_items:
+                        if item["slug"] == mapping.canonical_slug:
+                            if brand.brand_key not in item["available_brands"]:
+                                item["available_brands"].append(brand.brand_key)
+                    exists = True
+                    break
+            
+            if not exists:
+                group_name = "Custom"
+                if group_name not in groups:
+                    groups[group_name] = []
+                groups[group_name].append({
+                    "slug": mapping.canonical_slug,
+                    "label": mapping.label,
+                    "available_brands": [brand.brand_key],
+                })
 
     return [
         {"group": group_name, "categories": items}
@@ -181,49 +194,61 @@ def resolve_category_for_brands(
 ) -> Dict[str, dict]:
     """
     Dado um slug canônico e lista de marcas, retorna o mapeamento de/para.
-
-    Returns:
-        {
-            "aramis": {"url": "https://www.aramis.com.br/roupas/camisas", "path": "/roupas/camisas"},
-            "reserva": {"url": "https://www.usereserva.com/reserva/masculino/camisas", "path": "/reserva/masculino/camisas"},
-        }
-
-    Raises:
-        ValueError: se o slug não existir ou se uma marca não tiver a categoria.
+    Busca primeiro no índice hardcoded e depois nos mapeamentos dinâmicos das marcas.
     """
-    cat = _CATEGORY_INDEX.get(category_slug)
-    if not cat:
-        available = [c.slug for c in _CATEGORY_INDEX.values()]
-        raise ValueError(
-            f"Categoria '{category_slug}' não encontrada. "
-            f"Categorias disponíveis: {available}"
-        )
-
     result: Dict[str, dict] = {}
     missing_brands: List[str] = []
 
     for bk in brand_keys:
         bk_lower = bk.lower()
-        brand_info = cat.brands.get(bk_lower)
-        if not brand_info:
+        brand_data = brand_service.get_brand(bk_lower)
+        if not brand_data:
             missing_brands.append(bk)
             continue
 
-        brand_data = brand_service.get_brand(bk_lower)
-        domain = brand_data.domain if brand_data else ""
+        domain = brand_data.domain
+        
+        # 1. Tenta no índice hardcoded
+        cat = _CATEGORY_INDEX.get(category_slug)
+        if cat and bk_lower in cat.brands:
+            brand_info = cat.brands[bk_lower]
+            result[bk_lower] = {
+                "url": f"https://{domain}{brand_info.path}",
+                "path": brand_info.path,
+                "label": cat.label,
+            }
+            continue
 
-        result[bk_lower] = {
-            "url": f"https://{domain}{brand_info.path}",
-            "path": brand_info.path,
-            "label": cat.label,
-        }
+        # 2. Tenta nos mapeamentos da própria marca (DynamicBrand)
+        dynamic_mapping = next((m for m in brand_data.mappings if m.canonical_slug == category_slug), None)
+        if dynamic_mapping:
+            # O mapping dinâmico guarda o path no vtex_fq_path se for um path simples,
+            # ou precisamos garantir que temos o path da URL.
+            # No modelo atual, vtex_fq_path parece ser usado para ambos em casos simples.
+            path = dynamic_mapping.vtex_fq_path
+            if not path.startswith("/"):
+                # Se for um FQ (C:/...), não conseguimos gerar a URL da categoria diretamente
+                # para o orchestrator sem saber o path amigável.
+                # Mas para marcas dinâmicas, o usuário costuma mapear o path.
+                pass 
+                
+            result[bk_lower] = {
+                "url": f"https://{domain}{path if path.startswith('/') else '/' + path}",
+                "path": path,
+                "label": dynamic_mapping.label,
+            }
+            continue
 
-    if missing_brands:
+        missing_brands.append(bk)
+
+    if missing_brands and not result:
+        # Só lança erro se NENHUMA marca pôde ser resolvida
         raise ValueError(
-            f"Categoria '{category_slug}' não disponível para: {missing_brands}"
+            f"Categoria '{category_slug}' não encontrada para as marcas selecionadas."
         )
 
     return result
+
 
 
 def get_category_preview(

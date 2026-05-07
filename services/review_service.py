@@ -184,7 +184,7 @@ async def get_bulk_reviews(
         return {}
 
     provider = brand_config.review_provider
-    logger.info(f"🔍 Buscando reviews para {brand_key} usando provedor: {provider}")
+    logger.info(f"[DEBUG] Buscando reviews para {brand_key} usando provedor: {provider}")
 
     if provider == "trustvox":
         store_id = brand_config.review_store_id

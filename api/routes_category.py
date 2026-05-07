@@ -26,6 +26,8 @@ from services.category_mapping import (
     resolve_category_for_brands,
     get_category_preview,
 )
+from services.category_intelligence import category_intelligence
+
 
 router = APIRouter()
 
@@ -53,9 +55,18 @@ class ScrapeCategoryRequest(BaseModel):
     def resolved_url(self) -> str:
         if self.custom_url:
             return clean_url(self.custom_url)
-        brand_info = brand_service.get_brand(self.brand.lower())
-        domain = brand_info.domain if brand_info else ""
-        return f"https://{domain}{self.category_path}"
+        
+        # Tenta resolver o path real usando o mapeamento de/para
+        try:
+            mapping = resolve_category_for_brands(self.category_path, [self.brand])
+            return mapping[self.brand.lower()]["url"]
+        except Exception:
+            # Fallback para comportamento antigo se não encontrar mapeamento
+            brand_info = brand_service.get_brand(self.brand.lower())
+            domain = brand_info.domain if brand_info else ""
+            path = self.category_path if self.category_path.startswith("/") else f"/{self.category_path}"
+            return f"https://{domain}{path}"
+
 
 
 class ScrapeMultiBrandRequest(BaseModel):
@@ -224,3 +235,13 @@ async def scrape_category_multi(
         "brands": list(url_map.keys()),
         "urls": url_map,
     }
+
+@router.get("/brands/{brand}/auto-discovery")
+async def auto_discover_categories(brand: str):
+    """
+    Aciona a inteligência de descoberta para sugerir mapeamentos automáticos.
+    """
+    brand_key = brand.lower()
+    suggestions = await category_intelligence.discover_and_map(brand_key)
+    return {"brand": brand, "suggestions": suggestions}
+

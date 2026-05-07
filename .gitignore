@@ -4,6 +4,7 @@ __pycache__/
 .vscode/
 .idea/
 *.json
+!/.planning/*.json
 *.log
 .env
 *.xlsx

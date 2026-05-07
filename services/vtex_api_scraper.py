@@ -4,36 +4,27 @@ import logging
 import random
 import re
 import json
+import urllib.parse
 from typing import Optional, List, Dict, Any
 from urllib.parse import urlparse
 from curl_cffi.requests import AsyncSession
 
 from config import settings
-from core.models import RawProductBronze
+from core.models import RawProductBronze, BrandSearchResult, SearchProductResult
 from core.vtex_schemas import VtexProduct, VtexItem, VtexSeller
-from services.review_service import get_single_review
+from services.review_service import get_single_review, get_bulk_reviews
+from services.brand_service import brand_service
+from services.category_resolver import resolve_query_to_vtex_category_path
+from core.base_scraper import BaseScraper
+from core.identity import IdentityManager
 
 # Configuração de Logs
 logger = logging.getLogger("VtexApiClient")
 
 
-class IdentityManager:
-    """Gerencia a identidade do scraper (User-Agent e Proxy) para evitar bloqueios."""
-
-    @staticmethod
-    def get_random_user_agent() -> str:
-        return random.choice(settings.USER_AGENTS)
-
-    @staticmethod
-    def get_random_proxy() -> Optional[str]:
-        if not settings.ENABLE_PROXY or not settings.PROXY_LIST:
-            return None
-        return random.choice(settings.PROXY_LIST)
-
-
-class VtexApiClient:
+class VtexApiClient(BaseScraper):
     """
-    Cliente robuso para integração direta com as APIs da VTEX (Intelligent Search & Catalog System).
+    Cliente robusto para integração direta com as APIs da VTEX (Intelligent Search & Catalog System).
     Implementa rotação de identidade, retries exponenciais e validação rigorosa com Pydantic.
     """
 
@@ -73,7 +64,7 @@ class VtexApiClient:
 
         try:
             async with AsyncSession(impersonate="chrome", timeout=15) as session:
-                logger.info(f"📥 Tentando domínio principal: {url_principal}")
+                logger.info(f"[FETCH] Tentando domínio principal: {url_principal}")
                 response = await session.get(url_principal, headers=headers)
 
                 if response.status_code == 200:
@@ -81,35 +72,35 @@ class VtexApiClient:
                         dados = response.json()
                         if isinstance(dados, list) and len(dados) > 0:
                             return dados
-                        logger.warning("⚠️ Árvore vazia ou inválida no domínio principal.")
+                        logger.warning("[WARNING] Árvore vazia ou inválida no domínio principal.")
                     except (json.JSONDecodeError, Exception):
-                        logger.warning("⚠️ O domínio principal retornou HTML ou JSON inválido.")
+                        logger.warning("[WARNING] O domínio principal retornou HTML ou JSON inválido.")
                 else:
-                    logger.warning(f"⚠️ Status HTTP {response.status_code} no domínio principal.")
+                    logger.warning(f"[WARNING] Status HTTP {response.status_code} no domínio principal.")
 
-                # ─── MÓDULO DE AUTO-DISCOVERY ───
-                logger.info("🔍 Inspecionando o HTML para descobrir o ID real da conta VTEX...")
+                # --- MÓDULO DE AUTO-DISCOVERY ---
+                logger.info("[DEBUG] Inspecionando o HTML para descobrir o ID real da conta VTEX...")
                 account_name = VtexApiClient._discover_account_from_html(domain, response.text)
-                logger.info(f"🎯 Conta identificada: '{account_name}'")
+                logger.info(f"[MATCH] Conta identificada: '{account_name}'")
 
                 url_fallback = f"https://{account_name}.vtexcommercestable.com.br/api/catalog_system/pub/category/tree/{depth}"
 
-                # ─── TENTATIVA 2: Fallback Certeiro ───
-                logger.info(f"🔄 Acionando Fallback Oculto: {url_fallback}")
+                # --- TENTATIVA 2: Fallback Certeiro ---
+                logger.info(f"[RETRY] Acionando Fallback Oculto: {url_fallback}")
                 response_fb = await session.get(url_fallback, headers=headers)
 
                 if response_fb.status_code == 200:
                     try:
                         dados = response_fb.json()
-                        logger.info("✅ Sucesso! Conectado diretamente ao Backend da VTEX.")
+                        logger.info("[OK] Sucesso! Conectado diretamente ao Backend da VTEX.")
                         return dados
                     except Exception:
-                        logger.error("❌ Falha: O Fallback oculto também retornou dados inválidos.")
+                        logger.error("[ERROR] Falha: O Fallback oculto também retornou dados inválidos.")
                         return []
                 else:
-                    logger.warning(f"❌ O Fallback falhou com Status HTTP {response_fb.status_code}")
+                    logger.warning(f"[ERROR] O Fallback falhou com Status HTTP {response_fb.status_code}")
 
-                # ─── MÓDULO 3: EXTREME DISCOVERY ───
+                # --- MÓDULO 3: EXTREME DISCOVERY ---
                 # ... (resto do código igual)
                 response_home = await session.get(f"https://{domain}/", headers=headers)
                 if response_home.status_code == 200:
@@ -135,13 +126,13 @@ class VtexApiClient:
                             seen_paths.add(p)
                     
                     if discovered:
-                        logger.info(f"🕸️ Extreme Discovery encontrou {len(discovered)} links potenciais.")
+                        logger.info(f"[EXTREME] Extreme Discovery encontrou {len(discovered)} links potenciais.")
                         return discovered
 
                 return []
 
         except Exception as e:
-            logger.error(f"❌ Erro crítico na descoberta: {e}")
+            logger.error(f"[ERROR] Erro crítico na descoberta: {e}")
             return []
 
     @staticmethod
@@ -156,29 +147,29 @@ class VtexApiClient:
         }
         try:
             async with AsyncSession(impersonate="chrome", timeout=10) as session:
-                logger.info(f"🧪 Validando URL: {url}")
+                logger.info(f"[VALIDATING] Validando URL: {url}")
                 resp = await session.get(url, headers=headers, allow_redirects=True)
                 
                 if resp.status_code != 200:
-                    logger.warning(f"🚫 URL inválida ({resp.status_code}): {url}")
+                    logger.warning(f"[INVALID] URL inválida ({resp.status_code}): {url}")
                     return False
                 
                 # Heurística: se a página for muito pequena, provavelmente está vazia ou deu erro
                 if len(resp.text) < 1000:
-                    logger.warning(f"🚫 URL com conteúdo insuficiente: {url}")
+                    logger.warning(f"[INVALID] URL com conteúdo insuficiente: {url}")
                     return False
 
                 # Busca por indícios de "vazio"
                 content = resp.text.lower()
                 empty_markers = ["nenhum produto encontrado", "0 produtos", "não encontramos produtos", "Ops!"]
                 if any(marker in content for marker in empty_markers):
-                    logger.warning(f"🚫 URL parece estar vazia: {url}")
+                    logger.warning(f"[INVALID] URL parece estar vazia: {url}")
                     return False
                 
-                logger.info(f"✅ URL válida: {url}")
+                logger.info(f"[OK] URL válida: {url}")
                 return True
         except Exception as e:
-            logger.warning(f"⚠️ Erro ao validar URL {url}: {e}")
+            logger.warning(f"[WARNING] Erro ao validar URL {url}: {e}")
             return False
 
     def _get_headers(self) -> Dict[str, str]:
@@ -214,14 +205,14 @@ class VtexApiClient:
         for attempt in range(settings.MAX_RETRIES):
             try:
                 current_url = self._get_api_url(url)
-                current_proxy = IdentityManager.get_random_proxy()
+                current_proxy = IdentityManager.get_proxy()
                 
                 async with self.session.request(method, current_url, proxy=current_proxy, **kwargs) as resp:
                     if resp.status in (200, 201, 206):
                         # Se for HTML onde deveria ser JSON, aciona fallback
                         if "text/html" in resp.headers.get("Content-Type", "") and "api/" in current_url:
                              if not self.use_stable_fallback:
-                                logger.warning(f"⚠️ Detectado HTML em API. Tentando fallback...")
+                                logger.warning(f"[WARNING] Detectado HTML em API. Tentando fallback...")
                                 parsed = urlparse(current_url)
                                 await self._ensure_account_resolved(parsed.netloc)
                                 self.use_stable_fallback = True
@@ -256,7 +247,7 @@ class VtexApiClient:
         if self.resolved_account:
             return
         
-        logger.info(f"🔍 Identificando conta VTEX para {domain}...")
+        logger.info(f"[DEBUG] Identificando conta VTEX para {domain}...")
         headers = {"User-Agent": IdentityManager.get_random_user_agent()}
         try:
             # Tenta pegar a home para descobrir a conta
@@ -264,12 +255,12 @@ class VtexApiClient:
                 resp = await session.get(f"https://{domain}/", headers=headers)
                 if resp.status_code == 200:
                     self.resolved_account = self._discover_account_from_html(domain, resp.text)
-                    logger.info(f"🎯 Conta resolvida: {self.resolved_account}")
+                    logger.info(f"[MATCH] Conta resolvida: {self.resolved_account}")
                 else:
                     # Fallback básico pelo domínio
                     self.resolved_account = domain.split(".")[0] if "www" not in domain else domain.split(".")[1]
         except Exception as e:
-            logger.warning(f"⚠️ Falha ao resolver conta via HTML: {e}. Usando fallback de domínio.")
+            logger.warning(f"[WARNING] Falha ao resolver conta via HTML: {e}. Usando fallback de domínio.")
             self.resolved_account = domain.split(".")[0] if "www" not in domain else domain.split(".")[1]
 
     def _get_api_url(self, original_url: str) -> str:
@@ -300,7 +291,7 @@ class VtexApiClient:
         for attempt in range(settings.MAX_RETRIES):
             try:
                 current_url = self._get_api_url(url)
-                current_proxy = IdentityManager.get_random_proxy()
+                current_proxy = IdentityManager.get_proxy()
                 
                 async with self.session.get(current_url, proxy=current_proxy, **kwargs) as resp:
                     if resp.status in (200, 206):
@@ -311,13 +302,13 @@ class VtexApiClient:
                             return await resp.json()
                         except (aiohttp.ContentTypeError, ValueError, json.JSONDecodeError):
                             if not self.use_stable_fallback:
-                                logger.warning(f"⚠️ {domain} retornou HTML. Tentando resolver fallback estável...")
+                                logger.warning(f"[WARNING] {domain} retornou HTML. Tentando resolver fallback estável...")
                                 await self._ensure_account_resolved(domain)
                                 self.use_stable_fallback = True
                                 # Recomeça o loop com a nova URL
                                 continue
                             else:
-                                logger.error(f"❌ Fallback estável também falhou em {current_url}")
+                                logger.error(f"[ERROR] Fallback estável também falhou em {current_url}")
                                 return None
                     
                     if resp.status == 429:
@@ -543,7 +534,7 @@ class VtexApiClient:
         produtos_extraidos = []
         pagina = 0
 
-        log(f"🚀 Iniciando extração API-First paginada: {category_url}")
+        log(f"[START] Iniciando extração API-First paginada: {category_url}")
         
         # Pequena pausa para garantir que o frontend (WebSocket) conecte antes de enviarmos os logs
         await asyncio.sleep(1.5)
@@ -564,20 +555,20 @@ class VtexApiClient:
             
             try:
                 current_url = self._get_api_url(url)
-                async with self.session.get(current_url, proxy=IdentityManager.get_random_proxy(), timeout=15) as response:
+                async with self.session.get(current_url, proxy=IdentityManager.get_proxy(), timeout=15) as response:
                     # Detecta se retornou HTML em vez de JSON
                     if "text/html" in response.headers.get("Content-Type", ""):
                         if not self.use_stable_fallback:
-                            logger.warning(f"⚠️ {domain} retornou HTML em busca. Tentando fallback...")
+                            logger.warning(f"[WARNING] {domain} retornou HTML em busca. Tentando fallback...")
                             await self._ensure_account_resolved(domain)
                             self.use_stable_fallback = True
                             continue # Tenta a mesma página com a nova URL
                         else:
-                            log(f"❌ Fallback estável também falhou (HTML) em {current_url}")
+                            log(f"[ERROR] Fallback estável também falhou (HTML) em {current_url}")
                             break
 
                     if response.status not in (200, 206):
-                        log(f"❌ API retornou HTTP {response.status}")
+                        log(f"[ERROR] API retornou HTTP {response.status}")
                         break
                         
                     # Puxa o total de produtos pelo header na primeira requisição
@@ -598,7 +589,7 @@ class VtexApiClient:
                     raw_products = await response.json()
                     
                     if not raw_products or not isinstance(raw_products, list):
-                        log("✅ Fim da categoria alcançado!")
+                        log("[OK] Fim da categoria alcançado!")
                         break
 
                     async def build_product(p):
@@ -639,12 +630,139 @@ class VtexApiClient:
                         break
 
             except Exception as e:
-                log(f"❌ Falha ao varrer página {pagina + 1}: {e}")
+                log(f"[ERROR] Falha ao varrer página {pagina + 1}: {e}")
                 break
 
             pagina += 1
             await asyncio.sleep(0.5) # Respeito ao rate limit VTEX
             
-        log(f"🎉 Extração concluída! {len(produtos_extraidos)} produtos capturados.")
+        log(f"[DONE] Extração concluída! {len(produtos_extraidos)} produtos capturados.")
         return produtos_extraidos
+
+    async def search(
+        self,
+        query: str,
+        max_results: int = 10,
+        sort: Optional[str] = None,
+        only_in_stock: bool = False
+    ) -> BrandSearchResult:
+        """
+        Executa a busca full-text na VTEX.
+        Suporta ordenação e filtro de estoque.
+        """
+        brand_key = self.brand_name.lower().split()[0]
+        brand_info = brand_service.get_brand(brand_key)
+        brand_name = brand_info.brand_name if brand_info else self.brand_name
+
+        if not brand_info:
+            return BrandSearchResult(brand_key=brand_key, brand_name=brand_name, error="Marca não registrada.")
+
+        domain = brand_info.domain.replace("https://", "").replace("http://", "").strip("/")
+        sanitized_query = query.replace("-", " ")
+        encoded_query = urllib.parse.quote(sanitized_query)
+
+        # Mapeamento de Sort
+        sort_map = {
+            "price_asc": "PriceASC",
+            "price_desc": "PriceDESC",
+            "top_selling": "TopSellingDESC",
+            "relevance": "OrderByScoreDESC"
+        }
+        vtex_sort = sort_map.get(sort, "OrderByScoreDESC")
+
+        products = []
+        chunk_size = 10
+        max_pages = 5
+        last_error = None
+        
+        category_path = resolve_query_to_vtex_category_path(query, brand_key)
+
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15)) as session:
+            self.session = session
+            for page in range(max_pages):
+                if len(products) >= max_results:
+                    break
+
+                _from = page * chunk_size
+                _to = _from + chunk_size - 1
+
+                if category_path:
+                    url = f"https://{domain}/api/catalog_system/pub/products/search?fq={category_path}&_from={_from}&_to={_to}&O={vtex_sort}"
+                else:
+                    url = f"https://{domain}/api/catalog_system/pub/products/search?ft={encoded_query}&_from={_from}&_to={_to}&O={vtex_sort}"
+
+                try:
+                    raw_products = await self._request_json(url)
+                    if not raw_products or not isinstance(raw_products, list):
+                        break
+
+                    # Filtro de estoque se solicitado
+                    valid_raw = []
+                    for p in raw_products:
+                        if only_in_stock:
+                            is_avail = any(
+                                any(s.get("commertialOffer", {}).get("AvailableQuantity", 0) > 0 for s in item.get("sellers", []))
+                                for item in p.get("items", [])
+                            )
+                            if not is_avail:
+                                continue
+                        valid_raw.append(p)
+
+                    # Reviews em lote
+                    pids = [str(p.get("productId")) for p in valid_raw if p.get("productId")]
+                    reviews_dict = await get_bulk_reviews(brand_key, pids)
+
+                    for p in valid_raw:
+                        pid = str(p.get("productId"))
+                        rating, count = reviews_dict.get(pid, (None, None))
+                        
+                        # Converte para o modelo de busca
+                        items = p.get("items", [])
+                        price_full = 0.0
+                        price_discount = None
+                        available = False
+                        
+                        for item in items:
+                            for seller in item.get("sellers", []):
+                                offer = seller.get("commertialOffer", {})
+                                if offer.get("AvailableQuantity", 0) > 0:
+                                    available = True
+                                    if price_full == 0.0:
+                                        price_full = offer.get("Price", 0.0)
+                                        lp = offer.get("ListPrice", 0.0)
+                                        if lp > price_full:
+                                            price_discount = lp - price_full
+                                    break
+                        
+                        image_url = items[0].get("images", [{}])[0].get("imageUrl") if items else None
+                        
+                        products.append(SearchProductResult(
+                            brand=brand_key,
+                            product_name=p.get("productName", ""),
+                            url=self._sanitize_product_url(p.get("link", ""), domain),
+                            price_full=price_full,
+                            price_discount=price_discount,
+                            image_url=image_url,
+                            category=p.get("categories", [""])[0].split("/")[-2] if p.get("categories") else None,
+                            available=available,
+                            rating=rating,
+                            review_count=count
+                        ))
+                        
+                        if len(products) >= max_results:
+                            break
+
+                except Exception as e:
+                    last_error = str(e)
+                    break
+
+        if last_error and not products:
+            return BrandSearchResult(brand_key=brand_key, brand_name=brand_name, error=last_error)
+
+        return BrandSearchResult(
+            brand_key=brand_key,
+            brand_name=brand_name,
+            products=products,
+            total_found=len(products)
+        )
 
