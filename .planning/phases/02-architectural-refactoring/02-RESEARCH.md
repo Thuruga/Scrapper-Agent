@@ -1,53 +1,53 @@
-# Phase 2: Architectural Refactoring - Research
+# Phase 2: Architectural Refactoring / BaseEngine - Research
 
 ## Overview
 
-Esta fase foca em desacoplar o sistema do ecossistema VTEX, criando uma camada de abstração que permita a inclusão de novos motores (Shopify, Magento, etc) e novas marcas sem redundância de código.
+Esta fase foca em criar uma abstração de alto nível (`Engine`) para separar a lógica de orquestração da implementação técnica do scraping (VTEX, etc). Também foca em tornar o `CategoryIntelligenceService` autônomo.
 
-## Current Coupling Issues
+## Architecture Refactoring
 
-### 1. Orchestrators & Services
-- `services/orchestrator.py` e `services/orchestrator_multi.py` importam `VtexApiClient` diretamente.
-- A lógica de fluxo (Paging -> Extraction -> Save) está amarrada às capacidades da API VTEX.
+### Current State
+- `orchestrator.py` está acoplado ao `VtexApiClient` (importado localmente na função).
+- A lógica de salvamento e consolidação está dentro do orquestrador.
+- Existe um `scrapers/` registry que mapeia marcas para módulos, mas é redundante com o `VtexApiClient` que já lida com múltiplas marcas VTEX.
 
-### 2. Brand Scrapers
-- Arquivos em `scrapers/` (ex: `aramis.py`, `reserva.py`) são apenas wrappers repetitivos do `VtexApiClient`.
-- Não há separação entre "O QUE extrair" (dados do produto) e "COMO extrair" (chamada de API vs Playwright).
+### Proposed Abstraction: Engine Layer
+1. **BaseEngine (ABC)**:
+   - `discover_categories()`: Aciona a inteligência para mapear categorias.
+   - `run_bulk_scrape()`: Orquestra o ciclo completo (Scan -> Parse -> Save).
+   - `resolve_engine(brand_key)`: Factory para retornar a engine correta.
 
-### 3. Factory
-- `scrapers/__init__.py` retorna módulos em vez de objetos de engine padronizados.
+2. **VTEXEngine**:
+   - Encapsula chamadas ao `VtexApiClient`.
+   - Gerencia o fallback de domínios estáveis.
+   - Implementa a descoberta automática de categorias específica da VTEX.
 
-## Proposed Abstraction: Engine Layer
+## Autonomous Category Intelligence
 
-### BaseEngine (Interface)
-Definirá o contrato para qualquer motor de e-commerce:
-- `discover_categories()`: Retorna a árvore de categorias.
-- `scrape_category(url)`: Retorna lista de produtos.
-- `get_product(url)`: Retorna detalhes de um produto.
-- `search(query)`: Realiza busca full-text.
+### Goal
+O `CategoryIntelligenceService` deve rodar em background sem intervenção do usuário.
 
-### VTEXEngine (Implementation)
-Consolidará toda a lógica atual do `VtexApiClient`, incluindo:
-- Auto-discovery de conta.
-- Fallback para `.vtexcommercestable`.
-- Paginamento via Search API.
+### Strategy
+1. **Background Discovery**: Quando uma nova marca é cadastrada, a `BaseEngine` deve disparar uma tarefa em background para rodar a descoberta.
+2. **Persistence**: Os resultados devem ser salvos diretamente nos `mappings` da marca via `brand_service`.
+3. **Trigger**: Adicionar um hook no `brand_service.save_brand` para disparar a descoberta se a marca for nova.
 
-### EngineFactory
-Substituirá o registro atual. Ao receber uma marca, a factory identificará qual motor ela usa e retornará a instância da Engine correta.
+## Refactoring Roadmap
 
-## Impacts & Benefits
-- **Extensibilidade**: Adicionar um motor Shopify exigirá apenas criar uma `ShopifyEngine` que herda de `BaseEngine`.
-- **Manutenibilidade**: Correções no fluxo de extração serão feitas em um único lugar (`BaseEngine` ou engine específica) e refletirão em todas as marcas.
-- **Redução de Código**: Eliminação dos arquivos repetitivos em `scrapers/`.
+1. **Step 1**: Criar `services/engines/base_engine.py` e `services/engines/vtex_engine.py`.
+2. **Step 2**: Mover a lógica do `orchestrator.py` para as Engines.
+3. **Step 3**: Atualizar `api/routes_category.py` e `api/routes_brands.py` para usar a nova camada de Engine.
+4. **Step 4**: Implementar o trigger autônomo de descoberta em background.
 
 ## Verification Plan
 
 ### Automated Tests
-- Validar se a `EngineFactory` retorna a engine correta para marcas VTEX.
-- Garantir que a `VTEXEngine` produz o mesmo output (RawProductBronze) que o cliente atual.
+- Validar se a `VTEXEngine` consegue realizar uma varredura completa usando a nova abstração.
+- Validar o trigger automático de categorias ao cadastrar uma marca via script.
 
 ### Manual Verification
-- Executar uma varredura via dashboard e validar que o fluxo continua funcionando de ponta a ponta.
+- Cadastrar uma marca "vazia" no dashboard e observar os logs em background descobrindo as categorias.
+- Verificar se a aba de "Varredura" já exibe categorias mapeadas sem ação do usuário.
 
 ---
 *Research completed: 2026-05-07*
