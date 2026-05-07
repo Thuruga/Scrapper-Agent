@@ -82,7 +82,7 @@ async def read_index():
     return FileResponse("index.html")
 
 
-app.mount("/", StaticFiles(directory=".", html=True), name="static")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 # ---------------------------------------------------------------------------

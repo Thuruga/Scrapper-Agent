@@ -225,5 +225,16 @@ class BrandManagerService:
         return self.brands[key]
 
 
+    def delete_brand(self, brand_key: str) -> bool:
+        """Exclui uma marca do banco de dados."""
+        key = brand_key.lower().strip()
+        if key in self.brands:
+            del self.brands[key]
+            self._save_db()
+            logger.info(f"🗑️ Marca '{key}' excluída com sucesso.")
+            return True
+        return False
+
+
 # Instância singleton
 brand_service = BrandManagerService()
