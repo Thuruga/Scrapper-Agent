@@ -64,7 +64,47 @@ class CategoryIntelligenceService:
         return suggestions
 
     @staticmethod
+    async def run_background_discovery(brand_key: str):
+        """
+        Executa a descoberta e salva automaticamente os mapeamentos encontrados.
+        """
+        logger.info(f"[{brand_key}] Iniciando descoberta autônoma em background...")
+        suggestions = await CategoryIntelligenceService.discover_and_map(brand_key)
+        
+        if not suggestions:
+            logger.info(f"[{brand_key}] Nenhuma sugestão encontrada para mapeamento automático.")
+            return
+
+        brand_data = brand_service.get_brand(brand_key)
+        if not brand_data:
+            return
+
+        # Filtra apenas mapeamentos com alta confiança (> 0.8) para automação total
+        from core.models import CategoryMapping
+        
+        count = 0
+        for s in suggestions:
+            if s["confidence"] >= 0.8:
+                # Verifica se já existe um mapeamento para esse slug
+                exists = any(m.canonical_slug == s["canonical_slug"] for m in brand_data.mappings)
+                if not exists:
+                    mapping = CategoryMapping(
+                        canonical_slug=s["canonical_slug"],
+                        vtex_fq_path=s["vtex_path"],
+                        label=s["canonical_label"]
+                    )
+                    brand_data.mappings.append(mapping)
+                    count += 1
+        
+        if count > 0:
+            brand_service.save_brand(brand_data.model_dump())
+            logger.info(f"[{brand_key}] Automação concluída: {count} categorias mapeadas com sucesso.")
+        else:
+            logger.info(f"[{brand_key}] Nenhuma nova categoria com alta confiança para mapear.")
+
+    @staticmethod
     def _flatten_vtex_tree(tree: List[Dict[str, Any]], parent_path: str = "") -> List[Dict[str, Any]]:
+
         """Achata a árvore de categorias da VTEX para uma lista simples de paths."""
         flat = []
         for node in tree:

@@ -73,23 +73,23 @@ async def _run_brand_pipeline(
     # ── ETAPA 1: VARREDURA E EXTRAÇÃO PAGINADA ─────────────────────────────
     emit({"type": "info", "message": f"[{brand_name}] Iniciando varredura paginada: {url}"})
 
-    from services.vtex_api_scraper import VtexApiClient
+    from services.engines.factory import engine_factory
+    
+    try:
+        engine = engine_factory.get_engine(brand_key)
+        resultados_brutos = await engine.run_bulk_scrape(
+            category_url=url,
+            log_callback=lambda msg: emit(
+                msg if isinstance(msg, dict) else {"type": "info", "message": f"[{brand_name}] {msg}"}
+            ),
+            cancel_event=cancel_event
+        )
 
-    async with VtexApiClient(brand_key) as client:
-        try:
-            resultados_brutos = await client.scrape_category_paged(
-                category_url=url,
-                log_callback=lambda msg: emit(
-                    msg if isinstance(msg, dict) else {"type": "info", "message": f"[{brand_name}] {msg}"}
-                ),
-                cancel_event=cancel_event,
-                chunk_size=50
-            )
-        except Exception as e:
-            result.error_message = str(e)
-            result.finished = True
-            emit({"type": "error", "message": f"[{brand_name}] Erro: {e}"})
-            return result
+    except Exception as e:
+        result.error_message = str(e)
+        result.finished = True
+        emit({"type": "error", "message": f"[{brand_name}] Erro: {e}"})
+        return result
 
     if is_cancelled() and not resultados_brutos:
         emit({"type": "cancelled", "message": f"[{brand_name}] Varredura cancelada."})
@@ -200,9 +200,10 @@ def run_multi_orchestrator_sync(
         total_success += result.success_count
         total_errors += result.error_count
         for produto in result.products:
-            row = produto.model_dump()
+            row = produto
             row["brand"] = result.brand_name
             all_products.append(row)
+
 
     # ── Gerar Excel ────────────────────────────────────────────────────
     slug = category_label.lower().replace(" ", "_").replace("&", "e")

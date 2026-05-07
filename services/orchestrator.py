@@ -34,35 +34,33 @@ async def run_orchestrator(
     def is_cancelled() -> bool:
         return cancel_event is not None and cancel_event.is_set()
 
-    # Nome do módulo para arquivo de saída
-    module_key = marca.lower().split()[0]
-    arquivo_saida = f"dados_{module_key}_categoria.xlsx"
-
     # ── ETAPA 1: VARREDURA E EXTRAÇÃO PAGINADA ─────────────────────────────
     emit_log("==================================================")
     emit_log(f" ETAPA 1: VARRENDO CATEGORIA PAGINADA ({marca})")
     emit_log("==================================================")
 
-    from services.vtex_api_scraper import VtexApiClient
+    from services.engines.factory import engine_factory
+    
+    engine = engine_factory.get_engine(marca)
+    produtos_validos = await engine.run_bulk_scrape(
+        category_url=url_categoria,
+        log_callback=emit_log,
+        cancel_event=cancel_event
+    )
 
-    async with VtexApiClient(marca) as client:
-        resultados_brutos = await client.scrape_category_paged(
-            category_url=url_categoria,
-            log_callback=emit_log,
-            cancel_event=cancel_event,
-            chunk_size=50
-        )
-
-    if is_cancelled() and not resultados_brutos:
+    if is_cancelled() and not produtos_validos:
         emit_log({"type": "cancelled", "message": "Operação cancelada pelo usuário durante a varredura."})
         return
+
+    # Nome do módulo para arquivo de saída
+    module_key = marca.lower().split()[0]
+    arquivo_saida = f"dados_{module_key}_categoria.xlsx"
 
     # ── ETAPA 2: CONSOLIDAÇÃO E SALVAMENTO ──────────────────────────────────
     emit_log("\n==================================================")
     emit_log(" ETAPA 2: CONSOLIDAÇÃO E SALVAMENTO")
     emit_log("==================================================")
 
-    produtos_validos = [res.model_dump() for res in resultados_brutos if res]
 
     if produtos_validos:
         df = pd.DataFrame(produtos_validos)

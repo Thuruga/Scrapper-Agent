@@ -82,132 +82,28 @@ class BrandManagerService:
 
         self._save_db()
 
-        # Trigger async auto-mapping in the background
+        # Trigger async auto-mapping in the background using the intelligence service
+        from services.category_intelligence import category_intelligence
         try:
             loop = asyncio.get_running_loop()
-            loop.create_task(self.auto_map_brand(key))
+            loop.create_task(category_intelligence.run_background_discovery(key))
         except RuntimeError:
-            # Caso não haja um loop rodando (ex: scripts de migração)
             pass
 
         return self.brands[key]
 
-    async def auto_map_brand(self, brand_key: str):
-        """
-        Mapeia categorias automaticamente buscando a árvore VTEX,
-        testando se os links realmente funcionam (HTTP < 400) e
-        comparando com as categorias canônicas.
-        """
-        from services.vtex_api_scraper import VtexApiClient
-        import aiohttp
 
-        brand = self.brands.get(brand_key)
-        if not brand:
+
+    def save_brand(self, brand_data: dict):
+        """Salva ou atualiza uma marca no banco."""
+        key = brand_data.get("brand_key", "").lower().strip()
+        if not key:
             return
-
-        logger.info(
-            f"[AUTO] Iniciando auto-mapeamento e validação de links para {brand_key} ({brand.domain})..."
-        )
-
-        try:
-            # 1. Buscar árvore real da VTEX
-            vtex_tree = await VtexApiClient.fetch_categories(brand.domain)
-            if not vtex_tree:
-                logger.warning(f"[WARNING] Não foi possível obter árvore VTEX para {brand_key}")
-                return
-
-            # 2. Achatar a árvore para facilitar busca
-            flat_vtex = []
-
-            def flatten(nodes):
-                for node in nodes:
-                    name = node.get("name", "").lower()
-                    url = node.get("url", "")
-
-                    if url:
-                        path = url
-                        if "http" in url:
-                            path = "/" + "/".join(url.split("/")[3:])
-                        if not path.startswith("/"):
-                            path = "/" + path
-                    else:
-                        path = f"/c/{node.get('id')}"
-
-                    flat_vtex.append({"name": name, "path": path})
-                    if node.get("children"):
-                        flatten(node["children"])
-
-            flatten(vtex_tree)
-
-            # 3. Buscar categorias canônicas
-            from services.category_mapping import _RAW_CATEGORIES
-
-            new_mappings = []
-
-            # 4. Iniciar sessão HTTP para testar os links na prática
-            async with aiohttp.ClientSession() as session:
-                headers = {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0"
-                }
-
-                for canonical in _RAW_CATEGORIES:
-                    slug = canonical["slug"]
-                    label = canonical["label"].lower()
-
-                    # Procura match direto ou por contive (ex: "Camisas" contido em "Camisaria")
-                    match = next(
-                        (
-                            c
-                            for c in flat_vtex
-                            if label in c["name"] or c["name"] in label
-                        ),
-                        None,
-                    )
-
-                    if match:
-                        test_url = f"https://{brand.domain}{match['path']}"
-                        logger.info(f"[DEBUG] Testando link candidato: {test_url}")
-
-                        try:
-                            # Testa se a página existe e responde corretamente
-                            async with session.get(
-                                test_url, headers=headers, timeout=10
-                            ) as resp:
-                                if (
-                                    resp.status < 400
-                                ):  # Se for 200 OK ou redirect válido
-                                    new_mappings.append(
-                                        CategoryMapping(
-                                            canonical_slug=slug,
-                                            vtex_fq_path=match["path"],
-                                            label=match["name"].capitalize(),
-                                        )
-                                    )
-                                    logger.info(
-                                        f"[OK] Link Válido! Salvo: {slug} -> {match['path']}"
-                                    )
-                                else:
-                                    logger.warning(
-                                        f"[WARNING] Link quebrado ignorado (Status {resp.status}): {test_url}"
-                                    )
-                        except Exception as e:
-                            logger.error(f"[ERROR] Erro ao aceder à URL {test_url}: {e}")
-
-            if new_mappings:
-                brand.mappings = new_mappings
-                self._save_db()
-                logger.info(
-                    f"[SUCCESS] {len(new_mappings)} categorias testadas, validadas e mapeadas com sucesso para {brand_key}"
-                )
-            else:
-                logger.warning(
-                    f"[WARNING] Nenhuma categoria com link a funcionar foi encontrada para {brand_key}."
-                )
-
-        except Exception as e:
-            logger.error(f"[ERROR] Erro no auto-mapeamento de {brand_key}: {e}")
+        self.brands[key] = DynamicBrand.model_validate(brand_data)
+        self._save_db()
 
     def list_brands(self) -> List[DynamicBrand]:
+
         return list(self.brands.values())
 
     def get_brand(self, brand_key: str) -> Optional[DynamicBrand]:
