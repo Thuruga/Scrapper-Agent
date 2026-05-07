@@ -48,8 +48,10 @@ scrapper/
 
 **services/**
 - Purpose: Implementation of business rules and coordination.
-- Contains: `brand_service.py`, `price_monitor_service.py`, `vtex_api_scraper.py`.
-- Key files: `vtex_api_scraper.py` - Core VTEX integration engine.
+- Contains: `brand_service.py`, `price_monitor_service.py`, `category_intelligence.py`.
+- Subdirectories: `engines/` contains high-level engine abstractions.
+- Key files: `orchestrator.py` - Core coordination logic.
+
 
 ## Key File Locations
 

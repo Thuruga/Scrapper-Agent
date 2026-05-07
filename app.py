@@ -7,6 +7,15 @@ Inicia a aplicação FastAPI, carrega middlewares e rotas, e expõe o frontend e
 import asyncio
 import sys
 import logging
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+from config import settings
+from api import api_router
 
 # Configuração global de logs para ambiente Enterprise
 logging.basicConfig(
@@ -17,24 +26,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger("App")
 
-# Corrige problema de event loop no Windows
-
-if sys.platform == "win32":
-    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-
-from config import settings
-from api import api_router
+# O WindowsProactorEventLoopPolicy já é o padrão no Python 3.8+ e está deprecado no 3.16.
+# Portanto, não precisamos forçar a alteração da política de event loop no Windows.
 
 
 # ---------------------------------------------------------------------------
 # App Initialization
 # ---------------------------------------------------------------------------
-from contextlib import asynccontextmanager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -59,6 +57,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Custom middleware to disable caching during development
+@app.middleware("http")
+async def add_no_cache_header(request, call_next):
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
+
 
 
 
@@ -72,6 +80,21 @@ app.include_router(api_router)
 @app.get("/health-check")
 async def health_check():
     return {"status": "ok", "message": "Backend is alive"}
+
+@app.get("/download-report/{filename}")
+async def download_report(filename: str):
+    """Serve um relatório gerado para download direto."""
+    # Previne path traversal e restringe a extensões conhecidas (excel/csv)
+    if "/" in filename or "\\" in filename or not filename.endswith((".xlsx", ".csv")):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    
+    import os
+    if not os.path.exists(filename):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="File not found")
+        
+    return FileResponse(filename, filename=filename, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 # ---------------------------------------------------------------------------

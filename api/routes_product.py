@@ -58,7 +58,7 @@ async def get_monitor_history(job_id: str):
 @router.get("/monitors")
 async def list_monitors():
     """Lista todos os monitores (ativos e inativos)."""
-    return {job_id: config.model_dump() for job_id, config in monitor_service.monitors.items()}
+    return list(monitor_service.monitors.values())
 
 
 @router.delete("/monitor/{job_id}")

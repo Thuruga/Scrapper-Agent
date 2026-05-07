@@ -11,9 +11,7 @@ from typing import Optional, Callable
 
 import pandas as pd
 
-from config import settings
 
-from scrapers import get_scraper
 
 
 async def run_orchestrator(

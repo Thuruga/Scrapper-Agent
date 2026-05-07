@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   LayoutDashboard, 
@@ -49,14 +50,14 @@ const GlassCard = ({ children, title, className = "", subtitle }: any) => (
 );
 
 const StatusBanner = ({ type, message, onClear }: { type: 'success' | 'error' | 'info', message: string, onClear?: () => void }) => {
-  if (!message) return null;
-  
   useEffect(() => {
-    if (onClear) {
+    if (message && onClear) {
       const timer = setTimeout(onClear, 5000);
       return () => clearTimeout(timer);
     }
   }, [message, onClear]);
+
+  if (!message) return null;
 
   return (
     <div className={`status-banner ${type}`}>
@@ -87,8 +88,26 @@ const MonitorPage = ({ brands }: { brands: any[] }) => {
 
   useEffect(() => {
     refreshMonitors();
-    if (brands.length > 0 && !brand) setBrand(brands[0].brand_key);
-  }, [brands]);
+    const intervalId = setInterval(refreshMonitors, 5000);
+    return () => clearInterval(intervalId);
+  }, []);
+
+  const handleDeleteMonitor = async (jobId: string) => {
+    if (!confirm('Deseja excluir este monitor?')) return;
+    try {
+      await ApiClient.deleteMonitor(jobId);
+      refreshMonitors();
+      setStatus({ type: 'success', message: 'Monitor excluído!' });
+    } catch (err: any) {
+      setStatus({ type: 'error', message: 'Erro ao excluir monitor: ' + err.message });
+    }
+  };
+
+  useEffect(() => {
+    if (brands.length > 0 && !brand) {
+      setTimeout(() => setBrand(brands[0].brand_key), 0);
+    }
+  }, [brands, brand]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -156,17 +175,36 @@ const MonitorPage = ({ brands }: { brands: any[] }) => {
             ) : (
               monitors.map((m: any) => (
                 <div key={m.job_id} className="monitor-item">
-                  <div className="monitor-info">
-                    <div className="monitor-main">
-                      <Package size={16} className="text-accent" />
-                      <strong>{m.brand.toUpperCase()}</strong>
-                    </div>
-                    <span className="monitor-url">{m.url}</span>
-                    {m.product_name && <p className="monitor-product-name">{m.product_name}</p>}
+                  <div className="monitor-image-small">
+                    {m.image_url ? <img src={m.image_url} alt={m.product_name} /> : <Package size={20} />}
                   </div>
-                  <div className="monitor-badge">
-                    {m.active ? <span className="status-dot online"></span> : <span className="status-dot offline"></span>}
-                    <span>{m.active ? 'Ativo' : 'Inativo'}</span>
+                  <div className="monitor-info">
+                    <div className="monitor-main" style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '8px' }}>
+                      <Package size={14} className="text-accent" />
+                      <strong>{m.brand.toUpperCase()}</strong>
+                      <button 
+                        type="button" 
+                        className="btn-icon text-error" 
+                        style={{ marginLeft: 'auto' }}
+                        onClick={() => handleDeleteMonitor(m.job_id)}
+                        title="Excluir monitor"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                    {m.product_name && <p className="monitor-product-name">{m.product_name}</p>}
+                    <span className="monitor-url">{m.url}</span>
+                  </div>
+                  <div className="monitor-pricing">
+                     {m.last_price ? (
+                       <div className="monitor-price-value">R$ {m.last_price.toFixed(2)}</div>
+                     ) : (
+                       <div className="monitor-price-pending">Aguardando...</div>
+                     )}
+                     <div className="monitor-badge">
+                       {m.active ? <span className="status-dot online"></span> : <span className="status-dot offline"></span>}
+                       <span>{m.active ? 'Ativo' : 'Inativo'}</span>
+                     </div>
                   </div>
                 </div>
               ))
@@ -185,6 +223,7 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
   const [isScraping, setIsScraping] = useState(false);
   const [logs, setLogs] = useState<any[]>([]);
   const [progress, setProgress] = useState({ current: 0, total: 0, success: 0, error: 0 });
+  const [outputFile, setOutputFile] = useState<string | null>(null);
   const [isDiscovering, setIsDiscovering] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
@@ -193,12 +232,29 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
 
   useEffect(() => {
     ApiClient.getCanonicalCategories().then(data => {
-      // O backend retorna uma lista de grupos com .categories ou .categories diretamente
-      // Vamos achatar para facilitar o select, ou manter o grupo se quisermos optgroups
       const flat = data.reduce((acc: any[], group: any) => [...acc, ...group.categories], []);
       setCanonicalCategories(flat);
     }).catch(console.error);
   }, []);
+
+  useEffect(() => {
+    if (selectedBrands.length === 1) {
+      ApiClient.request<any>(`/brands/${selectedBrands[0]}/categories`).then(data => {
+         if (data && data.categories) {
+           const flat = data.categories.reduce((acc: any[], group: any) => {
+             const items = group.items.map((i: any) => ({ slug: i.path, label: `${group.group} - ${i.label}` }));
+             return [...acc, ...items];
+           }, []);
+           setCanonicalCategories(flat);
+         }
+      }).catch(console.error);
+    } else {
+      ApiClient.getCanonicalCategories().then(data => {
+         const flat = data.reduce((acc: any[], group: any) => [...acc, ...group.categories], []);
+         setCanonicalCategories(flat);
+      }).catch(console.error);
+    }
+  }, [selectedBrands]);
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -214,14 +270,25 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
     if (selectedBrands.length === 0 || !selectedCategory) return;
     
     setIsScraping(true);
+    setOutputFile(null);
     setLogs([{ type: 'info', text: `Iniciando varredura para: ${selectedBrands.join(', ')}`, time: new Date().toLocaleTimeString() }]);
     setProgress({ current: 0, total: 0, success: 0, error: 0 });
 
     try {
       const isMulti = selectedBrands.length > 1;
-      const payload = isMulti 
-        ? { brands: selectedBrands, category_slug: selectedCategory }
-        : { brand: selectedBrands[0], category_path: selectedCategory };
+      let payload: any;
+      
+      if (isMulti) {
+        payload = { brands: selectedBrands, category_slug: selectedCategory };
+      } else {
+        const brand = selectedBrands[0];
+        // Se a categoria selecionada for uma URL completa, enviamos como custom_url
+        if (selectedCategory.startsWith('http')) {
+          payload = { brand, custom_url: selectedCategory };
+        } else {
+          payload = { brand, category_path: selectedCategory };
+        }
+      }
       
       const res: any = await ApiClient.startScrape(payload, isMulti);
       const jobId = res.job_id;
@@ -241,6 +308,9 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
         } else if (msg.type === 'done' || msg.type === 'error_done') {
           setIsScraping(false);
           ws.close();
+          if (msg.output_file) {
+            setOutputFile(msg.output_file);
+          }
         }
         
         if (msg.message) {
@@ -270,7 +340,7 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
     }
   };
 
-  const useSuggestion = (s: any) => {
+  const handleUseSuggestion = (s: any) => {
     setSelectedCategory(s.canonical_slug);
     setLogs(prev => [...prev, { type: 'info', text: `Usando: ${s.canonical_label} (${s.vtex_path})`, time: new Date().toLocaleTimeString() }]);
   };
@@ -345,7 +415,7 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
                         <strong>{s.canonical_label}</strong>
                         <span>{s.vtex_path}</span>
                       </div>
-                      <button type="button" className="btn btn-sm btn-outline" onClick={() => useSuggestion(s)}>
+                      <button type="button" className="btn btn-sm btn-outline" onClick={() => handleUseSuggestion(s)}>
                         Usar
                       </button>
                     </div>
@@ -401,6 +471,19 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
                 <div ref={logEndRef} />
               </div>
             </div>
+
+            {outputFile && (
+              <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
+                <a 
+                  href={`${import.meta.env.VITE_API_URL || ''}/download-report/${outputFile}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-primary"
+                >
+                  <Package size={18} /> Baixar Relatório (Excel)
+                </a>
+              </div>
+            )}
           </GlassCard>
         </div>
       </div>
@@ -517,6 +600,17 @@ const SettingsPage = ({ brands, onRefresh }: { brands: any[], onRefresh: () => v
   };
 
 
+  const handleDeleteBrand = async (key: string) => {
+    if (!confirm(`Tem certeza que deseja excluir a marca ${key}?`)) return;
+    try {
+      await ApiClient.deleteBrand(key);
+      onRefresh();
+    } catch (err: any) {
+      alert("Erro ao excluir: " + err.message);
+    }
+  };
+
+
   return (
     <div className="page-content">
       <div className="grid-2">
@@ -575,7 +669,13 @@ const SettingsPage = ({ brands, onRefresh }: { brands: any[], onRefresh: () => v
                   </div>
                 </div>
                 <div className="brand-actions">
-                  <button type="button" className="btn-icon text-error"><Trash2 size={18} /></button>
+                  <button 
+                    type="button" 
+                    className="btn-icon text-error"
+                    onClick={() => handleDeleteBrand(b.brand_key)}
+                  >
+                    <Trash2 size={18} />
+                  </button>
                 </div>
               </div>
             ))}
@@ -585,6 +685,7 @@ const SettingsPage = ({ brands, onRefresh }: { brands: any[], onRefresh: () => v
     </div>
   );
 };
+
 
 // --- Main App ---
 

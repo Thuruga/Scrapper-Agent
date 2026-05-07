@@ -6,7 +6,7 @@ Carrega variáveis do arquivo .env e fornece defaults robustos.
 
 from pydantic_settings import BaseSettings
 from pydantic import Field
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 
 # ---------------------------------------------------------------------------

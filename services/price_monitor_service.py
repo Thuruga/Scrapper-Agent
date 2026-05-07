@@ -105,10 +105,13 @@ class PriceMonitorService:
         end_dt = start_dt + timedelta(seconds=duration_seconds)
 
         # Jitter inicial para não disparar centenas de requests ao mesmo tempo (ex: no boot do servidor)
-        # Sorteia um atraso entre 5 e 45 segundos para a primeira execução
-        initial_jitter = random.uniform(5, 45)
-        logger.info(f"Monitor {job_id} aguardando jitter inicial de {initial_jitter:.1f}s...")
-        await asyncio.sleep(initial_jitter)
+        # Sorteia um atraso entre 5 e 45 segundos para a primeira execução, exceto se for recém-criado
+        if config.last_price is None:
+            logger.info(f"Monitor {job_id} recém-criado. Pulando jitter para execução imediata.")
+        else:
+            initial_jitter = random.uniform(5, 45)
+            logger.info(f"Monitor {job_id} aguardando jitter inicial de {initial_jitter:.1f}s...")
+            await asyncio.sleep(initial_jitter)
 
         while datetime.now(timezone.utc) < end_dt and config.active:
             try:

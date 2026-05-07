@@ -1,8 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 export const API_KEY = import.meta.env.VITE_API_KEY || 'dev-key-123';
 
 export class ApiClient {
-  private static async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  public static async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const headers = {
       'Content-Type': 'application/json',
       'X-API-Key': API_KEY,
@@ -14,11 +15,11 @@ export class ApiClient {
       headers,
     });
 
-    let data: any = null;
+    let data: any;
     try {
       data = await response.json();
-    } catch (err) {
-      data = null;
+    } catch {
+      // Ignored
     }
 
     if (!response.ok) {
@@ -60,6 +61,12 @@ export class ApiClient {
     });
   }
 
+  static deleteMonitor(jobId: string) {
+    return this.request(`/monitor/${jobId}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Scrape
   static startScrape(payload: any, multi = false) {
     const endpoint = multi ? '/scrape-category-multi' : '/scrape-category';
@@ -74,8 +81,16 @@ export class ApiClient {
     return data?.categories || [];
   }
 
-  static discoverCategories(brand: str) {
+  static discoverCategories(brand: string) {
     return this.request<any>(`/brands/${brand}/auto-discovery`);
   }
+
+  static deleteBrand(brand: string) {
+    return this.request(`/brands/${brand}`, {
+      method: 'DELETE',
+    });
+  }
 }
+
+
 

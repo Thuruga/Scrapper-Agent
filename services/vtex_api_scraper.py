@@ -578,7 +578,7 @@ class VtexApiClient(BaseScraper):
                             try:
                                 total_produtos = int(res_header.split("/")[-1])
                                 log({
-                                    "type": "stats",
+                                    "type": "brand_stats",
                                     "total_links": total_produtos,
                                     "message": f"Total de produtos na categoria: {total_produtos}"
                                 })
@@ -610,7 +610,7 @@ class VtexApiClient(BaseScraper):
                             
                         prod = await self.parse_product_dict(p, link, domain)
                         if prod:
-                            log({"type": "success", "message": f"Sucesso: {prod.raw_title}"})
+                            log({"type": "brand_success", "message": f"Sucesso: {prod.raw_title}"})
                         return prod
 
                     async def build_product_safely(p):
@@ -630,7 +630,7 @@ class VtexApiClient(BaseScraper):
                         break
 
             except Exception as e:
-                log(f"[ERROR] Falha ao varrer página {pagina + 1}: {e}")
+                log({"type": "brand_error", "message": f"Falha ao varrer página {pagina + 1}: {e}"})
                 break
 
             pagina += 1

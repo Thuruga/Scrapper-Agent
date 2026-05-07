@@ -24,10 +24,18 @@
 
 **Service Layer:**
 - Purpose: Core business logic, data processing, and orchestration
-- Contains: `brand_service.py`, `orchestrator.py`, `vtex_api_scraper.py`, etc.
+- Contains: `brand_service.py`, `orchestrator.py`, `category_intelligence.py`, etc.
 - Location: `services/`
-- Depends on: Core/Domain layer, Scraper layer
+- Depends on: Engine layer, Core/Domain layer
 - Used by: API layer
+
+**Engine Layer (New):**
+- Purpose: High-level abstraction for platform-specific logic (VTEX, etc)
+- Contains: `base_engine.py`, `vtex_engine.py`, `factory.py`
+- Location: `services/engines/`
+- Depends on: Scraper layer, Core/Domain layer
+- Used by: Service layer (Orchestrators)
+
 
 **Scraper Layer:**
 - Purpose: Implement site-specific extraction logic
