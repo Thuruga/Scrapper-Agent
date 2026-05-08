@@ -1,38 +1,30 @@
 # Architecture: Intelligence Scraper
 
 ## Overview
-O sistema utiliza uma arquitetura em camadas, agora desacoplada por uma camada de abstração de motores (Engines), permitindo suporte a múltiplas plataformas de e-commerce (VTEX, Shopify, etc).
+O sistema utiliza uma arquitetura em camadas, totalmente desacoplada por uma camada de abstração de motores (Engines). Isso permite que a lógica de negócio (orquestração, monitoramento, precificação) seja idêntica independentemente da plataforma de e-commerce (VTEX, Shopify, etc).
 
 ## Component Hierarchy
 
 ### 1. API Layer (`api/`)
 - **FastAPI Router**: Define endpoints REST e WebSocket.
-- **Background Tasks**: Gerencia jobs de varredura longa no mesmo event loop da aplicação principal para reaproveitamento de recursos.
+- **Background Tasks**: Gerencia jobs de varredura longa no mesmo event loop da aplicação principal, garantindo reuso de conexões HTTP.
 
 ### 2. Service Layer (`services/`)
-- **Orchestrators**: Coordenam o fluxo de varredura (Paginada -> Extração -> Excel).
-  - `orchestrator.py`: Marca única.
-  - `orchestrator_multi.py`: Multi-marca paralela usando `asyncio.gather`.
-- **Category Intelligence**: Realiza Fuzzy Matching entre categorias da plataforma e slugs canônicos.
-- **Price Monitor**: Serviço em background para monitoramento recorrente de preços.
+- **Orchestrators**: Coordenam o pipeline de extração (Varredura -> Extração Paralela -> Consolidação Excel).
+  - `orchestrator.py`: Fluxo para marca única.
+  - `orchestrator_multi.py`: Fluxo multi-marca usando `asyncio.gather`.
+- **Category Intelligence**: Serviço agnóstico que utiliza o motor da marca para descobrir coleções/categorias e mapeá-las via Fuzzy Matching.
+- **Price Monitor**: Serviço recorrente que verifica mudanças de preço e disponibilidade.
 
 ### 3. Engine Layer (`services/engines/`)
-- **BaseEngine**: Interface abstrata que define o contrato para qualquer plataforma.
-- **VTEXEngine / ShopifyEngine**: Implementações concretas que traduzem comandos genéricos em chamadas de API específicas de cada motor.
-- **EngineFactory**: Router dinâmico que instancia o motor correto baseado no metadado da marca.
+- **BaseEngine**: Contrato abstrato que unifica o comportamento de qualquer motor.
+- **VTEXEngine / ShopifyEngine**: Implementações que consomem APIs específicas.
+- **EngineFactory**: Ponto central de resolução de motores.
 
 ### 4. Core Layer (`core/`)
-- **SessionManager**: Gerencia o ciclo de vida de uma única `aiohttp.ClientSession` compartilhada.
-- **Models**: Definições Pydantic para validação rigorosa de dados (Camada Bronze).
-
-## Data Flow
-1. **Frontend** solicita varredura.
-2. **API** lança `Background Task`.
-3. **Orchestrator** solicita ao **Engine** a extração dos dados.
-4. **Engine** usa **ApiClient** para buscar JSONs da plataforma.
-5. **Orchestrator** consolida dados e salva em Excel via `run_in_executor`.
-6. **WebSocket** envia logs de progresso em tempo real.
+- **SessionManager**: Singleton que mantém a `aiohttp.ClientSession` ativa durante todo o ciclo de vida do servidor.
+- **Models**: Esquemas Pydantic que garantem a integridade da "Camada Bronze" dos dados.
 
 ## Threading & Async Model
-- **Single Event Loop**: Tudo roda no loop principal do FastAPI para evitar conflitos de sessão HTTP.
-- **CPU Offloading**: Operações pesadas de Pandas/Excel rodam em `ThreadPoolExecutor` para não bloquear o loop de IO.
+- **Async-First**: Toda a IO é não-bloqueante no loop principal.
+- **Worker Offloading**: Tarefas de CPU intensiva (Pandas/Excel) são delegadas para threads via `run_in_executor` para evitar lag na API.

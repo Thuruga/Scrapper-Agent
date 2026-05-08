@@ -522,7 +522,7 @@ class VtexApiClient(BaseScraper):
                 else:
                     log_callback({"type": "info", "message": msg})
             else:
-                print(msg)
+                logger.info(msg)
 
         parsed = urlparse(category_url)
         domain = parsed.netloc

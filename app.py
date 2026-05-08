@@ -6,6 +6,7 @@ Inicia a aplicação FastAPI, carrega middlewares e rotas, e expõe o frontend e
 
 import asyncio
 import sys
+import os
 import logging
 from contextlib import asynccontextmanager
 
@@ -89,7 +90,6 @@ async def download_report(filename: str):
         from fastapi import HTTPException
         raise HTTPException(status_code=400, detail="Invalid filename")
     
-    import os
     if not os.path.exists(filename):
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="File not found")

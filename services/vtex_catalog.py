@@ -10,7 +10,6 @@ import logging
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
-# import aiohttp (Removido em favor do VtexApiClient robusto)
 
 from config import settings
 from services.brand_service import brand_service

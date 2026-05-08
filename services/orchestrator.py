@@ -7,11 +7,12 @@ Suporta cancelamento gracioso com salvamento de dados parciais.
 
 import asyncio
 import threading
+import logging
 from typing import Optional, Callable
 
 import pandas as pd
 
-
+logger = logging.getLogger("Orchestrator")
 
 
 async def run_orchestrator(
@@ -27,7 +28,7 @@ async def run_orchestrator(
             else:
                 log_callback({"type": "info", "message": str(msg)})
         else:
-            print(msg)
+            logger.info(msg)
 
     def is_cancelled() -> bool:
         return cancel_event is not None and cancel_event.is_set()
