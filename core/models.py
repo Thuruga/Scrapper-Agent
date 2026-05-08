@@ -6,7 +6,7 @@ Qualquer campo específico de uma marca que não se aplique a outra fica Optiona
 """
 
 from datetime import datetime, timezone
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, Dict, List
 
 
@@ -29,6 +29,27 @@ class RawProductBronze(BaseModel):
     review_count: Optional[int] = None
     specifications: Dict[str, str] = Field(default_factory=dict)
     image_url: Optional[str] = None
+
+    @field_validator("price_full")
+    @classmethod
+    def price_must_be_positive(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError("Preço zerado ou negativo")
+        return v
+
+    @field_validator("image_url")
+    @classmethod
+    def image_url_must_be_present(cls, v: Optional[str]) -> str:
+        if not v or not v.strip() or v == "None":
+            raise ValueError("URL da imagem ausente ou inválida")
+        return v
+
+    @field_validator("raw_title")
+    @classmethod
+    def title_must_be_present(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("Título do produto ausente")
+        return v
 
 
 

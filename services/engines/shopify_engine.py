@@ -66,7 +66,8 @@ class ShopifyEngine(BaseEngine):
             self.emit_log(log_callback, msg)
 
         products = await client.scrape_category_paged(category_url, emit, cancel_event)
-        return [p.model_dump() for p in products]
+        # Aplica os Quality Gates antes de retornar
+        return self.validate_and_filter(products, log_callback=log_callback)
 
     async def search(
         self,
@@ -81,8 +82,8 @@ class ShopifyEngine(BaseEngine):
         return await client.search(query, max_results)
 
     async def get_product_details(self, product_url: str) -> Optional[Dict[str, Any]]:
-        """
-        TODO: Implementar extração de detalhes via .js ou .json do produto individual.
-        Por enquanto, o bulk_scrape já traz dados suficientes.
-        """
-        return None
+        """Extrai detalhes de um único produto Shopify."""
+        session = await SessionManager.get_session()
+        client = ShopifyApiClient(self.brand_key, session=session)
+        prod = await client.get_product_by_url(product_url)
+        return self.validate_single(prod) if prod else None

@@ -9,7 +9,7 @@ from typing import Dict, Optional
 from config import settings
 from core.models import PriceMonitorConfig, PriceHistoryEntry
 from core.websocket import manager
-from services.vtex_api_scraper import VtexApiClient
+from services.engines.factory import engine_factory
 
 logger = logging.getLogger("PriceMonitorService")
 
@@ -115,9 +115,13 @@ class PriceMonitorService:
 
         while datetime.now(timezone.utc) < end_dt and config.active:
             try:
-                # Realiza o scrape via API direta (VTEX) - Muito mais leve que Playwright
-                async with VtexApiClient(config.brand) as client:
-                    product = await client.get_product_by_url(config.url)
+                # Resolve o motor dinamicamente via factory
+                engine = engine_factory.get_engine(config.brand)
+                product_data = await engine.get_product_details(config.url)
+                
+                # Converte para objeto se vier como dict (para facilitar acesso)
+                from core.models import RawProductBronze
+                product = RawProductBronze.model_validate(product_data) if product_data else None
                 
                 if product:
                     current_price = product.price_full

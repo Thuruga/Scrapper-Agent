@@ -14,9 +14,19 @@ import {
   RefreshCw,
   Terminal,
   XCircle,
-  Globe
+  Globe,
+  TrendingUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer 
+} from 'recharts';
 import { ApiClient, API_KEY } from './api/client';
 import './App.css';
 
@@ -70,6 +80,60 @@ const StatusBanner = ({ type, message, onClear }: { type: 'success' | 'error' | 
 };
 
 
+const PriceChart = ({ history }: { history: any[] }) => {
+  if (!history || history.length === 0) return <p className="text-muted" style={{ fontSize: '12px', padding: '10px' }}>Aguardando primeira variação de preço...</p>;
+
+  const data = history.map(h => ({
+    time: new Date(h.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    fullDate: new Date(h.timestamp).toLocaleString(),
+    price: h.price
+  }));
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      style={{ width: '100%', height: 180, marginTop: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '10px' }}
+    >
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+          <XAxis 
+            dataKey="time" 
+            stroke="rgba(255,255,255,0.3)" 
+            fontSize={10}
+            tickLine={false}
+            axisLine={false}
+          />
+          <YAxis 
+            stroke="rgba(255,255,255,0.3)" 
+            fontSize={10}
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={(value) => `R$${value}`}
+          />
+          <Tooltip 
+            contentStyle={{ backgroundColor: 'rgba(20, 20, 30, 0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '11px', color: '#fff' }}
+            itemStyle={{ color: '#6366f1' }}
+            formatter={(value: any) => [`R$ ${value.toFixed(2)}`, 'Preço']}
+            labelFormatter={(label, items) => items[0]?.payload?.fullDate || label}
+          />
+          <Line 
+            type="monotone" 
+            dataKey="price" 
+            stroke="#6366f1" 
+            strokeWidth={3}
+            dot={{ r: 4, fill: '#6366f1', strokeWidth: 2, stroke: '#fff' }}
+            activeDot={{ r: 6, strokeWidth: 0 }}
+            animationDuration={1000}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </motion.div>
+  );
+};
+
+
 // --- Pages ---
 
 const MonitorPage = ({ brands }: { brands: any[] }) => {
@@ -78,6 +142,7 @@ const MonitorPage = ({ brands }: { brands: any[] }) => {
   const [brand, setBrand] = useState('');
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error' | 'info', message: string } | null>(null);
+  const [expandedMonitorId, setExpandedMonitorId] = useState<string | null>(null);
 
   const refreshMonitors = () => {
     ApiClient.getMonitors().then(data => {
@@ -205,7 +270,21 @@ const MonitorPage = ({ brands }: { brands: any[] }) => {
                       {m.active ? <span className="status-dot online"></span> : <span className="status-dot offline"></span>}
                       <span>{m.active ? 'Ativo' : 'Inativo'}</span>
                     </div>
+                    <button 
+                      className={`btn-icon ${expandedMonitorId === m.job_id ? 'text-accent' : 'text-muted'}`}
+                      onClick={() => setExpandedMonitorId(expandedMonitorId === m.job_id ? null : m.job_id)}
+                      title="Ver histórico de preços"
+                    >
+                      <TrendingUp size={18} />
+                    </button>
                   </div>
+                  <AnimatePresence>
+                    {expandedMonitorId === m.job_id && (
+                      <div style={{ width: '100%', gridColumn: '1 / -1' }}>
+                        <PriceChart history={m.history || []} />
+                      </div>
+                    )}
+                  </AnimatePresence>
                 </div>
               ))
             )}

@@ -22,6 +22,7 @@
 ### Reliability & Logging
 - [ ] **LOG-01**: Implementar logs detalhados de falha de extração (ex: mudança de seletor, timeout de proxy).
 - [ ] **LOG-02**: Sistema de retry automático para falhas transientes de rede.
+- [x] **QUAL-01**: Camada de validação Pydantic para barrar anomalias (preços zerados, imagens nulas).
 
 ## v2 Requirements (Expansão)
 
@@ -30,7 +31,7 @@
 - **ENG-02**: Adicionar suporte para sites customizados (non-standard).
 
 ### Advanced Monitoring
-- **MON-01**: Histórico de preços com visualização em gráfico.
+- [x] **MON-01**: Histórico de preços com visualização em gráfico.
 - **MON-02**: Alertas de mudança de preço (Webhook/Telegram).
 
 ## Out of Scope
@@ -53,8 +54,9 @@
 | AI-02 | Phase 1 | Completed |
 | AI-03 | Phase 1 | In Progress |
 | ARCH-03 | Phase 2 | Completed |
-| LOG-01 | Phase 3 | Pending |
-| LOG-02 | Phase 3 | Pending |
+| LOG-01 | Backlog | Pending |
+| LOG-02 | Backlog | Pending |
+| MON-01 | Phase 3 | Pending |
 
 **Coverage:**
 - v1 requirements: 10 total

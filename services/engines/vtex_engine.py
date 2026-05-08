@@ -88,7 +88,7 @@ class VTEXEngine(BaseEngine):
         session = await SessionManager.get_session()
         async with VtexApiClient(self.brand_key, session=session) as client:
             prod = await client.get_product_by_url(product_url)
-            return prod.model_dump() if prod else None
+            return self.validate_single(prod) if prod else None
 
     async def run_bulk_scrape(
         self,
@@ -110,4 +110,5 @@ class VTEXEngine(BaseEngine):
                 chunk_size=50
             )
             
-            return [res.model_dump() for res in resultados if res]
+            # Aplica os Quality Gates antes de retornar
+            return self.validate_and_filter(resultados, log_callback=log_callback)

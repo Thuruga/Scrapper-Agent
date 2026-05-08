@@ -8,8 +8,9 @@ Este roadmap foca na estabilização do frontend, automação da inteligência d
 
 - [x] **Phase 1: Stabilization & Core Intelligence** - Fix frontend and automate category mapping.
 - [x] **Phase 2: Architectural Refactoring** - Engine Abstraction Layer for multi-platform support.
-- [ ] **Phase 3: Reliability & Logging** - Advanced logging and network resilience.
+- [ ] **Phase 3: Price History & Monitoring** - Histórico de preços e visualização (MON-01).
 - [x] **Phase 4: Expansion Spike** - Adding a non-VTEX pilot brand.
+- [ ] **Phase 5: Data Quality Gates** - Pydantic-based validation layer in BaseEngine.
 
 ## Phase Details
 
@@ -39,12 +40,13 @@ Plans:
 Plans:
 - [x] 02-01: Implement Engine Abstraction Layer.
 
-### Phase 3: Reliability & Logging
-**Goal**: Garantir que o sistema seja resiliente a falhas de rede.
+### Phase 3: Price History & Monitoring
+**Goal**: Implementar persistência de preços para visualização de histórico.
 **Depends on**: Phase 2
-**Requirements**: LOG-01, LOG-02
+**Requirements**: MON-01
 **Success Criteria**:
-  1. Logs detalhados e retry automático funcionando.
+  1. O sistema armazena variações de preço no tempo.
+  2. O frontend exibe o histórico de preços.
 **Plans**: 1 plan
 
 ### Phase 4: Expansion Spike
@@ -60,5 +62,6 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Stabilization & Core Intelligence | 2/2 | Completed | 2026-05-08 |
 | 2. Architectural Refactoring | 1/1 | Completed | 2026-05-08 |
-| 3. Reliability & Logging | 0/1 | Not started | - |
+| 3. Price History & Monitoring | 1/1 | Completed | 2026-05-08 |
 | 4. Expansion Spike | 1/1 | Completed | 2026-05-08 |
+| 5. Data Quality Gates | 1/1 | Completed | 2026-05-08 |
