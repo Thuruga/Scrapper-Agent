@@ -4,7 +4,6 @@ Bootstrap do Intelligence Scraper.
 Inicia a aplicação FastAPI, carrega middlewares e rotas, e expõe o frontend estático.
 """
 
-import asyncio
 import sys
 import os
 import logging

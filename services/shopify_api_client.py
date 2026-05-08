@@ -1,11 +1,9 @@
 import asyncio
 import aiohttp
 import logging
-import re
-import json
 from typing import Optional, List, Dict, Any, Callable
 import threading
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin
 
 from core.models import RawProductBronze, BrandSearchResult, SearchProductResult
 from services.brand_service import brand_service
@@ -40,7 +38,7 @@ class ShopifyApiClient(BaseScraper):
         while True:
             url = f"{self.base_url}/collections.json?page={page}"
             try:
-                async with session.get(url, timeout=15, headers=self.headers) as resp:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=15), headers=self.headers) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         batch = data.get("collections", [])
@@ -76,7 +74,7 @@ class ShopifyApiClient(BaseScraper):
                 log_callback(f"  -> Lendo página {page} da coleção '{collection_handle}'...")
 
             try:
-                async with session.get(url, timeout=20, headers=self.headers) as resp:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=20), headers=self.headers) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         products_json = data.get("products", [])
@@ -112,17 +110,22 @@ class ShopifyApiClient(BaseScraper):
         while page <= limit_pages:
             url = f"{self.base_url}/products.json?page={page}&limit=250"
             try:
-                async with session.get(url, timeout=20, headers=self.headers) as resp:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=20), headers=self.headers) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         products_json = data.get("products", [])
-                        if not products_json: break
+                        if not products_json:
+                            break
                         for p in products_json:
                             bronze = self._map_to_bronze(p, "Geral")
-                            if bronze: all_products.append(bronze)
+                            if bronze:
+                                all_products.append(bronze)
                         page += 1
-                    else: break
-            except: break
+                    else:
+                        break
+            except Exception as e:
+                logger.error(f"[{self.brand_key}] Erro ao buscar todos os produtos Shopify: {e}")
+                break
         return all_products
 
     def _map_to_bronze(self, p: Dict[str, Any], category: str) -> Optional[RawProductBronze]:
@@ -172,7 +175,7 @@ class ShopifyApiClient(BaseScraper):
         json_url = product_url.split("?")[0] + ".json"
         session = await SessionManager.get_session()
         try:
-            async with session.get(json_url, timeout=15, headers=self.headers) as resp:
+            async with session.get(json_url, timeout=aiohttp.ClientTimeout(total=15), headers=self.headers) as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     p = data.get("product")
@@ -215,7 +218,7 @@ class ShopifyApiClient(BaseScraper):
         
         session = await SessionManager.get_session()
         try:
-            async with session.get(url, timeout=15, headers=self.headers) as resp:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=15), headers=self.headers) as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     suggestions = data.get("resources", {}).get("results", {}).get("products", [])
