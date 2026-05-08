@@ -1,19 +1,18 @@
-# Testing State
+# Testing: Intelligence Scraper
 
-## Automated Tests
-- **Current Coverage**: Low. Most testing is performed via ad-hoc scripts in the `scratch/` directory.
-- **Tools**: The project setup supports `pytest` for backend testing and Vitest (implied by Vite) for frontend testing, but no comprehensive test suites are currently implemented.
-- **Scratch Scripts**:
-  - `test_autonomous_mapping.py`: Tests for category mapping logic.
-  - `test_category_matching.py`: Specific tests for category matching heuristics.
-  - `test_foxton_fix.py`: Regression test for the Foxton brand search.
+## Methodology
+Atualmente o projeto utiliza **Experiential Testing** via scripts de "scratch" para validação rápida de funcionalidades e correções.
 
-## Manual Verification
-- **API Testing**: Performed via the FastAPI Swagger UI (`/docs`).
-- **Dashboard Testing**: Manual end-to-end testing of the React frontend by triggering scans and searches.
-- **Excel Verification**: Manual inspection of generated Excel reports for data accuracy and formatting.
+## Test Directory (`scratch/`)
+- `verify_engine_abstraction.py`: Valida o funcionamento da factory e dos motores.
+- `test_category_matching.py`: Testa o algoritmo de Fuzzy Matching.
+- `check_buckman.py`: Script de diagnóstico rápido para novas plataformas.
 
-## Proposed Strategy
-- **Unit Tests**: Implement unit tests for core logic (category resolver, scraper factory).
-- **Integration Tests**: Test the full scraping pipeline with mock API responses.
-- **UI Tests**: Implement Playwright tests for the frontend dashboard to ensure key flows (login, brand registration, search) remain functional.
+## Manual Verification Flow
+1. Rodar `app.py`.
+2. Acessar o frontend local.
+3. Testar o fluxo completo: Busca de categoria -> Seleção -> Varredura -> Download do Excel.
+
+## Future Testing Goals
+- Implementar `pytest` para os motores (usando `pytest-asyncio`).
+- Adicionar Mocks para as APIs externas para rodar CI de forma estável.

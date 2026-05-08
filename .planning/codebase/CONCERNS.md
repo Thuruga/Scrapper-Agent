@@ -1,19 +1,20 @@
-# Technical Concerns
+# Concerns: Intelligence Scraper
 
-## Architecture & Scalability
-- **Data Persistence**: Currently relies on local JSON and Excel files. As the data grows (more brands, products, and price history), this will become a performance bottleneck and harder to query/manage. A proper database (e.g., PostgreSQL or MongoDB) is recommended.
-- **Transition State**: There is both a root-level `index.html` (legacy) and a `frontend/` directory (modern React). This dual existence can lead to confusion and maintenance overhead.
-- **Service Orchestration**: `orchestrator_multi.py` and `orchestrator.py` seem to have overlapping responsibilities. Consolidation could simplify the logic.
+## Technical Risks
 
-## Reliability & Quality
-- **Test Coverage**: Extremely low. Critical logic for category mapping and scraping depends on ad-hoc verification, making it prone to regressions.
-- **API Dependencies**: The system is heavily coupled to VTEX API structures. While fallbacks exist, major changes to VTEX's "Intelligent Search" could require significant refactoring.
-- **Rate Limiting**: While there is a semaphore and basic retry logic, there is no centralized rate-limiting management across multiple scraping jobs, which could lead to IP bans or 429 errors from brands.
+### 1. Cloudflare / WAF
+Sites como Ricardo Almeida e Hering podem endurecer a segurança. Atualmente usamos `curl_cffi` e User-Agents reais, mas um fallback via Playwright/Stealth pode ser necessário em breve.
 
-## Security
-- **Authentication**: Basic auth is implemented, but there is no session management or more robust OAuth/JWT implementation for the dashboard.
-- **Input Validation**: While Pydantic is used for models, direct user input in search queries or brand registration needs to be strictly sanitized to prevent potential injection or path traversal (though less likely in this stack).
+### 2. Event Loop Blocking
+Operações pesadas no Pandas podem bloquear o loop principal se o volume de dados crescer muito (ex: > 10.000 skus). Implementamos `run_in_executor`, mas o monitoramento de performance é vital.
 
-## Maintenance
-- **Documentation**: Codebase mapping is a good start, but in-code documentation (inline comments) varies in quality.
-- **Dependency Management**: `requirements.txt` is basic; using a more robust tool like `poetry` or `pip-compile` could help manage sub-dependencies and security patches.
+### 3. Memória
+O armazenamento de produtos em memória antes de salvar o Excel pode ser um problema para varreduras gigantescas. Considerar streaming direto para disco ou banco de dados.
+
+## Maintenance Concerns
+- **Engine Evolution**: Mudanças profundas na API da VTEX podem quebrar o `VtexApiClient`.
+- **Shopify JSON Changes**: A Shopify costuma ser estável, mas mudanças no formato das Collections exigirão ajustes no mapper.
+
+## Future Tech Debt
+- Migrar de JSON para SQLite para gerenciar marcas e monitores com maior integridade.
+- Implementar testes unitários para os Engines.

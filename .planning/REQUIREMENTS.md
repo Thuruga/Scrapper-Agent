@@ -6,18 +6,18 @@
 ## v1 Requirements (Estabilização e Refatoração)
 
 ### Frontend Fixes
-- [ ] **UI-01**: Corrigir reload da página ao submeter o formulário de monitoramento de produto.
-- [ ] **UI-02**: Garantir que o feedback de "sucesso" ou "erro" seja exibido sem resetar o estado do formulário.
+- [x] **UI-01**: Corrigir reload da página ao submeter o formulário de monitoramento de produto.
+- [x] **UI-02**: Garantir que o feedback de "sucesso" ou "erro" seja exibido sem resetar o estado do formulário.
 
 ### Automated Intelligence
-- [ ] **AI-01**: Identificar automaticamente a estrutura de categorias de uma marca VTEX a partir da sua URL ou identificador.
-- [ ] **AI-02**: Relacionar categorias encontradas com o catálogo interno sem necessidade de mapeamento manual pelo usuário.
-- [ ] **AI-03**: Fallback resiliente para marcas que não seguem o padrão VTEX padrão.
+- [x] **AI-01**: Identificar automaticamente a estrutura de categorias de uma marca VTEX a partir da sua URL ou identificador.
+- [x] **AI-02**: Relacionar categorias encontradas com o catálogo interno sem necessidade de mapeamento manual pelo usuário.
+- [/] **AI-03**: Fallback resiliente para marcas que não seguem o padrão VTEX padrão.
 
 ### Backend Architecture (Extensibilidade)
-- [ ] **ARCH-01**: Criar interface abstrata `BaseEngine` para suportar diferentes motores de e-commerce (VTEX, Shopify, etc.).
-- [ ] **ARCH-02**: Implementar `VTEXEngine` herdando da interface abstrata, isolando a lógica específica de VTEX.
-- [ ] **ARCH-03**: Refatorar `scraper_factory.py` para instanciar engines e scrapers de forma dinâmica e desacoplada.
+- [x] **ARCH-01**: Criar interface abstrata `BaseEngine` para suportar diferentes motores de e-commerce (VTEX, Shopify, etc.).
+- [x] **ARCH-02**: Implementar `VTEXEngine` herdando da interface abstrata, isolando a lógica específica de VTEX.
+- [x] **ARCH-03**: Refatorar `scraper_factory.py` para instanciar engines e scrapers de forma dinâmica e desacoplada.
 
 ### Reliability & Logging
 - [ ] **LOG-01**: Implementar logs detalhados de falha de extração (ex: mudança de seletor, timeout de proxy).
@@ -45,16 +45,16 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| UI-01 | Phase 1 | Pending |
-| UI-02 | Phase 1 | Pending |
-| ARCH-01 | Phase 2 | Pending |
-| ARCH-02 | Phase 2 | Pending |
-| AI-01 | Phase 3 | Pending |
-| AI-02 | Phase 3 | Pending |
-| AI-03 | Phase 3 | Pending |
-| ARCH-03 | Phase 2 | Pending |
-| LOG-01 | Phase 4 | Pending |
-| LOG-02 | Phase 4 | Pending |
+| UI-01 | Phase 1 | Completed |
+| UI-02 | Phase 1 | Completed |
+| ARCH-01 | Phase 2 | Completed |
+| ARCH-02 | Phase 2 | Completed |
+| AI-01 | Phase 1 | Completed |
+| AI-02 | Phase 1 | Completed |
+| AI-03 | Phase 1 | In Progress |
+| ARCH-03 | Phase 2 | Completed |
+| LOG-01 | Phase 3 | Pending |
+| LOG-02 | Phase 3 | Pending |
 
 **Coverage:**
 - v1 requirements: 10 total

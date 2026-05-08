@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from typing import List
 from core.models import DynamicBrand, DynamicBrandCreate, CategoryMapping
 from services.brand_service import brand_service
-from services.vtex_api_scraper import VtexApiClient
+from services.engines.factory import engine_factory
 
 router = APIRouter(tags=["Brands"])
 
@@ -32,11 +32,13 @@ async def discover_categories(brand_key: str):
     if not brand:
         raise HTTPException(status_code=404, detail="Marca não encontrada")
     
-    categories = await VtexApiClient.fetch_categories(brand.domain)
+    engine = engine_factory.get_engine(brand_key)
+    categories = await engine.discover_categories()
+    
     if not categories:
         raise HTTPException(
             status_code=400, 
-            detail="Não foi possível descobrir as categorias. Verifique o domínio."
+            detail="Não foi possível descobrir as categorias. Verifique o domínio ou motor."
         )
     
     return categories

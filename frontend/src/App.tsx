@@ -363,8 +363,8 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
                       onClick={() => toggleBrand(b.brand_key)}
                     >
                       <div className="brand-chip-icon">
-                        <img 
-                          src={b.logo_url || `https://www.google.com/s2/favicons?domain=${b.domain}&sz=64`} 
+                        <img
+                          src={b.logo_url || `https://www.google.com/s2/favicons?domain=${b.domain}&sz=64`}
                           alt={b.brand_name}
                           onError={(e: any) => { e.target.src = `https://ui-avatars.com/api/?name=${b.brand_name}&background=6366f1&color=fff`; }}
                         />
@@ -498,24 +498,63 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
   );
 };
 
-const SearchPage = () => {
+const SearchPage = ({ brands }: { brands: any[] }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [sort, setSort] = useState('relevance');
   const [inStock, setInStock] = useState(false);
+  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
+
+  const toggleBrand = (key: string) => {
+    setSelectedBrands(prev =>
+      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+    );
+  };
+
+  const selectAllBrands = () => {
+    setSelectedBrands(brands.map(b => b.brand_key));
+  };
+
+  const clearBrands = () => {
+    setSelectedBrands([]);
+  };
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const data = await ApiClient.search({ query, sort, only_in_stock: inStock });
+      const data = await ApiClient.search({
+        query,
+        sort,
+        only_in_stock: inStock,
+        brands: selectedBrands.length > 0 ? selectedBrands : undefined
+      });
       setResults(data);
     } catch (err) {
       console.error(err);
       setResults(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleExport = async () => {
+    if (!query) return;
+    setExporting(true);
+    try {
+      await ApiClient.exportSearch({
+        query,
+        sort,
+        only_in_stock: inStock,
+        brands: selectedBrands.length > 0 ? selectedBrands : undefined
+      });
+    } catch (err: any) {
+      console.error(err);
+      alert("Erro ao exportar: " + err.message);
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -544,11 +583,53 @@ const SearchPage = () => {
               <input type="checkbox" checked={inStock} onChange={e => setInStock(e.target.checked)} />
               <span>Em estoque</span>
             </label>
-            <button className="btn btn-primary" disabled={loading}>
-              {loading ? <RefreshCw className="animate-spin" size={18} /> : "Comparar"}
-            </button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button type="submit" className="btn btn-primary" disabled={loading || exporting}>
+                {loading ? <RefreshCw className="animate-spin" size={18} /> : "Comparar"}
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={handleExport} disabled={loading || exporting || !query} title="Exportar para Excel">
+                {exporting ? <RefreshCw className="animate-spin" size={18} /> : <Package size={18} />}
+              </button>
+            </div>
           </div>
         </form>
+
+        <div className="divider" style={{ margin: '16px 0', opacity: 0.2 }} />
+
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <label className="label" style={{ marginBottom: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              Filtro de Marcas
+              <span className="text-muted" style={{ fontSize: '0.8em', fontWeight: 'normal' }}>
+                ({selectedBrands.length === 0 ? 'Buscando em todas as marcas' : `${selectedBrands.length} marca(s) selecionada(s)`})
+              </span>
+            </label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button type="button" className="btn btn-sm btn-outline" onClick={selectAllBrands} style={{ padding: '4px 8px', fontSize: '12px', minHeight: 'unset' }}>Selecionar Todas</button>
+              <button type="button" className="btn btn-sm btn-outline" onClick={clearBrands} style={{ padding: '4px 8px', fontSize: '12px', minHeight: 'unset' }}>Limpar</button>
+            </div>
+          </div>
+
+          <div className="brand-selector-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' }}>
+            {brands.map(b => (
+              <button
+                type="button"
+                key={b.brand_key}
+                className={`brand-chip ${selectedBrands.includes(b.brand_key) ? 'active' : ''}`}
+                onClick={() => toggleBrand(b.brand_key)}
+              >
+                <div className="brand-chip-icon">
+                  <img
+                    src={b.logo_url || `https://www.google.com/s2/favicons?domain=${b.domain}&sz=64`}
+                    alt={b.brand_name}
+                    onError={(e: any) => { e.target.src = `https://ui-avatars.com/api/?name=${b.brand_name}&background=6366f1&color=fff`; }}
+                  />
+                </div>
+                <span>{b.brand_name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       </GlassCard>
 
       <div className="results-container">
@@ -678,9 +759,9 @@ const SettingsPage = ({ brands, onRefresh }: { brands: any[], onRefresh: () => v
               <div key={b.brand_key} className="brand-item">
                 <div className="brand-info">
                   <div className="brand-avatar">
-                    <img 
-                      src={b.logo_url || `https://www.google.com/s2/favicons?domain=${b.domain}&sz=64`} 
-                      alt={b.brand_name} 
+                    <img
+                      src={b.logo_url || `https://www.google.com/s2/favicons?domain=${b.domain}&sz=64`}
+                      alt={b.brand_name}
                       onError={(e: any) => { e.target.src = `https://ui-avatars.com/api/?name=${b.brand_name}&background=6366f1&color=fff`; }}
                     />
                   </div>
@@ -727,7 +808,7 @@ function App() {
   const renderTab = () => {
     switch (activeTab) {
       case 'monitor': return <MonitorPage brands={brands} />;
-      case 'search': return <SearchPage />;
+      case 'search': return <SearchPage brands={brands} />;
       case 'category': return <CategoryPage brands={brands} />;
       case 'settings': return <SettingsPage brands={brands} onRefresh={refreshBrands} />;
       default: return <div className="p-8">Selecione uma aba...</div>;

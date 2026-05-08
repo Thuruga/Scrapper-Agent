@@ -20,7 +20,7 @@ from typing import Optional, List, Dict
 from services.brand_service import brand_service
 from core.websocket import manager
 from core.job_manager import JOB_CANCEL_FLAGS
-from services.vtex_catalog import vtex_catalog
+from services.engines.factory import engine_factory
 from services.category_mapping import (
     get_canonical_categories,
     resolve_category_for_brands,
@@ -87,46 +87,17 @@ class CategoryPreviewRequest(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Orchestrator runner — Marca Única (background thread)
-# ---------------------------------------------------------------------------
-def run_orchestrator_sync(
-    job_id: str,
-    url: str,
-    brand: str,
-    main_loop: asyncio.AbstractEventLoop,
-    cancel_event: threading.Event,
-):
-    """Runs in a background thread. Passes cancel_event to the orchestrator."""
-    import asyncio as _asyncio
-    from services.orchestrator import run_orchestrator
-
-    def log_callback(msg):
-        _asyncio.run_coroutine_threadsafe(manager.send_message(msg, job_id), main_loop)
-
-    _asyncio.run(
-        run_orchestrator(
-            marca=brand,
-            url_categoria=url,
-            log_callback=log_callback,
-            cancel_event=cancel_event,
-        )
-    )
-
-    # Cleanup cancellation flag
-    JOB_CANCEL_FLAGS.pop(job_id, None)
-
-
-# ---------------------------------------------------------------------------
 # Endpoints — Existentes (retrocompatíveis)
 # ---------------------------------------------------------------------------
 @router.get("/brands/{brand}/categories")
 async def get_categories(brand: str):
-    """Retorna categorias agrupadas da marca, buscando dinamicamente da VTEX API."""
+    """Retorna categorias agrupadas da marca, buscando via Engine (ex: VTEX API)."""
     brand_key = brand.lower()
     if not brand_service.get_brand(brand_key):
         raise HTTPException(status_code=404, detail=f"Marca '{brand}' não suportada.")
 
-    categories = await vtex_catalog.get_categories(brand_key)
+    engine = engine_factory.get_engine(brand_key)
+    categories = await engine.get_catalog()
     return {"brand": brand, "categories": categories}
 
 
@@ -147,14 +118,28 @@ async def scrape_category(request: ScrapeCategoryRequest, background_tasks: Back
         raise HTTPException(status_code=400, detail="Forneça category_path ou custom_url.")
 
     job_id = str(uuid.uuid4())
-    main_loop = asyncio.get_running_loop()
-
+    
     cancel_event = threading.Event()
     JOB_CANCEL_FLAGS[job_id] = cancel_event
 
-    background_tasks.add_task(
-        run_orchestrator_sync, job_id, url, request.brand, main_loop, cancel_event
-    )
+    from services.orchestrator import run_orchestrator
+    
+    async def task_wrapper():
+        def log_wrapper(msg):
+            asyncio.create_task(manager.send_message(msg, job_id))
+            
+        try:
+            await run_orchestrator(
+                marca=request.brand, 
+                url_categoria=url, 
+                log_callback=log_wrapper, 
+                cancel_event=cancel_event
+            )
+        finally:
+            JOB_CANCEL_FLAGS.pop(job_id, None)
+
+    background_tasks.add_task(task_wrapper)
+    
     return {"job_id": job_id, "message": "Orquestração iniciada.", "url": url}
 
 
@@ -212,21 +197,19 @@ async def scrape_category_multi(
     category_label = brand_url_map[request.brands[0].lower()]["label"]
 
     job_id = str(uuid.uuid4())
-    main_loop = asyncio.get_running_loop()
-
+    
     cancel_event = threading.Event()
     JOB_CANCEL_FLAGS[job_id] = cancel_event
 
     # Importar e lançar o orquestrador multi-marca
-    from services.orchestrator_multi import run_multi_orchestrator_sync
+    from services.orchestrator_multi import run_multi_orchestrator
 
     background_tasks.add_task(
-        run_multi_orchestrator_sync,
-        job_id,
-        url_map,
-        category_label,
-        main_loop,
-        cancel_event,
+        run_multi_orchestrator,
+        job_id=job_id,
+        brand_url_map=url_map,
+        category_label=category_label,
+        cancel_event=cancel_event,
     )
 
     return {

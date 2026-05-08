@@ -6,7 +6,7 @@ consolidando os resultados em um único arquivo Excel.
 
 Fluxo:
     1. Recebe mapeamento {brand → url} do CategoryMapping
-    2. Cria N threads, cada uma rodando o orquestrador padrão
+    2. Executa em paralelo (asyncio.gather) o pipeline de cada marca
     3. Consolida logs via WebSocket com prefixo por marca
     4. Gera Excel unificado com coluna `brand`
 """
@@ -22,8 +22,8 @@ import pandas as pd
 
 from config import settings
 from services.brand_service import brand_service
-
-from scrapers import get_scraper
+from core.websocket import manager
+from core.job_manager import JOB_CANCEL_FLAGS
 
 logger = logging.getLogger("OrchestratorMulti")
 
@@ -45,7 +45,7 @@ class BrandJobResult:
 
 
 # ---------------------------------------------------------------------------
-# Per-brand worker (runs in its own asyncio event loop in a thread)
+# Per-brand worker (Async)
 # ---------------------------------------------------------------------------
 async def _run_brand_pipeline(
     brand_key: str,
@@ -54,7 +54,7 @@ async def _run_brand_pipeline(
     log_callback: Optional[Callable] = None,
 ) -> BrandJobResult:
     """
-    Pipeline completo para uma marca: varredura paginada na API.
+    Pipeline completo para uma marca: varredura paginada na plataforma.
     """
     brand_info = brand_service.get_brand(brand_key)
     brand_name = brand_info.brand_name if brand_info else brand_key.title()
@@ -88,6 +88,7 @@ async def _run_brand_pipeline(
     except Exception as e:
         result.error_message = str(e)
         result.finished = True
+        logger.error(f"Erro em {brand_key}: {e}", exc_info=True)
         emit({"type": "error", "message": f"[{brand_name}] Erro: {e}"})
         return result
 
@@ -117,77 +118,49 @@ async def _run_brand_pipeline(
 
 
 # ---------------------------------------------------------------------------
-# Thread wrapper
+# Public: Multi-Brand Orchestrator (Async)
 # ---------------------------------------------------------------------------
-def _thread_worker(
-    brand_key: str,
-    url: str,
-    cancel_event: threading.Event,
-    log_callback: Optional[Callable],
-    results_store: Dict[str, BrandJobResult],
-):
-    """Executa o pipeline de uma marca em uma thread separada com seu próprio event loop."""
-    try:
-        result = asyncio.run(
-            _run_brand_pipeline(brand_key, url, cancel_event, log_callback)
-        )
-        results_store[brand_key] = result
-    except Exception as e:
-        logger.error(f"Thread {brand_key} falhou: {e}")
-        results_store[brand_key] = BrandJobResult(
-            brand_key=brand_key,
-            brand_name=brand_key.title(),
-            error_message=str(e),
-            finished=True,
-        )
-
-
-# ---------------------------------------------------------------------------
-# Public: Multi-Brand Orchestrator
-# ---------------------------------------------------------------------------
-def run_multi_orchestrator_sync(
+async def run_multi_orchestrator(
     job_id: str,
     brand_url_map: Dict[str, str],
     category_label: str,
-    main_loop: asyncio.AbstractEventLoop,
     cancel_event: threading.Event,
 ):
     """
-    Ponto de entrada para o background task do FastAPI.
-
-    Cria N threads (uma por marca), espera todas finalizarem,
-    consolida os resultados em Excel e envia log final via WebSocket.
+    Orquestrador principal assíncrono.
+    Roda tudo no mesmo loop do FastAPI para reaproveitar conexões.
     """
-    from core.websocket import manager
-    from core.job_manager import JOB_CANCEL_FLAGS
-
+    
     def log_callback(msg_dict):
-        asyncio.run_coroutine_threadsafe(
-            manager.send_message(msg_dict, job_id), main_loop
-        )
+        # Agora podemos chamar o manager diretamente pois estamos no mesmo loop
+        asyncio.create_task(manager.send_message(msg_dict, job_id))
 
     log_callback({
         "type": "info",
         "message": f"Iniciando varredura multi-marca para '{category_label}': {list(brand_url_map.keys())}",
     })
 
-    # ── Lançar threads ─────────────────────────────────────────────────
-    results_store: Dict[str, BrandJobResult] = {}
-    threads: List[threading.Thread] = []
-
+    # ── Executar em paralelo ───────────────────────────────────────────
+    tasks = []
     for brand_key, url in brand_url_map.items():
-        t = threading.Thread(
-            target=_thread_worker,
-            args=(brand_key, url, cancel_event, log_callback, results_store),
-            name=f"scraper-{brand_key}",
-            daemon=True,
-        )
-        threads.append(t)
-        t.start()
+        tasks.append(_run_brand_pipeline(brand_key, url, cancel_event, log_callback))
 
-    # ── Aguardar todas as threads ──────────────────────────────────────
-    for t in threads:
-        t.join()
+    # Gather results
+    brand_results = await asyncio.gather(*tasks, return_exceptions=True)
+    
+    results_store: Dict[str, BrandJobResult] = {}
+    for i, brand_key in enumerate(brand_url_map.keys()):
+        res = brand_results[i]
+        if isinstance(res, Exception):
+            logger.error(f"Job para {brand_key} falhou: {res}")
+            results_store[brand_key] = BrandJobResult(
+                brand_key=brand_key, 
+                brand_name=brand_key.title(), 
+                error_message=str(res), 
+                finished=True
+            )
+        else:
+            results_store[brand_key] = res
 
     # ── Consolidar resultados ──────────────────────────────────────────
     is_cancelled = cancel_event.is_set()
@@ -200,10 +173,9 @@ def run_multi_orchestrator_sync(
         total_success += result.success_count
         total_errors += result.error_count
         for produto in result.products:
-            row = produto
+            row = produto.copy() # Cópia para evitar modificar o original
             row["brand"] = result.brand_name
             all_products.append(row)
-
 
     # ── Gerar Excel ────────────────────────────────────────────────────
     slug = category_label.lower().replace(" ", "_").replace("&", "e")
@@ -211,9 +183,40 @@ def run_multi_orchestrator_sync(
     arquivo_saida = f"dados_multimarca_{slug}_{timestamp}.xlsx"
 
     if all_products:
+        # Offload pandas operations to a thread to avoid blocking the loop
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(
+            None, 
+            consolidate_and_save, 
+            all_products, 
+            arquivo_saida, 
+            is_cancelled, 
+            results_store, 
+            total_success, 
+            total_errors, 
+            log_callback
+        )
+    else:
+        msg_type = "cancelled" if is_cancelled else "error_done"
+        log_callback({
+            "type": msg_type,
+            "message": (
+                "Operação cancelada. Nenhum produto coletado."
+                if is_cancelled
+                else "Nenhum produto válido extraído de nenhuma marca."
+            ),
+        })
+
+    # Cleanup
+    JOB_CANCEL_FLAGS.pop(job_id, None)
+
+
+def consolidate_and_save(all_products, arquivo_saida, is_cancelled, results_store, total_success, total_errors, log_callback):
+    """Função auxiliar para salvar o Excel (roda em thread do executor)."""
+    try:
         df = pd.DataFrame(all_products)
 
-        # Converter listas para strings separadas por vírgula para ficar legível no Excel
+        # Converter listas para strings separadas por vírgula
         for col in ["available_colors", "available_sizes"]:
             if col in df.columns:
                 df[col] = df[col].apply(lambda x: ", ".join(x) if isinstance(x, list) else x)
@@ -228,14 +231,13 @@ def run_multi_orchestrator_sync(
         # Expandir specifications
         if "specifications" in df.columns:
             specs_df = df["specifications"].apply(pd.Series)
+            # Evita duplicatas de colunas se houver
             df = pd.concat([df.drop("specifications", axis=1), specs_df], axis=1)
 
-        # Ordenar por marca e preço
+        # Ordenar
         sort_cols = []
-        if "brand" in df.columns:
-            sort_cols.append("brand")
-        if "price_full" in df.columns:
-            sort_cols.append("price_full")
+        if "brand" in df.columns: sort_cols.append("brand")
+        if "price_full" in df.columns: sort_cols.append("price_full")
         if sort_cols:
             df = df.sort_values(sort_cols, na_position="last")
 
@@ -255,16 +257,6 @@ def run_multi_orchestrator_sync(
                 f"{len(results_store)} marcas salvos em {arquivo_saida}."
             ),
         })
-    else:
-        msg_type = "cancelled" if is_cancelled else "error_done"
-        log_callback({
-            "type": msg_type,
-            "message": (
-                "Operação cancelada. Nenhum produto coletado."
-                if is_cancelled
-                else "Nenhum produto válido extraído de nenhuma marca."
-            ),
-        })
-
-    # Cleanup
-    JOB_CANCEL_FLAGS.pop(job_id, None)
+    except Exception as e:
+        logger.error(f"Erro ao salvar Excel multi-marca: {e}")
+        log_callback({"type": "error", "message": f"Erro ao gerar arquivo final: {e}"})

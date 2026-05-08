@@ -49,6 +49,45 @@ export class ApiClient {
     });
   }
 
+  static async exportSearch(payload: { query: string; brands?: string[]; max_per_brand?: number; sort?: string; only_in_stock?: boolean }) {
+    const response = await fetch(`${API_BASE_URL}/search/export`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': API_KEY,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      let errorMsg = `Export failed: ${response.status}`;
+      try {
+         const data = await response.json();
+         if (data.detail) errorMsg = data.detail;
+      } catch (e) {}
+      throw new Error(errorMsg);
+    }
+
+    let filename = 'busca_comparativa.xlsx';
+    const disposition = response.headers.get('content-disposition');
+    if (disposition && disposition.includes('filename=')) {
+      const matches = disposition.match(/filename="([^"]+)"/);
+      if (matches && matches[1]) {
+        filename = matches[1];
+      }
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  }
+
   // Monitors
   static getMonitors() {
     return this.request<any[]>('/monitors');

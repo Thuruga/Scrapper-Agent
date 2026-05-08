@@ -1,27 +1,38 @@
-# Architecture
+# Architecture: Intelligence Scraper
 
 ## Overview
-The project follows a **Monolithic Service-Oriented Architecture (SOA)** approach with a clear separation between the API layer, business logic (services), and data extraction (scrapers). It is designed to be highly resilient to changes in target website structures by utilizing an "API-First" scraping strategy with multiple fallback mechanisms.
+O sistema utiliza uma arquitetura em camadas, agora desacoplada por uma camada de abstração de motores (Engines), permitindo suporte a múltiplas plataformas de e-commerce (VTEX, Shopify, etc).
 
-## Core Layers
-1. **API Layer (`api/`)**: FastAPI routes that handle HTTP requests, input validation (Pydantic), and WebSocket connections.
-2. **Service Layer (`services/`)**: The core business logic. Contains orchestrators that coordinate multiple services and scrapers.
-3. **Scraper Layer (`scrapers/`, `core/base_scraper.py`)**: Implementation of data extraction logic. Uses a factory pattern to instantiate the correct scraper for each brand.
-4. **Core Layer (`core/`)**: Base classes, shared models (Pydantic), and utility modules (WebSocket, Job Manager).
-5. **Frontend Layer (`frontend/`)**: A modern React application built with Vite, utilizing a component-based architecture for the dashboard.
+## Component Hierarchy
 
-## Key Design Patterns
-- **Factory Pattern**: Used in `ScraperFactory` to dynamically create scrapers.
-- **Repository/Service Pattern**: Business logic is encapsulated in service classes.
-- **Async/Await**: Heavily used throughout the backend to handle concurrent I/O operations (API calls, scraping).
-- **Identity Rotation**: Managed via `IdentityManager` to prevent blocking by rotating User-Agents and potentially proxies.
-- **Layered Data Models**: Uses Pydantic models to define "Bronze" (raw) and more refined data structures.
+### 1. API Layer (`api/`)
+- **FastAPI Router**: Define endpoints REST e WebSocket.
+- **Background Tasks**: Gerencia jobs de varredura longa no mesmo event loop da aplicação principal para reaproveitamento de recursos.
+
+### 2. Service Layer (`services/`)
+- **Orchestrators**: Coordenam o fluxo de varredura (Paginada -> Extração -> Excel).
+  - `orchestrator.py`: Marca única.
+  - `orchestrator_multi.py`: Multi-marca paralela usando `asyncio.gather`.
+- **Category Intelligence**: Realiza Fuzzy Matching entre categorias da plataforma e slugs canônicos.
+- **Price Monitor**: Serviço em background para monitoramento recorrente de preços.
+
+### 3. Engine Layer (`services/engines/`)
+- **BaseEngine**: Interface abstrata que define o contrato para qualquer plataforma.
+- **VTEXEngine / ShopifyEngine**: Implementações concretas que traduzem comandos genéricos em chamadas de API específicas de cada motor.
+- **EngineFactory**: Router dinâmico que instancia o motor correto baseado no metadado da marca.
+
+### 4. Core Layer (`core/`)
+- **SessionManager**: Gerencia o ciclo de vida de uma única `aiohttp.ClientSession` compartilhada.
+- **Models**: Definições Pydantic para validação rigorosa de dados (Camada Bronze).
 
 ## Data Flow
-1. User interacts with the **Frontend Dashboard**.
-2. Frontend calls **FastAPI endpoints**.
-3. API routes invoke **Services** (e.g., `Orchestrator`).
-4. Services use the **Scraper Factory** to get a brand-specific scraper.
-5. Scrapers interact with **VTEX APIs** or perform **Web Scraping**.
-6. Data is returned, validated, and potentially saved to **Local Storage** or exported to **Excel**.
-7. Real-time updates are sent back via **WebSockets**.
+1. **Frontend** solicita varredura.
+2. **API** lança `Background Task`.
+3. **Orchestrator** solicita ao **Engine** a extração dos dados.
+4. **Engine** usa **ApiClient** para buscar JSONs da plataforma.
+5. **Orchestrator** consolida dados e salva em Excel via `run_in_executor`.
+6. **WebSocket** envia logs de progresso em tempo real.
+
+## Threading & Async Model
+- **Single Event Loop**: Tudo roda no loop principal do FastAPI para evitar conflitos de sessão HTTP.
+- **CPU Offloading**: Operações pesadas de Pandas/Excel rodam em `ThreadPoolExecutor` para não bloquear o loop de IO.

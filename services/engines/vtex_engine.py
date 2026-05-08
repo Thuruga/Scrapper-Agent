@@ -4,7 +4,6 @@ import threading
 from typing import List, Dict, Any, Optional, Callable
 from services.engines.base_engine import BaseEngine
 from services.vtex_api_scraper import VtexApiClient
-from services.category_intelligence import category_intelligence
 
 logger = logging.getLogger("VTEXEngine")
 
@@ -21,10 +20,75 @@ class VTEXEngine(BaseEngine):
 
     async def discover_categories(self) -> List[Dict[str, Any]]:
         """
-        Usa o serviço de inteligência para descobrir categorias VTEX.
+        Descobre a árvore de categorias real da VTEX e retorna uma lista plana.
         """
-        logger.info(f"[{self.brand_key}] Iniciando descoberta de categorias VTEX...")
-        return await category_intelligence.discover_and_map(self.brand_key)
+        logger.info(f"[{self.brand_key}] Buscando categorias via API VTEX...")
+        
+        # 1. Busca do brand_service para obter o domínio
+        from services.brand_service import brand_service
+        brand_data = brand_service.get_brand(self.brand_key)
+        if not brand_data:
+            return []
+
+        # 2. Busca via VtexApiClient
+        raw_tree = await VtexApiClient.fetch_categories(brand_data.domain)
+        if not raw_tree:
+            return []
+
+        # 3. Achata a árvore (usando o helper que estava no CategoryIntelligenceService)
+        return self._flatten_vtex_tree(raw_tree)
+
+    def _flatten_vtex_tree(self, tree: List[Dict[str, Any]], parent_path: str = "") -> List[Dict[str, Any]]:
+        """Achata a árvore de categorias da VTEX para uma lista simples de paths."""
+        flat = []
+        for node in tree:
+            name = node.get("name", "")
+            url = node.get("url", "")
+            
+            if name and url:
+                flat.append({"name": name, "path": url})
+            
+            children = node.get("children", [])
+            if children:
+                flat.extend(self._flatten_vtex_tree(children, url))
+        return flat
+
+    async def get_catalog(self) -> List[Dict[str, Any]]:
+        """
+        Retorna o catálogo de categorias da VTEX (com cache).
+        """
+        from services.vtex_catalog import vtex_catalog
+        return await vtex_catalog.get_categories(self.brand_key)
+
+    async def search(
+        self,
+        query: str,
+        max_results: int = 10,
+        sort: Optional[str] = None,
+        only_in_stock: bool = False
+    ) -> Any:
+        """
+        Executa a busca via VtexApiClient usando sessão compartilhada.
+        """
+        from core.session_manager import SessionManager
+        session = await SessionManager.get_session()
+        async with VtexApiClient(self.brand_key, session=session) as client:
+            return await client.search(
+                query=query,
+                max_results=max_results,
+                sort=sort,
+                only_in_stock=only_in_stock
+            )
+
+    async def get_product_details(self, product_url: str) -> Optional[Dict[str, Any]]:
+        """
+        Extrai detalhes de um único produto via VtexApiClient usando sessão compartilhada.
+        """
+        from core.session_manager import SessionManager
+        session = await SessionManager.get_session()
+        async with VtexApiClient(self.brand_key, session=session) as client:
+            prod = await client.get_product_by_url(product_url)
+            return prod.model_dump() if prod else None
 
     async def run_bulk_scrape(
         self,

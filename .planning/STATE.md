@@ -1,33 +1,35 @@
 # Project State: Intelligence Scraper
 
-**Current Date:** 2026-05-07
-**Status:** Initialized (Brownfield)
+**Current Date:** 2026-05-08
+**Status:** In Progress (Expansion)
 
 ## Project Reference
 
 See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/scrapper/.planning/PROJECT.md) (updated 2026-05-07)
 
 **Core value:** Extração automatizada e resiliente de dados de mercado com mínima intervenção humana.
-**Current focus:** Phase 1: Frontend Stability
+**Current focus:** Phase 3: Reliability & Logging
 
-## Current Milestone: v1.0 Stabilization
+## Current Milestone: v1.1 Expansion & Resilience
 
-**Goal:** Fix primary bugs and refactor for extensibility.
-**Progress:** 0%
+**Goal:** Expand to new engines and ensure system stability.
+**Progress:** 85%
 
-## Active Phase: Phase 1: Frontend Stability
+## Completed Tasks
 
-**Goal:** Eliminar o reload indesejado da página e melhorar o feedback visual.
-**Status:** Not started
-**Plans:**
-- [ ] 01-01: Fix form submission event handling and state preservation
+- [x] 01-01: Frontend event handling fix and UI feedback improvement.
+- [x] 01-02: Backend category auto-discovery and intelligent matching.
+- [x] 02-01: Implement Engine Abstraction Layer.
+- [x] 04-01: Implement Shopify Engine and Dynamic Routing.
+- [x] FIX: Resolved Event Loop mismatch in background tasks.
+- [x] FIX: Standardized logging for async orchestrators.
 
 ## Technical Context
 
 - **Engine**: FastAPI (Backend) + React (Frontend)
-- **Scraping**: Playwright, curl_cffi, aiohttp
-- **Architecture**: Layered (API -> Service -> Scraper)
-- **Known Issues**: Frontend page reload on submit, manual category mapping requirement.
+- **Multi-Platform**: VTEX & Shopify support active.
+- **Architecture**: Async Orchestration (Main Loop Aware).
+- **Known Issues**: Missing advanced logging per request (Phase 3).
 
 ---
-*Last updated: 2026-05-07*
+*Last updated: 2026-05-08*

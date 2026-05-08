@@ -28,6 +28,33 @@ class BaseEngine(ABC):
         pass
 
     @abstractmethod
+    async def get_catalog(self) -> List[Dict[str, Any]]:
+        """
+        Retorna o catálogo de categorias formatado para o frontend.
+        """
+        pass
+
+    @abstractmethod
+    async def search(
+        self,
+        query: str,
+        max_results: int = 10,
+        sort: Optional[str] = None,
+        only_in_stock: bool = False
+    ) -> Any:
+        """
+        Executa uma busca por termo na plataforma.
+        """
+        pass
+
+    @abstractmethod
+    async def get_product_details(self, product_url: str) -> Optional[Dict[str, Any]]:
+        """
+        Extrai detalhes de um único produto.
+        """
+        pass
+
+    @abstractmethod
     def get_engine_name(self) -> str:
         """Retorna o nome amigável do motor (ex: 'VTEX')."""
         pass

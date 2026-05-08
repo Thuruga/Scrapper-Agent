@@ -1,24 +1,18 @@
-# Technology Stack
+# Stack: Intelligence Scraper
 
 ## Backend
-- **Framework**: FastAPI (v0.110.0+)
-- **Runtime**: Python 3.x
-- **Web Server**: Uvicorn
-- **Data Validation**: Pydantic v2
-- **Scraping/Automation**: Playwright, Curl-cffi
-- **Data Processing**: Pandas, Openpyxl
-- **HTTP Client**: Aiohttp
-- **Environment Management**: Python-dotenv
+- **Framework**: FastAPI (Python 3.11+)
+- **Server**: Uvicorn
+- **Async IO**: `aiohttp` para requisições de alta performance.
+- **Resilience**: `curl_cffi` para bypass de WAF/Cloudflare.
+- **Data Analysis**: Pandas (geração de relatórios Excel).
 
 ## Frontend
-- **Framework**: React 19
-- **Build Tool**: Vite 8
-- **Language**: TypeScript 6
+- **Framework**: React 18+ (Vite)
+- **Language**: TypeScript
 - **Styling**: Tailwind CSS
-- **Animations**: Framer Motion
-- **Icons**: Lucide React
-- **State/UI Helpers**: clsx, tailwind-merge
+- **Real-time**: WebSockets para logs de streaming.
 
 ## Infrastructure
-- **Storage**: Local filesystem (JSON/Excel files) for data persistence.
-- **Concurrency**: Asyncio for backend operations, Playwright for browser automation.
+- **Storage**: JSON dinâmico (local) para metadados.
+- **Excel**: `openpyxl` como engine de escrita.

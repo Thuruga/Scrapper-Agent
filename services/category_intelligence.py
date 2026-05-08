@@ -1,7 +1,6 @@
 import logging
 import difflib
 from typing import List, Dict, Any, Optional
-from services.vtex_api_scraper import VtexApiClient
 from services.category_mapping import _CATEGORY_INDEX, CanonicalCategory
 from services.brand_service import brand_service
 
@@ -15,37 +14,42 @@ class CategoryIntelligenceService:
     @staticmethod
     async def discover_and_map(brand_key: str) -> List[Dict[str, Any]]:
         """
-        Descobre as categorias reais da marca e tenta mapeá-las para as canônicas.
+        Descobre as categorias reais da marca usando o motor correspondente 
+        e tenta mapeá-las para as canônicas.
         """
+        from services.engines.factory import engine_factory
         brand_data = brand_service.get_brand(brand_key)
         if not brand_data:
             logger.error(f"Marca {brand_key} não encontrada para descoberta.")
             return []
 
-        # 1. Fetch categories from VTEX
-        vtex_categories = await VtexApiClient.fetch_categories(brand_data.domain)
-        if not vtex_categories:
-            logger.warning(f"Nenhuma categoria encontrada para {brand_key}")
+        # 1. Fetch categories using the correct engine
+        engine = engine_factory.get_engine(brand_key)
+        platform_categories = await engine.discover_categories()
+        
+        if not platform_categories:
+            logger.warning(f"Nenhuma categoria encontrada para {brand_key} via motor {await engine.get_engine_name()}")
             return []
 
-        # 2. Flatten and sanitize VTEX categories
-        flat_categories = CategoryIntelligenceService._flatten_vtex_tree(vtex_categories)
-        
-        # 3. Perform matching
+        # 2. Perform matching
         suggestions = []
         canonical_list = list(_CATEGORY_INDEX.values())
 
-        for v_cat in flat_categories:
-            v_name = v_cat["name"].lower()
-            v_path = v_cat["url"]
+        for p_cat in platform_categories:
+            # O motor deve retornar pelo menos 'name' e 'path'
+            p_name = p_cat.get("name", "").lower()
+            p_path = p_cat.get("path", "")
             
+            if not p_name:
+                continue
+
             # Tenta achar o melhor match canônico
             best_match: Optional[CanonicalCategory] = None
             highest_score = 0.0
             
             for c_cat in canonical_list:
-                # Compara o nome da categoria VTEX com o label canônico
-                score = difflib.SequenceMatcher(None, v_name, c_cat.label.lower()).ratio()
+                # Compara o nome da categoria da plataforma com o label canônico
+                score = difflib.SequenceMatcher(None, p_name, c_cat.label.lower()).ratio()
                 
                 # Se for um match exato ou muito próximo
                 if score > highest_score and score > 0.6:
@@ -54,8 +58,11 @@ class CategoryIntelligenceService:
             
             if best_match:
                 suggestions.append({
-                    "vtex_name": v_cat["name"],
-                    "vtex_path": v_path,
+                    "platform_name": p_cat["name"],
+                    "platform_path": p_path,
+                    # Mantemos chaves VTEX para retrocompatibilidade com o frontend
+                    "vtex_name": p_cat["name"],
+                    "vtex_path": p_path,
                     "canonical_slug": best_match.slug,
                     "canonical_label": best_match.label,
                     "confidence": round(highest_score, 2)
@@ -102,22 +109,5 @@ class CategoryIntelligenceService:
         else:
             logger.info(f"[{brand_key}] Nenhuma nova categoria com alta confiança para mapear.")
 
-    @staticmethod
-    def _flatten_vtex_tree(tree: List[Dict[str, Any]], parent_path: str = "") -> List[Dict[str, Any]]:
-
-        """Achata a árvore de categorias da VTEX para uma lista simples de paths."""
-        flat = []
-        for node in tree:
-            name = node.get("name", "")
-            url = node.get("url", "")
-            
-            if name and url:
-                flat.append({"name": name, "url": url})
-            
-            children = node.get("children", [])
-            if children:
-                flat.extend(CategoryIntelligenceService._flatten_vtex_tree(children, url))
-        
-        return flat
 
 category_intelligence = CategoryIntelligenceService()
