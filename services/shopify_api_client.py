@@ -55,6 +55,22 @@ class ShopifyApiClient(BaseScraper):
         
         return collections
 
+    async def fetch_collection_count(self, collection_handle: str) -> int:
+        """Busca o total de produtos em uma colecao via endpoint JSON da colecao."""
+        # O Shopify retorna metadados da colecao em /{handle}.json
+        url = f"{self.base_url}/collections/{collection_handle}.json"
+            
+        session = await SessionManager.get_session()
+        try:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=10), headers=self.headers) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    # O campo products_count fica dentro do objeto 'collection'
+                    return data.get("collection", {}).get("products_count", 0)
+        except Exception as e:
+            logger.warning(f"[{self.brand_key}] Nao foi possivel obter contagem para '{collection_handle}': {e}")
+        return 0
+
     async def fetch_products_from_collection(
         self, 
         collection_handle: str, 
@@ -71,7 +87,7 @@ class ShopifyApiClient(BaseScraper):
             url = f"{self.base_url}/collections/{collection_handle}/products.json?page={page}&limit=250"
             
             if log_callback:
-                log_callback(f"  -> Lendo página {page} da coleção '{collection_handle}'...")
+                log_callback(f"Buscando pagina {page} da colecao '{collection_handle}'...")
 
             try:
                 async with session.get(url, timeout=aiohttp.ClientTimeout(total=20), headers=self.headers) as resp:
@@ -85,6 +101,8 @@ class ShopifyApiClient(BaseScraper):
                             bronze = self._map_to_bronze(p, collection_handle)
                             if bronze:
                                 all_products.append(bronze)
+                                if log_callback:
+                                    log_callback({"type": "brand_success", "message": f"Sucesso: {bronze.raw_title}"})
                         
                         page += 1
                     elif resp.status == 404:
@@ -94,10 +112,12 @@ class ShopifyApiClient(BaseScraper):
                             return await self.fetch_all_products(limit_pages, log_callback)
                         break
                     else:
-                        logger.error(f"[{self.brand_key}] Erro {resp.status} em {url}")
+                        if log_callback:
+                            log_callback({"type": "brand_error", "message": f"Erro {resp.status} em {url}"})
                         break
             except Exception as e:
-                logger.error(f"[{self.brand_key}] Erro ao paginar Shopify JSON: {e}")
+                if log_callback:
+                    log_callback({"type": "brand_error", "message": f"Erro ao paginar Shopify JSON: {e}"})
                 break
                     
         return all_products
@@ -200,7 +220,10 @@ class ShopifyApiClient(BaseScraper):
             handle = "all"
             
         if log_callback:
-            log_callback(f"Iniciando extração Shopify para a coleção: {handle}")
+            log_callback(f"[START] Iniciando extracao Shopify para a colecao: {handle}")
+            
+            # O total do metadata nao e mais enviado para o frontend para evitar confusao de paridade
+            # total = await self.fetch_collection_count(handle)
             
         return await self.fetch_products_from_collection(handle, log_callback=log_callback)
 

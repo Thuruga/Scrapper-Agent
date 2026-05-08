@@ -10,7 +10,6 @@ class UI {
         orchestrator: {
             ws: null,
             currentJobId: null,
-            totalLinks: 0,
             processedLinks: 0,
             successCount: 0,
             errorCount: 0,
@@ -77,7 +76,7 @@ class UI {
 
         const activeBtn = document.querySelector(`.tab-btn[onclick*="'${tabId}'"]`);
         if (activeBtn) activeBtn.classList.add('active');
-        
+
         const activeContent = document.getElementById(`tab-${tabId}`);
         if (activeContent) activeContent.classList.add('active');
     }
@@ -140,7 +139,7 @@ class UI {
         e.preventDefault();
         const btn = document.getElementById('saveBrandBtn');
         const btnText = btn.querySelector('.btn-text');
-        
+
         const payload = {
             brand_key: document.getElementById('b_key').value,
             brand_name: document.getElementById('b_name').value,
@@ -184,7 +183,7 @@ class UI {
 
         const brandMeta = this.state.brandColors[config.brand] || { color: '#94a3b8', name: config.brand };
         const cardHtml = Components.monitorCard(jobId, config, brandMeta);
-        
+
         if (grid) grid.insertAdjacentHTML('afterbegin', cardHtml);
 
         if (config.active) {
@@ -204,7 +203,7 @@ class UI {
             if (msg.type === 'price_update') {
                 const priceEl = document.getElementById(`price-${jobId}`);
                 if (priceEl) priceEl.textContent = `R$ ${msg.price.toFixed(2)}`;
-                
+
                 const historyEl = document.getElementById(`history-${jobId}`);
                 if (historyEl) historyEl.innerHTML = Components.historyEntries(msg.history);
             } else if (msg.type === 'done') {
@@ -373,7 +372,7 @@ class UI {
             this.state.lastSingleBrand = brands[0];
             this.loadSingleBrandCategories(brands[0]);
         }
-        
+
         if (multi) this.updateDeparaPreview();
     }
 
@@ -449,7 +448,7 @@ class UI {
 
         if (downloadArea) downloadArea.style.display = 'none';
         if (consoleFeed) consoleFeed.innerHTML = '';
-        
+
         this.state.orchestrator.totalLinks = 0;
         this.state.orchestrator.processedLinks = 0;
         this.state.orchestrator.successCount = 0;
@@ -474,17 +473,15 @@ class UI {
     }
 
     static updateProgress() {
-        const { totalLinks, processedLinks, successCount, errorCount } = this.state.orchestrator;
-        if (totalLinks === 0) return;
-        
-        const pct = (processedLinks / totalLinks) * 100;
+        const { processedLinks, successCount, errorCount } = this.state.orchestrator;
+        const pct = processedLinks > 0 ? (successCount / processedLinks) * 100 : 0;
         const fill = document.getElementById('progressFill');
         const text = document.getElementById('progressText');
         const statSuccess = document.getElementById('statSuccess');
         const statError = document.getElementById('statError');
 
         if (fill) fill.style.width = `${pct}%`;
-        if (text) text.textContent = `${processedLinks} / ${totalLinks}`;
+        if (text) text.textContent = `${processedLinks} Processados`;
         if (statSuccess) statSuccess.textContent = `Sucessos: ${successCount}`;
         if (statError) statError.textContent = `Falhas: ${errorCount}`;
     }
@@ -494,7 +491,7 @@ class UI {
         if (!container) return;
         container.style.display = brands.length > 1 ? 'flex' : 'none';
         container.innerHTML = '';
-        
+
         this.state.orchestrator.brandStatusMap = {};
         brands.forEach(bk => {
             const bc = this.state.brandColors[bk] || { color: '#94a3b8', name: bk };
@@ -523,7 +520,7 @@ class UI {
     static async cancelJob() {
         const { currentJobId } = this.state.orchestrator;
         if (!currentJobId) return;
-        
+
         const btn = document.getElementById('cancelBtn');
         btn.classList.add('button-loading');
         btn.disabled = true;
@@ -547,12 +544,8 @@ class UI {
         const orch = this.state.orchestrator;
 
         if (msg.type === 'brand_stats' && brand && orch.brandStatusMap[brand]) {
-            orch.brandStatusMap[brand].total = msg.total_links;
-            orch.totalLinks += msg.total_links;
-            this.updateProgress();
-            this.updateBrandBadge(brand, 'running', `0/${msg.total_links}`);
+            this.updateBrandBadge(brand, 'running', `Extraindo...`);
         }
-        if (msg.type === 'stats' && msg.total_links) { orch.totalLinks = msg.total_links; this.updateProgress(); }
 
         if (msg.type === 'brand_success' && brand) {
             orch.processedLinks++; orch.successCount++;
@@ -585,7 +578,7 @@ class UI {
         if (msg.type === 'done' || msg.type === 'cancelled_done') {
             const cancelled = msg.type === 'cancelled_done';
             this.logToConsole(msg.message, cancelled ? 'cancelled' : 'stats');
-            
+
             const msgEl = document.getElementById('downloadMsg');
             const area = document.getElementById('downloadArea');
             if (msgEl) {
@@ -593,7 +586,7 @@ class UI {
                 msgEl.style.color = cancelled ? 'var(--warning)' : 'var(--success)';
             }
             if (area) area.style.display = 'block';
-            
+
             window.lastOutputFile = msg.output_file;
             this.setJobRunning(false);
             const cancelBtn = document.getElementById('cancelBtn');

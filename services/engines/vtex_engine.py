@@ -99,17 +99,13 @@ class VTEXEngine(BaseEngine):
         """
         Implementa o pipeline de extração paginada da VTEX.
         """
-        def emit_log(msg):
-            if log_callback:
-                if isinstance(msg, dict):
-                    log_callback(msg)
-                else:
-                    log_callback({"type": "info", "message": str(msg)})
+        def emit(msg):
+            self.emit_log(log_callback, msg)
 
         async with VtexApiClient(self.brand_key) as client:
             resultados = await client.scrape_category_paged(
                 category_url=category_url,
-                log_callback=emit_log,
+                log_callback=emit,
                 cancel_event=cancel_event,
                 chunk_size=50
             )

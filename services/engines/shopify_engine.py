@@ -57,10 +57,15 @@ class ShopifyEngine(BaseEngine):
         log_callback: Optional[Callable] = None,
         cancel_event: Optional[threading.Event] = None
     ) -> List[Dict[str, Any]]:
-        """Executa varredura via ShopifyApiClient."""
+        """Executa varredura via ShopifyApiClient com logs padronizados."""
         session = await SessionManager.get_session()
         client = ShopifyApiClient(self.brand_key, session=session)
-        products = await client.scrape_category_paged(category_url, log_callback, cancel_event)
+        
+        # Wrapper para garantir contrato de logs padronizado
+        def emit(msg):
+            self.emit_log(log_callback, msg)
+
+        products = await client.scrape_category_paged(category_url, emit, cancel_event)
         return [p.model_dump() for p in products]
 
     async def search(

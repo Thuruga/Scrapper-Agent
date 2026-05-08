@@ -576,13 +576,14 @@ class VtexApiClient(BaseScraper):
                         res_header = response.headers.get("resources", "")
                         if "/" in res_header:
                             try:
-                                total_produtos = int(res_header.split("/")[-1])
-                                log({
-                                    "type": "brand_stats",
-                                    "total_links": total_produtos,
-                                    "message": f"Total de produtos na categoria: {total_produtos}"
-                                })
-                                stats_emitido = True
+                                 # Nao enviamos mais o total de produtos para evitar confusao de paridade
+                                 # total_produtos = int(res_header.split("/")[-1])
+                                 # log({
+                                 #     "type": "brand_stats",
+                                 #     "total_links": total_produtos,
+                                 #     "message": f"Total de produtos na categoria: {total_produtos}"
+                                 # })
+                                 stats_emitido = True
                             except ValueError:
                                 pass
                         

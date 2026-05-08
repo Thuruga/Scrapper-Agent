@@ -299,9 +299,7 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
 
       ws.onmessage = (e) => {
         const msg = JSON.parse(e.data);
-        if (msg.type === 'brand_stats') {
-          setProgress(prev => ({ ...prev, total: prev.total + msg.total_links }));
-        } else if (msg.type === 'brand_success') {
+        if (msg.type === 'brand_success') {
           setProgress(prev => ({ ...prev, current: prev.current + 1, success: prev.success + 1 }));
         } else if (msg.type === 'brand_error') {
           setProgress(prev => ({ ...prev, current: prev.current + 1, error: prev.error + 1 }));
@@ -437,12 +435,9 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
         <div className="category-main">
           <GlassCard title="Progresso e Logs" subtitle={isScraping ? "Acompanhando em tempo real..." : "Aguardando início..."}>
             <div className="scrape-stats">
+              {/* Total Detectado removido conforme solicitado */}
               <div className="stat-box">
-                <span className="stat-label">Total</span>
-                <span className="stat-value">{progress.total}</span>
-              </div>
-              <div className="stat-box">
-                <span className="stat-label">Processados</span>
+                <span className="stat-label">Processados (Páginas/Links)</span>
                 <span className="stat-value">{progress.current}</span>
               </div>
               <div className="stat-box">
@@ -458,7 +453,7 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
             <div className="progress-bar-large">
               <div
                 className="progress-fill-large"
-                style={{ width: `${progress.total > 0 ? (progress.current / progress.total) * 100 : 0}%` }}
+                style={{ width: `${progress.current > 0 ? (progress.success / progress.current) * 100 : 0}%` }}
               />
             </div>
 

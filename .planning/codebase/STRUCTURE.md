@@ -3,26 +3,27 @@
 ## Directory Tree
 ```text
 /
-├── api/                # Rotas FastAPI (category, brand, monitors, search)
-├── core/               # Lógica base (models, session, websocket, identity)
-├── data/               # Persistência JSON (brands, price_monitors)
-├── frontend/           # Aplicação React (Vite, TS, Tailwind)
-├── services/           # Lógica de negócio e orquestração
-│   ├── engines/        # Abstração de motores (Factory, BaseEngine)
-├── static/             # Assets estáticos (JS/CSS legados)
-├── scratch/            # Scripts de diagnóstico e validação
-└── app.py              # Ponto de entrada da aplicação
+├── api/                # FastAPI routers (category, brand, monitors, search)
+├── core/               # Shared logic (models, session, websocket, identity)
+├── data/               # Persistent JSON storage (brands, price_monitors)
+├── frontend/           # Modern React application (Vite, TS, Tailwind, Framer)
+│   └── src/            # Application source code
+├── services/           # Business logic and cross-platform orchestration
+│   ├── engines/        # Engine abstraction layer (Factory, BaseEngine)
+├── static/             # Legacy static assets (deprecated JS/CSS)
+├── scratch/            # Diagnostic, validation, and spike scripts
+└── app.py              # Main application entry point and service loader
 ```
 
-## Key Files
-- `app.py`: Ponto de entrada que carrega a API e o Price Monitor.
-- `services/engines/factory.py`: Resolve qual motor usar baseado no `brands.json`.
-- `services/vtex_api_scraper.py`: Cliente robusto para APIs VTEX.
-- `services/shopify_api_client.py`: Cliente robusto para APIs Shopify.
-- `core/session_manager.py`: Gerenciador de conexão global.
+## Key Components
+- **`app.py`**: Entry point that initializes the API and schedules background monitors.
+- **`services/engines/factory.py`**: Dynamic resolver that maps brands to their respective e-commerce engine.
+- **`services/vtex_api_scraper.py`**: Robust client for VTEX private and public APIs.
+- **`services/shopify_api_client.py`**: High-performance client for Shopify JSON endpoints.
+- **`core/session_manager.py`**: Manages the global HTTP session pool.
+- **`services/orchestrator_multi.py`**: Core logic for multi-brand competitive analysis.
 
-## Removed Legacy
-O projeto passou por uma faxina técnica onde os arquivos individuais em `scrapers/` (como `aramis.py`) e o `scraper_factory.py` legado foram removidos em favor da arquitetura de Engines unificada.
-```text
-/scrapers/              # Pasta esvaziada (legado removido)
-```
+## Evolutionary Notes
+The project has successfully transitioned from brand-specific scripts in `scrapers/` to a unified Engine architecture. 
+- **Legacy Removal**: Individual files in `scrapers/` and the old `scraper_factory.py` have been purged.
+- **Modernization**: The frontend has been migrated to a React/Vite stack for a superior monitoring experience.

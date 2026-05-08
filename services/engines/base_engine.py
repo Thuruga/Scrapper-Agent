@@ -58,3 +58,24 @@ class BaseEngine(ABC):
     def get_engine_name(self) -> str:
         """Retorna o nome amigável do motor (ex: 'VTEX')."""
         pass
+
+    def emit_log(self, callback: Optional[Callable], message: Any, type: str = "info", **kwargs):
+        """
+        Padroniza a emissão de logs para o frontend.
+        Garante que a mensagem seja sempre um dicionário estruturado.
+        """
+        if not callback:
+            return
+            
+        if isinstance(message, dict):
+            # Se já for um dict, apenas garante que os campos extras sejam mesclados
+            payload = message.copy()
+            if kwargs:
+                payload.update(kwargs)
+            callback(payload)
+        else:
+            # Se for string ou outro tipo, encapsula no formato padrão
+            payload = {"type": type, "message": str(message)}
+            if kwargs:
+                payload.update(kwargs)
+            callback(payload)

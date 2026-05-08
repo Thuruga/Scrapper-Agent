@@ -2,19 +2,21 @@
 
 ## Technical Risks
 
-### 1. Cloudflare / WAF
-Sites como Ricardo Almeida e Hering podem endurecer a segurança. Atualmente usamos `curl_cffi` e User-Agents reais, mas um fallback via Playwright/Stealth pode ser necessário em breve.
+### 1. Advanced Anti-Bot Mechanisms
+Platforms like VTEX (especially with Cloudflare/WAF) are increasingly aggressive. While `curl_cffi` provides a strong baseline, complex interactions may require a headless browser fallback (Playwright) with stealth plugins.
 
-### 2. Event Loop Blocking
-Operações pesadas no Pandas podem bloquear o loop principal se o volume de dados crescer muito (ex: > 10.000 skus). Implementamos `run_in_executor`, mas o monitoramento de performance é vital.
+### 2. Event Loop Performance
+Large-scale extractions (>10,000 SKUs) can lead to event loop saturation. Although `run_in_executor` is utilized for heavy lifting, the overhead of context switching and memory allocation in Pandas requires constant monitoring.
 
-### 3. Memória
-O armazenamento de produtos em memória antes de salvar o Excel pode ser um problema para varreduras gigantescas. Considerar streaming direto para disco ou banco de dados.
+### 3. Memory Footprint
+Accumulating large datasets in memory before Excel generation poses a risk for very high-volume scans. A transition to streaming persistence or a temporary database (SQLite) for "Bronze" data is recommended.
 
 ## Maintenance Concerns
-- **Engine Evolution**: Mudanças profundas na API da VTEX podem quebrar o `VtexApiClient`.
-- **Shopify JSON Changes**: A Shopify costuma ser estável, mas mudanças no formato das Collections exigirão ajustes no mapper.
+- **API Fragility**: Direct reliance on private VTEX/Shopify JSON endpoints is efficient but susceptible to breaking changes without notice.
+- **Engine Divergence**: As more platforms are added, maintaining parity across all `BaseEngine` implementations becomes a significant testing burden.
+- **Category Drift**: Fuzzy matching is powerful but requires periodic tuning of thresholds as product nomenclature evolves.
 
-## Future Tech Debt
-- Migrar de JSON para SQLite para gerenciar marcas e monitores com maior integridade.
-- Implementar testes unitários para os Engines.
+## High-Priority Technical Debt
+- **Authentication**: The system currently lacks a robust auth layer for the admin dashboard.
+- **Data Persistence**: Migration from local JSON to a structured database (SQLite) for better integrity and querying.
+- **Test Coverage**: Lack of automated unit and integration tests for core extraction logic.
