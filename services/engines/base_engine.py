@@ -114,11 +114,14 @@ class BaseEngine(ABC):
                     title = getattr(p, 'raw_title', None) or getattr(p, 'product_name', 'Sem título')
                 
                 # Simplifica a mensagem de erro do Pydantic
-                reason = "Dados inválidos"
-                if hasattr(e, 'errors'):
-                    errs = e.errors()
-                    if errs:
-                        reason = errs[0].get('msg', 'Erro desconhecido')
+                reason = str(e)
+                if hasattr(e, 'errors') and callable(getattr(e, 'errors', None)):
+                    try:
+                        errs = e.errors()
+                        if errs:
+                            reason = errs[0].get('msg', 'Erro desconhecido')
+                    except:
+                        pass
                 
                 self.emit_log(
                     log_callback, 

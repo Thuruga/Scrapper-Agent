@@ -4,9 +4,8 @@ import os
 import logging
 import random
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Optional
+from typing import Dict
 
-from config import settings
 from core.models import PriceMonitorConfig, PriceHistoryEntry
 from core.websocket import manager
 from services.engines.factory import engine_factory
@@ -147,7 +146,7 @@ class PriceMonitorService:
                     
                     # Registra no histórico se houve mudança
                     if has_change:
-                        entry = PriceHistoryEntry(price=current_price, available=available)
+                        entry = PriceHistoryEntry(price=current_price, available=bool(available))
                         config.history.append(entry)
                         config.last_price = current_price
                         self._save_monitors()

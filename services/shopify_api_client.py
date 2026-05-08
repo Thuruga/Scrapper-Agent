@@ -152,7 +152,8 @@ class ShopifyApiClient(BaseScraper):
         """Converte JSON nativo da Shopify para o modelo RawProductBronze."""
         try:
             handle = p.get("handle", "")
-            if not handle: return None
+            if not handle:
+                return None
             
             variants = p.get("variants", [])
             first_variant = variants[0] if variants else {}
