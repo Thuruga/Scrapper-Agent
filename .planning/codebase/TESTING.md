@@ -1,74 +1,19 @@
-# Testing Patterns
+# Testing State
 
-**Analysis Date:** 2026-05-07
+## Automated Tests
+- **Current Coverage**: Low. Most testing is performed via ad-hoc scripts in the `scratch/` directory.
+- **Tools**: The project setup supports `pytest` for backend testing and Vitest (implied by Vite) for frontend testing, but no comprehensive test suites are currently implemented.
+- **Scratch Scripts**:
+  - `test_autonomous_mapping.py`: Tests for category mapping logic.
+  - `test_category_matching.py`: Specific tests for category matching heuristics.
+  - `test_foxton_fix.py`: Regression test for the Foxton brand search.
 
-## Test Framework
+## Manual Verification
+- **API Testing**: Performed via the FastAPI Swagger UI (`/docs`).
+- **Dashboard Testing**: Manual end-to-end testing of the React frontend by triggering scans and searches.
+- **Excel Verification**: Manual inspection of generated Excel reports for data accuracy and formatting.
 
-**Current Status:**
-- No automated test suite (runner or assertion library) detected in the project root.
-- Testing is currently performed via **manual execution** and **scratch scripts**.
-
-**Run Commands:**
-```bash
-python app.py                                     # Manual integration testing via UI/API
-python scratch/test_foxton_fix.py                 # Example of a one-off scratch test script
-```
-
-## Test File Organization
-
-**Location:**
-- Ad-hoc scripts are placed in the `scratch/` directory.
-- No formal `tests/` directory exists.
-
-**Naming:**
-- `test_*.py` for scratch scripts in `scratch/`.
-
-## Test Structure
-
-**Scratch Scripts:**
-```python
-# Example from scratch/test_foxton_fix.py
-async def test():
-    # setup
-    # execute function
-    # print results/assert
-    pass
-
-if __name__ == "__main__":
-    asyncio.run(test())
-```
-
-## Mocking
-
-**Framework:**
-- No mocking framework used.
-- Tests typically run against live or local development environments.
-
-**What to Mock (Future):**
-- VTEX APIs (using `unittest.mock` or `pytest-mock`).
-- Browser interactions in Playwright scrapers.
-
-## Fixtures and Factories
-
-**Test Data:**
-- Real product data and brand configurations from `data/brands.json` are used for testing.
-- Temporary Excel files are generated during execution for manual verification.
-
-## Coverage
-
-**Requirements:**
-- No formal coverage tracking or requirements.
-
-## Test Types
-
-**Manual Integration:**
-- Validating the React frontend against the FastAPI backend locally.
-- Verifying scraper output by checking generated `.xlsx` or `.json` files.
-
-**Ad-hoc Scraper Testing:**
-- Running specific scraper modules directly to verify extraction logic.
-
----
-
-*Testing analysis: 2026-05-07*
-*Update when a formal test framework (e.g., pytest) is introduced*
+## Proposed Strategy
+- **Unit Tests**: Implement unit tests for core logic (category resolver, scraper factory).
+- **Integration Tests**: Test the full scraping pipeline with mock API responses.
+- **UI Tests**: Implement Playwright tests for the frontend dashboard to ensure key flows (login, brand registration, search) remain functional.
