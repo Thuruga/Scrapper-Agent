@@ -2,7 +2,6 @@ import asyncio
 import aiohttp
 import logging
 from typing import Optional, List, Dict, Any, Callable
-import threading
 from urllib.parse import urljoin
 import yarl
 
@@ -85,7 +84,7 @@ class ShopifyApiClient(BaseScraper):
         limit_pages: int = 10,
         log_callback: Optional[Callable] = None
     ):
-        """Extrai produtos de uma coleção específica via JSON (Streaming)."""
+        """Extrai produtos de uma coleção específica via JSON (Streaming). Mercadão da Roupa e similares."""
         page = 1
         
         session = await SessionManager.get_session()
@@ -124,8 +123,7 @@ class ShopifyApiClient(BaseScraper):
                         logger.warning(f"[{self.brand_key}] Bloqueio Shopify (403). Acionando Playwright Fallback...")
                         try:
                             html_content = await browser_manager.fetch_html(url)
-                            # Extrai JSON de produtos do HTML (Shopify costuma ter no window.Shopify ou em scripts)
-                            # Mas se for .json endpoint, o browser pode ter pego o JSON puro
+                            # Extrai JSON de produtos do HTML
                             clean_json = html_content
                             if "<pre" in html_content:
                                 match = re.search(r"<pre[^>]*>(.*?)</pre>", html_content, re.DOTALL)
@@ -140,7 +138,7 @@ class ShopifyApiClient(BaseScraper):
                                     if log_callback: log_callback({"type": "brand_success", "message": f"Sucesso: {bronze.raw_title}"})
                                     yield bronze
                             page += 1
-                            continue # Continua para próxima página (embora Playwright em loop seja lento, é o fallback)
+                            continue 
                         except Exception as e:
                             logger.error(f"Fallback Playwright falhou: {e}")
                             break
@@ -153,7 +151,6 @@ class ShopifyApiClient(BaseScraper):
                     log_callback({"type": "brand_error", "message": f"Erro ao paginar Shopify JSON: {e}"})
                 break
                     
-        # Fim da paginação
         return
 
     async def fetch_all_products(self, limit_pages: int = 5, log_callback: Optional[Callable] = None):
@@ -242,7 +239,7 @@ class ShopifyApiClient(BaseScraper):
         self, 
         category_url: str, 
         log_callback: Optional[Callable] = None,
-        cancel_event: Optional[threading.Event] = None,
+        cancel_event: Optional[asyncio.Event] = None,
         chunk_size: int = 50
     ):
         """
@@ -256,6 +253,8 @@ class ShopifyApiClient(BaseScraper):
             log_callback(f"[START] Iniciando extracao Shopify para a colecao: {handle}")
             
         async for prod in self.fetch_products_from_collection(handle, log_callback=log_callback):
+            if cancel_event and cancel_event.is_set():
+                break
             yield prod
 
     async def search(
@@ -265,29 +264,20 @@ class ShopifyApiClient(BaseScraper):
         sort: Optional[str] = None,
         only_in_stock: bool = False
     ) -> BrandSearchResult:
-        """Busca produtos via endpoint de busca da Shopify.
-        
-        Tenta primeiro /search/suggest.json e faz fallback para /search.json.
-        O preço no suggest.json vem como string de centavos (ex: "29990" = 299.90).
-        """
+        """Busca produtos via endpoint de busca da Shopify."""
         products = []
         session = await SessionManager.get_session()
 
         def _parse_shopify_price(raw) -> float:
-            """Shopify retorna preco como string de centavos: '29990' -> 299.90"""
             try:
                 val = str(raw).replace(",", ".").strip()
                 numeric = float(val)
-                # Se nao tem ponto e e > 1000, assume que sao centavos
                 if "." not in str(raw) and numeric > 1000:
                     return round(numeric / 100, 2)
                 return round(numeric, 2)
             except Exception:
                 return 0.0
 
-        # Tentativa 1: /search/suggest.json
-        # IMPORTANTE: aiohttp codifica colchetes (resources%5Btype%5D) o que quebra a API Shopify.
-        # Usamos yarl.URL(..., encoded=True) para preservar os colchetes na URL.
         suggest_url_str = f"{self.base_url}/search/suggest.json?q={query}&resources[type]=product"
         suggest_url = yarl.URL(suggest_url_str, encoded=True)
         try:
@@ -296,7 +286,6 @@ class ShopifyApiClient(BaseScraper):
                     data = await resp.json(content_type=None)
                     suggestions = data.get("resources", {}).get("results", {}).get("products", [])
                     for p in suggestions[:max_results]:
-                        # Imagem: suggest.json usa featured_image dict ou string
                         img = p.get("featured_image") or {}
                         image_url = img.get("url") if isinstance(img, dict) else img
                         if not image_url:
@@ -310,13 +299,9 @@ class ShopifyApiClient(BaseScraper):
                             image_url=image_url,
                             available=True
                         ))
-                else:
-                    text = await resp.text()
-                    logger.warning(f"[{self.brand_key}] suggest.json retornou {resp.status}. Tentando fallback...")
-        except Exception as e:
-            logger.warning(f"[{self.brand_key}] Erro no suggest.json: {e}. Tentando fallback...")
+        except Exception:
+            pass
 
-        # Tentativa 2 (fallback): /search.json?type=product
         if not products:
             search_url = f"{self.base_url}/search.json?type=product&q={query}"
             try:
@@ -337,11 +322,8 @@ class ShopifyApiClient(BaseScraper):
                                 image_url=image_url,
                                 available=any(v.get("available") for v in variants),
                             ))
-                    else:
-                        text = await resp.text()
-                        logger.error(f"[{self.brand_key}] Busca Shopify (fallback) Status {resp.status}: {text[:200]}")
-            except Exception as e:
-                logger.error(f"[{self.brand_key}] Erro no fallback de busca Shopify: {e}")
+            except Exception:
+                pass
 
         return BrandSearchResult(
             brand_key=self.brand_key,

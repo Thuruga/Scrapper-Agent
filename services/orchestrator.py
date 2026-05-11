@@ -6,7 +6,6 @@ Suporta cancelamento gracioso com salvamento de dados parciais.
 """
 
 import asyncio
-import threading
 import logging
 from typing import Optional, Callable
 
@@ -19,7 +18,7 @@ async def run_orchestrator(
     marca: str,
     url_categoria: str,
     log_callback: Optional[Callable] = None,
-    cancel_event: Optional[threading.Event] = None,
+    cancel_event: Optional[asyncio.Event] = None,
 ):
     def emit_log(msg):
         if log_callback:
@@ -79,10 +78,13 @@ async def run_orchestrator(
                     df[col] = df[col].apply(lambda x: ", ".join(x) if isinstance(x, list) else x)
 
             if "specifications" in df.columns:
+                # Tratar NaNs antes de expandir para evitar erros com pd.Series
+                df["specifications"] = df["specifications"].apply(lambda x: x if isinstance(x, dict) else {})
                 specs_df = df["specifications"].apply(pd.Series)
                 df = pd.concat([df.drop("specifications", axis=1), specs_df], axis=1)
             
-            df.to_excel(arquivo_saida, index=False)
+            # Offload da operação de I/O bloqueante (to_excel) para uma thread
+            await asyncio.to_thread(df.to_excel, arquivo_saida, index=False)
 
             msg_type = "cancelled_done" if is_cancelled() else "done"
             emit_log({

@@ -12,7 +12,6 @@ Fluxo:
 """
 
 import asyncio
-import threading
 import time
 import logging
 from typing import Dict, List, Optional, Callable
@@ -50,7 +49,7 @@ class BrandJobResult:
 async def _run_brand_pipeline(
     brand_key: str,
     url: str,
-    cancel_event: threading.Event,
+    cancel_event: asyncio.Event,
     log_callback: Optional[Callable] = None,
 ) -> BrandJobResult:
     """
@@ -125,7 +124,7 @@ async def run_multi_orchestrator(
     job_id: str,
     brand_url_map: Dict[str, str],
     category_label: str,
-    cancel_event: threading.Event,
+    cancel_event: asyncio.Event,
 ):
     """
     Orquestrador principal assíncrono.
@@ -233,6 +232,8 @@ def consolidate_and_save(all_products, arquivo_saida, is_cancelled, results_stor
 
         # Expandir specifications
         if "specifications" in df.columns:
+            # Tratar NaNs antes de expandir para evitar erros com pd.Series
+            df["specifications"] = df["specifications"].apply(lambda x: x if isinstance(x, dict) else {})
             specs_df = df["specifications"].apply(pd.Series)
             # Evita duplicatas de colunas se houver
             df = pd.concat([df.drop("specifications", axis=1), specs_df], axis=1)

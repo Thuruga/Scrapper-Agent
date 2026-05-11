@@ -1,6 +1,5 @@
 import logging
-
-import threading
+import asyncio
 from typing import List, Dict, Any, Optional, Callable
 from services.engines.base_engine import BaseEngine
 from services.vtex_api_scraper import VtexApiClient
@@ -94,7 +93,7 @@ class VTEXEngine(BaseEngine):
         self,
         category_url: str,
         log_callback: Optional[Callable] = None,
-        cancel_event: Optional[threading.Event] = None
+        cancel_event: Optional[asyncio.Event] = None
     ):
         """
         Implementa o pipeline de extração paginada da VTEX com streaming.

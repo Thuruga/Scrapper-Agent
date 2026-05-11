@@ -10,7 +10,7 @@ WS   /ws/{job_id}                     — WebSocket para logs em tempo real
 """
 
 import asyncio
-import threading
+
 import uuid
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks
@@ -113,7 +113,7 @@ async def scrape_category(request: ScrapeCategoryRequest, background_tasks: Back
 
     job_id = str(uuid.uuid4())
     
-    cancel_event = threading.Event()
+    cancel_event = asyncio.Event()
     JOB_CANCEL_FLAGS[job_id] = cancel_event
 
     from services.orchestrator import run_orchestrator
@@ -192,7 +192,7 @@ async def scrape_category_multi(
 
     job_id = str(uuid.uuid4())
     
-    cancel_event = threading.Event()
+    cancel_event = asyncio.Event()
     JOB_CANCEL_FLAGS[job_id] = cancel_event
 
     # Importar e lançar o orquestrador multi-marca

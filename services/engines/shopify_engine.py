@@ -1,4 +1,4 @@
-import threading
+import asyncio
 from typing import List, Dict, Any, Optional, Callable
 from services.engines.base_engine import BaseEngine
 from services.shopify_api_client import ShopifyApiClient
@@ -72,7 +72,7 @@ class ShopifyEngine(BaseEngine):
         self,
         category_url: str,
         log_callback: Optional[Callable] = None,
-        cancel_event: Optional[threading.Event] = None,
+        cancel_event: Optional[asyncio.Event] = None,
     ):
         """Executa varredura via ShopifyApiClient com streaming e logs padronizados."""
         session = await SessionManager.get_session()

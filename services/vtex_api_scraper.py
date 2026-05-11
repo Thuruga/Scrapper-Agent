@@ -522,7 +522,7 @@ class VtexApiClient(BaseScraper):
         self,
         category_url: str,
         log_callback=None,
-        cancel_event=None,
+        cancel_event: Optional[asyncio.Event] = None,
         chunk_size=50
     ):
         """

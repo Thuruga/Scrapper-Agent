@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional, Callable
-import threading
+import asyncio
 
 class BaseEngine(ABC):
     """
@@ -13,7 +13,7 @@ class BaseEngine(ABC):
         self,
         category_url: str,
         log_callback: Optional[Callable] = None,
-        cancel_event: Optional[threading.Event] = None
+        cancel_event: Optional[asyncio.Event] = None
     ):
         """
         Executa uma varredura completa em uma categoria.
