@@ -73,8 +73,8 @@ class ShopifyEngine(BaseEngine):
         category_url: str,
         log_callback: Optional[Callable] = None,
         cancel_event: Optional[threading.Event] = None,
-    ) -> List[Dict[str, Any]]:
-        """Executa varredura via ShopifyApiClient com logs padronizados."""
+    ):
+        """Executa varredura via ShopifyApiClient com streaming e logs padronizados."""
         session = await SessionManager.get_session()
         client = ShopifyApiClient(self.brand_key, session=session)
 
@@ -82,9 +82,11 @@ class ShopifyEngine(BaseEngine):
         def emit(msg):
             self.emit_log(log_callback, msg)
 
-        products = await client.scrape_category_paged(category_url, emit, cancel_event)
-        # Aplica os Quality Gates antes de retornar
-        return self.validate_and_filter(products, log_callback=log_callback)
+        async for product in client.scrape_category_paged(category_url, emit, cancel_event):
+            # Aplica os Quality Gates antes de dar yield
+            validated = self.validate_single(product, log_callback=log_callback)
+            if validated:
+                yield validated
 
     async def search(
         self,

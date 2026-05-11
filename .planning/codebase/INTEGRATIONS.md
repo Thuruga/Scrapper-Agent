@@ -1,20 +1,18 @@
-# Integrations: Intelligence Scraper
+# Integrations
 
-## External Platforms
+## External Services
+- **E-commerce APIs**: VTEX (API v1) e Shopify (Admin API/JSON endpoints).
+- **Proxies**: Integração com serviços de proxy rotativo via `IdentityManager`.
 
-### 1. VTEX (Enterprise E-commerce)
-- **Catalog API**: `pub/category/tree` for discovery.
-- **Search API**: `pub/products/search` for data extraction.
-- **Cross-Selling API**: For discovering color families and variant relationships.
-- **Intelligence**: Fuzzy matching for category mapping.
+## Browser Automation
+- **Playwright**: Utilizado como mecanismo de bypass de última instância.
+  - Driver: Chromium (Headless).
+  - User-Agents: Dinâmicos para emulação de dispositivos reais.
 
-### 2. Shopify (SaaS E-commerce)
-- **JSON API**: `collections.json` and `products.json` endpoints.
-- **Search Suggest**: Intelligent search endpoint for auto-complete and discovery.
+## Security & Auth
+- **JWT Standard**: Assinatura de tokens via algoritmo HS256.
+- **Bcrypt**: Hashing de senhas para persistência segura.
 
-### 3. Review Providers
-- **Trustvox**: Widget API integration (`/widget/root`) for ratings and review counts.
-- **VTEX Native Reviews**: REST API (`/reviews-and-ratings/api/rating/`) for native platform ratings.
-
-## Output Formats
-- **Excel (.xlsx)**: Formatted reports via Pandas with JSON specification expansion and parallel processing.
+## Data Formats
+- **Input**: JSON (API responses).
+- **Output**: XLSX (Pandas ExcelWriter) para relatórios de negócio.

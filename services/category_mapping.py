@@ -257,6 +257,7 @@ def get_category_preview(
 ) -> Optional[dict]:
     """
     Retorna preview do mapeamento de/para para o frontend mostrar antes de iniciar.
+    Agora consulta tanto o índice hardcoded quanto os mapeamentos dinâmicos das marcas.
 
     Returns:
         {
@@ -268,30 +269,52 @@ def get_category_preview(
             ]
         }
     """
-    cat = _CATEGORY_INDEX.get(category_slug)
-    if not cat:
-        return None
-
     mappings = []
+    category_label = None
+
     for bk in brand_keys:
         bk_lower = bk.lower()
-        brand_info = cat.brands.get(bk_lower)
-        if not brand_info:
+        brand_data = brand_service.get_brand(bk_lower)
+        if not brand_data:
             continue
 
-        brand_data = brand_service.get_brand(bk_lower)
-        domain = brand_data.domain if brand_data else ""
-        brand_name = brand_data.brand_name if brand_data else bk
+        domain = brand_data.domain
+        brand_name = brand_data.brand_name
 
-        mappings.append({
-            "brand": bk_lower,
-            "brand_name": brand_name,
-            "path": brand_info.path,
-            "url": f"https://{domain}{brand_info.path}",
-        })
+        # 1. Tenta no índice hardcoded
+        cat = _CATEGORY_INDEX.get(category_slug)
+        if cat and bk_lower in cat.brands:
+            brand_info = cat.brands[bk_lower]
+            category_label = cat.label
+            mappings.append({
+                "brand": bk_lower,
+                "brand_name": brand_name,
+                "path": brand_info.path,
+                "url": f"https://{domain}{brand_info.path}",
+            })
+            continue
+
+        # 2. Tenta nos mapeamentos dinâmicos da marca
+        dynamic_mapping = next(
+            (m for m in brand_data.mappings if m.canonical_slug == category_slug), None
+        )
+        if dynamic_mapping:
+            path = dynamic_mapping.vtex_fq_path
+            if not path.startswith("/"):
+                path = "/" + path
+            category_label = category_label or dynamic_mapping.label
+            mappings.append({
+                "brand": bk_lower,
+                "brand_name": brand_name,
+                "path": path,
+                "url": f"https://{domain}{path}",
+            })
+
+    if not mappings:
+        return None
 
     return {
-        "category": cat.label,
-        "slug": cat.slug,
+        "category": category_label or category_slug,
+        "slug": category_slug,
         "mappings": mappings,
     }

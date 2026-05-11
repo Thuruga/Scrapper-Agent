@@ -20,6 +20,7 @@ class BrandDatabase(RootModel):
 class BrandManagerService:
     def __init__(self):
         self.brands: Dict[str, DynamicBrand] = {}
+        self.last_modified = 0
         self._ensure_db_dir()
         self._load_db()
         # Evento para notificar outros serviços (como o orquestrador) sobre mudanças
@@ -33,6 +34,7 @@ class BrandManagerService:
         """Carrega e valida rigorosamente o arquivo JSON de marcas."""
         if os.path.exists(DB_FILE):
             try:
+                self.last_modified = os.path.getmtime(DB_FILE)
                 with open(DB_FILE, "r", encoding="utf-8") as f:
                     content = f.read().strip()
                     if not content:
@@ -82,13 +84,7 @@ class BrandManagerService:
 
         self._save_db()
 
-        # Trigger async auto-mapping in the background using the intelligence service
-        from services.category_intelligence import category_intelligence
-        try:
-            loop = asyncio.get_running_loop()
-            loop.create_task(category_intelligence.run_background_discovery(key))
-        except RuntimeError:
-            pass
+        # Auto-mapping background trigger removed
 
         return self.brands[key]
 
@@ -102,11 +98,20 @@ class BrandManagerService:
         self.brands[key] = DynamicBrand.model_validate(brand_data)
         self._save_db()
 
-    def list_brands(self) -> List[DynamicBrand]:
+    def _check_reload(self):
+        """Verifica se o arquivo foi modificado externamente e recarrega se necessário."""
+        if os.path.exists(DB_FILE):
+            mtime = os.path.getmtime(DB_FILE)
+            if mtime > self.last_modified:
+                logger.info(f"Detectada mudança externa em {DB_FILE}, recarregando banco de marcas...")
+                self._load_db()
 
+    def list_brands(self) -> List[DynamicBrand]:
+        self._check_reload()
         return list(self.brands.values())
 
     def get_brand(self, brand_key: str) -> Optional[DynamicBrand]:
+        self._check_reload()
         return self.brands.get(brand_key.lower())
 
     def update_mappings(

@@ -1,33 +1,29 @@
-# Architecture: Intelligence Scraper
+# Architecture
 
-## Overview
-The system employs a layered architecture, decoupled by an Engine Abstraction Layer. This ensures that business logic (orchestration, monitoring, pricing) remains platform-agnostic, allowing seamless support for VTEX, Shopify, and future e-commerce platforms.
+## System Overview
+O Intelligence Scraper utiliza uma arquitetura orquestrada e assíncrona, projetada para alta performance e resiliência contra bloqueios.
 
-## Component Hierarchy
+## Core Patterns
 
-### 1. API Layer (`api/`)
-- **FastAPI Router**: Defines RESTful endpoints and WebSocket handlers for real-time communication.
-- **Background Tasks**: Manages long-running extraction jobs within the primary event loop, optimizing resource usage and connection pooling.
+### 1. Engine Abstraction Layer
+- `BaseEngine` define o contrato para extração.
+- Implementações específicas (`ShopifyEngine`, `VTEXEngine`) lidam com as particularidades de cada plataforma.
 
-### 2. Service Layer (`services/`)
-- **Orchestrators**: Coordinates the extraction pipeline (Discovery -> Parallel Extraction -> Excel Consolidation).
-  - `orchestrator.py`: Handles single-brand workflows.
-  - `orchestrator_multi.py`: Manages multi-brand comparative searches using `asyncio.gather`.
-- **Intelligence Services**: 
-  - `CategoryIntelligence`: Platform-agnostic service for discovering collections/categories using Fuzzy Matching.
-  - `ReviewService`: Multi-provider review aggregator (Trustvox, VTEX Native).
-- **Price Monitor**: Recurrent service for tracking price fluctuations and availability changes.
+### 2. Anti-Bot Fallback System
+- **Nível 1 (Rápido)**: `curl_cffi` com impersonate de browser.
+- **Nível 2 (Resiliente)**: Fallback automático para `Playwright` quando detectado erro 403 ou desafios de rede.
+- Gerenciado via `BrowserManager` (Singleton).
 
-### 3. Engine Layer (`services/engines/`)
-- **BaseEngine**: Abstract contract defining the required behavior for any e-commerce engine.
-- **VTEXEngine / ShopifyEngine**: Concrete implementations that interface with platform-specific APIs.
-- **EngineFactory**: Central resolver for instantiating the correct engine based on brand configuration.
+### 3. Streaming Data Pipeline
+- Toda a extração é feita via `AsyncGenerators` (`yield`).
+- Os dados fluem dos Scrapers -> Engines -> Orchestrators sem acumulação em massa, liberando o event loop do FastAPI.
 
-### 4. Core Layer (`core/`)
-- **SessionManager**: Global singleton maintaining an active `aiohttp.ClientSession` for the application lifecycle.
-- **Models**: Pydantic schemas ensuring data integrity across the "Bronze" (raw) and "Silver" (processed) layers.
-- **WebsocketManager**: Manages real-time log broadcasting to the frontend.
+### 4. Layered Data Storage (Medallion-ish)
+- **Bronze**: Dados crus extraídos (Excel/JSON).
+- **Silver**: Dados validados via Pydantic e enriquecidos com histórico de preços.
 
-## Threading & Async Model
-- **Async-First IO**: All network operations are non-blocking, utilizing Python's `asyncio`.
-- **CPU-Bound Offloading**: Intensive tasks (Pandas processing, Excel generation) are delegated to thread pools via `run_in_executor` to prevent event loop lag and maintain API responsiveness.
+## Authentication Flow
+- Login via `/api/auth/login` (Admin credentials).
+- JWT emitido para o frontend.
+- Todas as rotas de API protegidas via `Depends(get_current_user)`.
+- Suporte a token em query param para WebSockets.

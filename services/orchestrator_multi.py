@@ -77,13 +77,16 @@ async def _run_brand_pipeline(
     
     try:
         engine = engine_factory.get_engine(brand_key)
-        resultados_brutos = await engine.run_bulk_scrape(
+        
+        async for produto in engine.run_bulk_scrape(
             category_url=url,
             log_callback=lambda msg: emit(
                 msg if isinstance(msg, dict) else {"type": "info", "message": f"[{brand_name}] {msg}"}
             ),
             cancel_event=cancel_event
-        )
+        ):
+            result.products.append(produto)
+            result.success_count += 1
 
     except Exception as e:
         result.error_message = str(e)
@@ -92,19 +95,17 @@ async def _run_brand_pipeline(
         emit({"type": "error", "message": f"[{brand_name}] Erro: {e}"})
         return result
 
-    if is_cancelled() and not resultados_brutos:
+    if is_cancelled() and not result.products:
         emit({"type": "cancelled", "message": f"[{brand_name}] Varredura cancelada."})
         result.finished = True
         return result
 
-    if not resultados_brutos:
+    if not result.products:
         emit({"type": "error", "message": f"[{brand_name}] Nenhum produto encontrado."})
         result.finished = True
         return result
 
-    result.products = resultados_brutos
-    result.success_count = len(resultados_brutos)
-    result.total_links = len(resultados_brutos)
+    result.total_links = len(result.products)
     result.finished = True
 
     emit({
@@ -173,9 +174,11 @@ async def run_multi_orchestrator(
         total_success += result.success_count
         total_errors += result.error_count
         for produto in result.products:
-            row = produto.copy() # Cópia para evitar modificar o original
+            # validate_single ja retorna dict via model_dump()
+            row = dict(produto) if isinstance(produto, dict) else produto.model_dump()
             row["brand"] = result.brand_name
             all_products.append(row)
+
 
     # ── Gerar Excel ────────────────────────────────────────────────────
     slug = category_label.lower().replace(" ", "_").replace("&", "e")

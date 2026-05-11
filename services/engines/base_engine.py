@@ -14,9 +14,10 @@ class BaseEngine(ABC):
         category_url: str,
         log_callback: Optional[Callable] = None,
         cancel_event: Optional[threading.Event] = None
-    ) -> List[Dict[str, Any]]:
+    ):
         """
         Executa uma varredura completa em uma categoria.
+        Deve renderizar (yield) produtos um a um.
         """
         pass
 

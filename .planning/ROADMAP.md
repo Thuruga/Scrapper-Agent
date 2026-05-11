@@ -8,9 +8,10 @@ Este roadmap foca na estabilização do frontend, automação da inteligência d
 
 - [x] **Phase 1: Stabilization & Core Intelligence** - Fix frontend and automate category mapping.
 - [x] **Phase 2: Architectural Refactoring** - Engine Abstraction Layer for multi-platform support.
-- [ ] **Phase 3: Price History & Monitoring** - Histórico de preços e visualização (MON-01).
+- [x] **Phase 3: Price History & Monitoring** - Histórico de preços e visualização (MON-01).
 - [x] **Phase 4: Expansion Spike** - Adding a non-VTEX pilot brand.
-- [ ] **Phase 5: Data Quality Gates** - Pydantic-based validation layer in BaseEngine.
+- [x] **Phase 5: Data Quality Gates** - Pydantic-based validation layer in BaseEngine.
+- [x] **Phase 6: Resilience, Optimization & Security** - Anti-bot fallback, streaming and JWT Auth.
 
 ## Phase Details
 
@@ -56,12 +57,26 @@ Plans:
   1. Uma marca de outro motor (ex: Shopify) é varrida com sucesso.
 **Plans**: 1 plan
 
+### Phase 5: Data Quality Gates
+**Goal**: Validar dados na saída dos engines usando Pydantic.
+**Success Criteria**:
+  1. Produtos com preço zero ou sem imagem são descartados automaticamente.
+**Plans**: 1 plan
+
+### Phase 6: Resilience, Optimization & Security
+**Goal**: Melhorar a estabilidade do sistema contra bloqueios e otimizar o uso de recursos.
+**Success Criteria**:
+  1. Fallback automático para Playwright em caso de bloqueio.
+  2. Extração via streaming (AsyncGenerator) para economia de memória.
+  3. Dashboard protegido por autenticação JWT.
+
 ## Progress
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Stabilization & Core Intelligence | 2/2 | Completed | 2026-05-08 |
 | 2. Architectural Refactoring | 1/1 | Completed | 2026-05-08 |
-| 3. Price History & Monitoring | 1/1 | Completed | 2026-05-08 |
+| 3. Price History & Monitoring | 1/1 | Completed | 2026-05-11 |
 | 4. Expansion Spike | 1/1 | Completed | 2026-05-08 |
 | 5. Data Quality Gates | 1/1 | Completed | 2026-05-08 |
+| 6. Resilience, Optimization & Security | 1/1 | Completed | 2026-05-11 |

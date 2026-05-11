@@ -1,29 +1,29 @@
-# Structure: Intelligence Scraper
+# Project Structure
 
-## Directory Tree
 ```text
-/
-├── api/                # FastAPI routers (category, brand, monitors, search)
-├── core/               # Shared logic (models, session, websocket, identity)
-├── data/               # Persistent JSON storage (brands, price_monitors)
-├── frontend/           # Modern React application (Vite, TS, Tailwind, Framer)
-│   └── src/            # Application source code
-├── services/           # Business logic and cross-platform orchestration
-│   ├── engines/        # Engine abstraction layer (Factory, BaseEngine)
-├── static/             # Legacy static assets (deprecated JS/CSS)
-├── scratch/            # Diagnostic, validation, and spike scripts
-└── app.py              # Main application entry point and service loader
+scrapper/
+├── api/                    # Camada de Endpoints FastAPI
+│   ├── auth.py             # Lógica JWT e hashing
+│   ├── routes_auth.py      # Endpoints de login [NEW]
+│   ├── routes_category.py  # Varredura massiva + WebSockets
+│   └── routes_monitor.py   # Dashboards e histórico
+├── core/                   # Núcleo do Sistema
+│   ├── base_scraper.py     # Classe base para scrapers paged
+│   └── browser_manager.py  # Singleton Playwright [NEW]
+├── services/               # Lógica de Negócio
+│   ├── engines/            # Implementações de motores (Shopify, VTEX)
+│   ├── orchestrator.py     # Pipeline de extração única
+│   └── orchestrator_multi.py # Pipeline multi-marca
+├── frontend/               # Interface React
+│   └── src/
+│       ├── api/client.ts   # Cliente com gestão de JWT
+│       └── App.tsx         # Dashboard + Login View
+├── data/                   # Armazenamento (JSON/Excel)
+├── .planning/              # Documentação GSD
+└── app.py                  # Entrypoint da Aplicação
 ```
 
-## Key Components
-- **`app.py`**: Entry point that initializes the API and schedules background monitors.
-- **`services/engines/factory.py`**: Dynamic resolver that maps brands to their respective e-commerce engine.
-- **`services/vtex_api_scraper.py`**: Robust client for VTEX private and public APIs.
-- **`services/shopify_api_client.py`**: High-performance client for Shopify JSON endpoints.
-- **`core/session_manager.py`**: Manages the global HTTP session pool.
-- **`services/orchestrator_multi.py`**: Core logic for multi-brand competitive analysis.
-
-## Evolutionary Notes
-The project has successfully transitioned from brand-specific scripts in `scrapers/` to a unified Engine architecture. 
-- **Legacy Removal**: Individual files in `scrapers/` and the old `scraper_factory.py` have been purged.
-- **Modernization**: The frontend has been migrated to a React/Vite stack for a superior monitoring experience.
+## Key Files
+- `app.py`: Bootstrap da aplicação e registro de rotas protegidas.
+- `config.py`: Gestão de variáveis de ambiente e segredos.
+- `requirements.txt`: Dependências do sistema.

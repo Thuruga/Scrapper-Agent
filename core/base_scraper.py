@@ -20,8 +20,8 @@ class BaseScraper(ABC):
         log_callback=None,
         cancel_event=None,
         chunk_size=50
-    ) -> List[RawProductBronze]:
-        """Varre uma categoria completa paginando os resultados."""
+    ):
+        """Varre uma categoria completa paginando os resultados e dando yield em cada produto."""
         pass
 
     @abstractmethod

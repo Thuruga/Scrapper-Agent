@@ -95,20 +95,21 @@ class VTEXEngine(BaseEngine):
         category_url: str,
         log_callback: Optional[Callable] = None,
         cancel_event: Optional[threading.Event] = None
-    ) -> List[Dict[str, Any]]:
+    ):
         """
-        Implementa o pipeline de extração paginada da VTEX.
+        Implementa o pipeline de extração paginada da VTEX com streaming.
         """
         def emit(msg):
             self.emit_log(log_callback, msg)
 
         async with VtexApiClient(self.brand_key) as client:
-            resultados = await client.scrape_category_paged(
+            async for product in client.scrape_category_paged(
                 category_url=category_url,
                 log_callback=emit,
                 cancel_event=cancel_event,
                 chunk_size=50
-            )
-            
-            # Aplica os Quality Gates antes de retornar
-            return self.validate_and_filter(resultados, log_callback=log_callback)
+            ):
+                # Aplica os Quality Gates em cada produto individualmente (Streaming)
+                validated = self.validate_single(product, log_callback=log_callback)
+                if validated:
+                    yield validated

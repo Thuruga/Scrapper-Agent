@@ -320,21 +320,7 @@ body {
   color: var(--text-muted);
   font-size: 0.85rem;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.brand-chip:hover {
-  background: rgba(255, 255, 255, 0.08);
-  transform: translateY(-2px);
-  color: var(--text-main);
-  border-color: rgba(99, 102, 241, 0.5);
-}
-
-.brand-chip.active {
-  background: linear-gradient(135deg, var(--primary), var(--accent));
-  color: white;
-  border-color: transparent;
-  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+  transition: all 0.2s;
 }
 
 .brand-chip-icon {
@@ -355,6 +341,11 @@ body {
   object-fit: contain;
 }
 
+.brand-chip.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
 
 .scrape-stats {
   display: grid;
@@ -437,29 +428,7 @@ body {
 .search-input { flex: 1; background: transparent; border: none; color: white; font-size: 1.1rem; padding: 0.5rem 0; }
 .search-input:focus { outline: none; }
 .search-filters { display: flex; align-items: center; gap: 1.5rem; }
-.checkbox-label { 
-  display: flex; 
-  align-items: center; 
-  gap: 0.5rem; 
-  font-size: 0.85rem; 
-  cursor: pointer; 
-  color: var(--text-muted);
-  transition: color 0.2s;
-}
-.checkbox-label:hover { color: var(--text-main); }
-
-.search-filters-compact {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 1rem;
-}
-
-.search-filters-left {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-}
+.checkbox-label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; cursor: pointer; }
 
 .results-container {
   display: flex;
@@ -469,124 +438,65 @@ body {
 }
 
 .brand-column {
-  min-width: 340px;
-  max-width: 340px;
+  min-width: 320px;
+  max-width: 320px;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  padding: 0.5rem;
+  gap: 1rem;
 }
 
 .brand-header {
-  padding: 1.25rem;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(6, 182, 212, 0.1));
-  backdrop-filter: var(--glass-effect);
-  border-radius: 16px;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
+  padding: 1rem;
+  background: var(--card-bg);
+  border-radius: 12px;
+  font-weight: 700;
+  text-align: center;
   border: 1px solid var(--border);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-}
-
-.brand-header-logo {
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  background: white;
-  padding: 2px;
-  object-fit: contain;
 }
 
 .product-grid { display: flex; flex-direction: column; gap: 1rem; }
 
 .product-card {
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 20px;
+  background: var(--card-bg);
+  border-radius: 15px;
   border: 1px solid var(--border);
   overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.2s;
   text-decoration: none;
   color: inherit;
-  display: flex;
-  flex-direction: column;
+  display: block;
 }
 
-.product-card:hover { 
-  transform: translateY(-8px); 
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(99, 102, 241, 0.4);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
-}
+.product-card:hover { transform: translateY(-5px); }
 
 .product-image {
-  height: 220px;
+  height: 180px;
   background: white;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
-  overflow: hidden;
 }
 
-.product-image img { 
-  width: 100%; 
-  height: 100%; 
-  object-fit: cover;
-  transition: transform 0.5s ease;
-}
-
-.product-card:hover .product-image img {
-  transform: scale(1.05);
-}
+.product-image img { max-width: 100%; max-height: 100%; object-fit: contain; }
 
 .badge-discount {
   position: absolute;
-  top: 12px;
-  right: 12px;
-  background: #ff4757;
+  top: 10px;
+  right: 10px;
+  background: var(--error);
   color: white;
-  font-size: 0.75rem;
-  font-weight: 900;
-  padding: 4px 8px;
-  border-radius: 8px;
-  box-shadow: 0 4px 10px rgba(255, 71, 87, 0.4);
-  z-index: 2;
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
 }
 
-.product-details { 
-  padding: 1.25rem; 
-  background: linear-gradient(180deg, transparent, rgba(0,0,0,0.2));
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-.product-name { 
-  font-size: 0.95rem; 
-  font-weight: 600; 
-  line-height: 1.5; 
-  height: 3em; 
-  overflow: hidden; 
-  margin-bottom: 1rem; 
-  color: var(--text-main);
-}
+.product-details { padding: 1rem; }
+.product-name { font-size: 0.9rem; font-weight: 600; line-height: 1.4; height: 2.8em; overflow: hidden; margin-bottom: 0.75rem; }
 .product-price { margin-bottom: 0.75rem; }
-.price-current { 
-  font-size: 1.4rem; 
-  font-weight: 900; 
-  color: var(--primary); 
-  letter-spacing: -0.5px;
-}
-.product-meta { 
-  display: flex; 
-  align-items: center; 
-  gap: 0.6rem; 
-  font-size: 0.8rem; 
-  color: var(--text-muted);
-  margin-top: auto;
-}
+.price-current { font-size: 1.25rem; font-weight: 800; color: var(--primary); }
+.product-meta { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--text-muted); }
 
 /* Settings Page Extras */
 .brand-list { display: flex; flex-direction: column; gap: 1rem; }
@@ -729,3 +639,57 @@ body {
 .suggestion-info strong { font-size: 0.9rem; }
 .suggestion-info span { font-size: 0.75rem; color: var(--text-muted); }
 
+/* Login Screen */
+.login-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: radial-gradient(circle at top right, #1e293b, #0f172a);
+  padding: 2rem;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  padding: 2.5rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.login-logo {
+  display: inline-flex;
+  padding: 1rem;
+  background: rgba(99, 102, 241, 0.1);
+  border-radius: 16px;
+  margin-bottom: 1.5rem;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.login-header h1 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.5px;
+}
+
+.login-header p {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.login-footer {
+  text-align: center;
+  margin-top: 2rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  opacity: 0.6;
+}

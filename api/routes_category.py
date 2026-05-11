@@ -13,7 +13,7 @@ import asyncio
 import threading
 import uuid
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict
 
@@ -26,7 +26,7 @@ from services.category_mapping import (
     resolve_category_for_brands,
     get_category_preview,
 )
-from services.category_intelligence import category_intelligence
+
 
 
 router = APIRouter()
@@ -101,14 +101,8 @@ async def get_categories(brand: str):
     return {"brand": brand, "categories": categories}
 
 
-@router.websocket("/ws/{job_id}")
-async def websocket_endpoint(websocket: WebSocket, job_id: str):
-    await manager.connect(websocket, job_id)
-    try:
-        while True:
-            await websocket.receive_text()
-    except WebSocketDisconnect:
-        manager.disconnect(job_id)
+# O WebSocket foi movido para api/__init__.py (ws_router) para evitar
+# o conflito com OAuth2PasswordBearer, que exige Request HTTP e não WebSocket.
 
 
 @router.post("/scrape-category")
@@ -219,12 +213,5 @@ async def scrape_category_multi(
         "urls": url_map,
     }
 
-@router.get("/brands/{brand}/auto-discovery")
-async def auto_discover_categories(brand: str):
-    """
-    Aciona a inteligência de descoberta para sugerir mapeamentos automáticos.
-    """
-    brand_key = brand.lower()
-    suggestions = await category_intelligence.discover_and_map(brand_key)
-    return {"brand": brand, "suggestions": suggestions}
+
 

@@ -17,6 +17,7 @@ from services.brand_service import brand_service
 from services.category_resolver import resolve_query_to_vtex_category_path
 from core.base_scraper import BaseScraper
 from core.identity import IdentityManager
+from core.browser_manager import browser_manager
 
 # Configuração de Logs
 logger = logging.getLogger("VtexApiClient")
@@ -311,6 +312,23 @@ class VtexApiClient(BaseScraper):
                                 logger.error(f"[ERROR] Fallback estável também falhou em {current_url}")
                                 return None
                     
+                    if resp.status == 403 or resp.status == 401:
+                        logger.warning(f"[ANTIBOT] Bloqueio detectedo ({resp.status}). Acionando Playwright Fallback...")
+                        try:
+                            html_content = await browser_manager.fetch_html(current_url)
+                            # Se for uma API VTEX, o JSON pode estar dentro de um <pre> ou ser o conteúdo puro
+                            # Se o Playwright pegou o HTML puro que parece JSON, tentamos fazer o parse
+                            clean_json = html_content
+                            if "<pre" in html_content:
+                                match = re.search(r"<pre[^>]*>(.*?)</pre>", html_content, re.DOTALL)
+                                if match:
+                                    clean_json = match.group(1)
+                            
+                            return json.loads(clean_json)
+                        except Exception as e:
+                            logger.error(f"[PLAYWRIGHT FAIL] Fallback falhou: {e}")
+                            return None
+
                     if resp.status == 429:
                         wait = (attempt + 1) * 5
                         logger.warning(f"Rate limit (429) em {current_url}. Aguardando {wait}s...")
@@ -506,11 +524,11 @@ class VtexApiClient(BaseScraper):
         log_callback=None,
         cancel_event=None,
         chunk_size=50
-    ) -> List[RawProductBronze]:
+    ):
         """
         Varre a categoria paginando o endpoint Search API.
-        Processa todos os produtos de cada bloco de forma assíncrona, extraindo
-        preços, estoques e avaliações/cores. Retorna a lista de produtos processados.
+        Processa todos os produtos de cada bloco de forma assíncrona.
+        Dá yield em cada produto extraído (Streaming).
         """
         if not self.session:
             raise RuntimeError("VtexApiClient session not initialized. Use 'async with VtexApiClient(...) as client:'")
@@ -531,7 +549,6 @@ class VtexApiClient(BaseScraper):
         # A VTEX aceita mapeamento de diretório diretamente na busca
         api_base_url = f"https://{domain}/api/catalog_system/pub/products/search/{path}"
 
-        produtos_extraidos = []
         pagina = 0
 
         log(f"[START] Iniciando extração API-First paginada: {category_url}")
@@ -622,10 +639,9 @@ class VtexApiClient(BaseScraper):
                     tarefas = [build_product_safely(p) for p in raw_products]
                     resultados_chunk = await asyncio.gather(*tarefas)
 
-                    
-                    # Filtra None
-                    valid_produtos = [r for r in resultados_chunk if r is not None]
-                    produtos_extraidos.extend(valid_produtos)
+                    for r in resultados_chunk:
+                        if r:
+                            yield r
 
                     if not raw_products:
                         break
@@ -637,8 +653,7 @@ class VtexApiClient(BaseScraper):
             pagina += 1
             await asyncio.sleep(0.5) # Respeito ao rate limit VTEX
             
-        log(f"[DONE] Extração concluída! {len(produtos_extraidos)} produtos capturados.")
-        return produtos_extraidos
+        log(f"[DONE] Extração concluída!")
 
     async def search(
         self,

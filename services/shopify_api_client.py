@@ -4,11 +4,15 @@ import logging
 from typing import Optional, List, Dict, Any, Callable
 import threading
 from urllib.parse import urljoin
+import yarl
 
 from core.models import RawProductBronze, BrandSearchResult, SearchProductResult
 from services.brand_service import brand_service
 from core.base_scraper import BaseScraper
 from core.session_manager import SessionManager
+from core.browser_manager import browser_manager
+import json
+import re
 
 logger = logging.getLogger("ShopifyApiClient")
 
@@ -26,7 +30,11 @@ class ShopifyApiClient(BaseScraper):
         self.session = session
         self.semaphore = asyncio.Semaphore(10)
         self.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            # Explicitamente sem 'br' (Brotli) pois aiohttp nao suporta por padrao
+            "Accept-Encoding": "gzip, deflate",
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
         }
 
     async def fetch_collections(self) -> List[Dict[str, Any]]:
@@ -76,9 +84,8 @@ class ShopifyApiClient(BaseScraper):
         collection_handle: str, 
         limit_pages: int = 10,
         log_callback: Optional[Callable] = None
-    ) -> List[RawProductBronze]:
-        """Extrai produtos de uma coleção específica via JSON."""
-        all_products = []
+    ):
+        """Extrai produtos de uma coleção específica via JSON (Streaming)."""
         page = 1
         
         session = await SessionManager.get_session()
@@ -100,17 +107,43 @@ class ShopifyApiClient(BaseScraper):
                         for p in products_json:
                             bronze = self._map_to_bronze(p, collection_handle)
                             if bronze:
-                                all_products.append(bronze)
                                 if log_callback:
                                     log_callback({"type": "brand_success", "message": f"Sucesso: {bronze.raw_title}"})
+                                yield bronze
                         
                         page += 1
                     elif resp.status == 404:
                         # Tenta fallback para o endpoint global se a coleção não existir
                         if page == 1:
                             logger.warning(f"[{self.brand_key}] Coleção '{collection_handle}' não encontrada. Tentando global.")
-                            return await self.fetch_all_products(limit_pages, log_callback)
+                            async for prod in self.fetch_all_products(limit_pages, log_callback):
+                                yield prod
+                            return
                         break
+                    elif resp.status == 403:
+                        logger.warning(f"[{self.brand_key}] Bloqueio Shopify (403). Acionando Playwright Fallback...")
+                        try:
+                            html_content = await browser_manager.fetch_html(url)
+                            # Extrai JSON de produtos do HTML (Shopify costuma ter no window.Shopify ou em scripts)
+                            # Mas se for .json endpoint, o browser pode ter pego o JSON puro
+                            clean_json = html_content
+                            if "<pre" in html_content:
+                                match = re.search(r"<pre[^>]*>(.*?)</pre>", html_content, re.DOTALL)
+                                if match: clean_json = match.group(1)
+                            
+                            data = json.loads(clean_json)
+                            products_json = data.get("products", [])
+                            if not products_json: break
+                            for p in products_json:
+                                bronze = self._map_to_bronze(p, collection_handle)
+                                if bronze:
+                                    if log_callback: log_callback({"type": "brand_success", "message": f"Sucesso: {bronze.raw_title}"})
+                                    yield bronze
+                            page += 1
+                            continue # Continua para próxima página (embora Playwright em loop seja lento, é o fallback)
+                        except Exception as e:
+                            logger.error(f"Fallback Playwright falhou: {e}")
+                            break
                     else:
                         if log_callback:
                             log_callback({"type": "brand_error", "message": f"Erro {resp.status} em {url}"})
@@ -120,11 +153,11 @@ class ShopifyApiClient(BaseScraper):
                     log_callback({"type": "brand_error", "message": f"Erro ao paginar Shopify JSON: {e}"})
                 break
                     
-        return all_products
+        # Fim da paginação
+        return
 
-    async def fetch_all_products(self, limit_pages: int = 5, log_callback: Optional[Callable] = None) -> List[RawProductBronze]:
-        """Fallback para buscar produtos globais da loja."""
-        all_products = []
+    async def fetch_all_products(self, limit_pages: int = 5, log_callback: Optional[Callable] = None):
+        """Fallback para buscar produtos globais da loja (Streaming)."""
         page = 1
         session = await SessionManager.get_session()
         while page <= limit_pages:
@@ -139,14 +172,13 @@ class ShopifyApiClient(BaseScraper):
                         for p in products_json:
                             bronze = self._map_to_bronze(p, "Geral")
                             if bronze:
-                                all_products.append(bronze)
+                                yield bronze
                         page += 1
                     else:
                         break
             except Exception as e:
                 logger.error(f"[{self.brand_key}] Erro ao buscar todos os produtos Shopify: {e}")
                 break
-        return all_products
 
     def _map_to_bronze(self, p: Dict[str, Any], category: str) -> Optional[RawProductBronze]:
         """Converte JSON nativo da Shopify para o modelo RawProductBronze."""
@@ -212,9 +244,9 @@ class ShopifyApiClient(BaseScraper):
         log_callback: Optional[Callable] = None,
         cancel_event: Optional[threading.Event] = None,
         chunk_size: int = 50
-    ) -> List[RawProductBronze]:
+    ):
         """
-        Varre uma coleção completa.
+        Varre uma coleção completa (Streaming).
         """
         handle = category_url.split("/")[-1] if "/" in category_url else category_url
         if not handle or handle == "products":
@@ -223,10 +255,8 @@ class ShopifyApiClient(BaseScraper):
         if log_callback:
             log_callback(f"[START] Iniciando extracao Shopify para a colecao: {handle}")
             
-            # O total do metadata nao e mais enviado para o frontend para evitar confusao de paridade
-            # total = await self.fetch_collection_count(handle)
-            
-        return await self.fetch_products_from_collection(handle, log_callback=log_callback)
+        async for prod in self.fetch_products_from_collection(handle, log_callback=log_callback):
+            yield prod
 
     async def search(
         self, 
@@ -235,28 +265,83 @@ class ShopifyApiClient(BaseScraper):
         sort: Optional[str] = None,
         only_in_stock: bool = False
     ) -> BrandSearchResult:
-        """Busca produtos via endpoint de busca da Shopify."""
-        # ... (mantém o resto igual)
-        url = f"{self.base_url}/search/suggest.json?q={query}&resources[type]=product"
-        products = []
+        """Busca produtos via endpoint de busca da Shopify.
         
+        Tenta primeiro /search/suggest.json e faz fallback para /search.json.
+        O preço no suggest.json vem como string de centavos (ex: "29990" = 299.90).
+        """
+        products = []
         session = await SessionManager.get_session()
+
+        def _parse_shopify_price(raw) -> float:
+            """Shopify retorna preco como string de centavos: '29990' -> 299.90"""
+            try:
+                val = str(raw).replace(",", ".").strip()
+                numeric = float(val)
+                # Se nao tem ponto e e > 1000, assume que sao centavos
+                if "." not in str(raw) and numeric > 1000:
+                    return round(numeric / 100, 2)
+                return round(numeric, 2)
+            except Exception:
+                return 0.0
+
+        # Tentativa 1: /search/suggest.json
+        # IMPORTANTE: aiohttp codifica colchetes (resources%5Btype%5D) o que quebra a API Shopify.
+        # Usamos yarl.URL(..., encoded=True) para preservar os colchetes na URL.
+        suggest_url_str = f"{self.base_url}/search/suggest.json?q={query}&resources[type]=product"
+        suggest_url = yarl.URL(suggest_url_str, encoded=True)
         try:
-            async with session.get(url, timeout=aiohttp.ClientTimeout(total=15), headers=self.headers) as resp:
+            async with session.get(suggest_url, timeout=aiohttp.ClientTimeout(total=15), headers=self.headers) as resp:
                 if resp.status == 200:
-                    data = await resp.json()
+                    data = await resp.json(content_type=None)
                     suggestions = data.get("resources", {}).get("results", {}).get("products", [])
                     for p in suggestions[:max_results]:
+                        # Imagem: suggest.json usa featured_image dict ou string
+                        img = p.get("featured_image") or {}
+                        image_url = img.get("url") if isinstance(img, dict) else img
+                        if not image_url:
+                            image_url = p.get("image")
+                        
                         products.append(SearchProductResult(
                             brand=self.brand_key,
-                            product_name=p.get("title"),
-                            url=urljoin(self.base_url, p.get("url")),
-                            price_full=float(p.get("price") or 0),
-                            image_url=p.get("image"),
+                            product_name=p.get("title") or "Sem titulo",
+                            url=urljoin(self.base_url, p.get("url", "/")),
+                            price_full=_parse_shopify_price(p.get("price") or 0),
+                            image_url=image_url,
                             available=True
                         ))
+                else:
+                    text = await resp.text()
+                    logger.warning(f"[{self.brand_key}] suggest.json retornou {resp.status}. Tentando fallback...")
         except Exception as e:
-            logger.error(f"Erro na busca Shopify: {e}")
+            logger.warning(f"[{self.brand_key}] Erro no suggest.json: {e}. Tentando fallback...")
+
+        # Tentativa 2 (fallback): /search.json?type=product
+        if not products:
+            search_url = f"{self.base_url}/search.json?type=product&q={query}"
+            try:
+                async with session.get(search_url, timeout=aiohttp.ClientTimeout(total=15), headers=self.headers) as resp:
+                    if resp.status == 200:
+                        data = await resp.json(content_type=None)
+                        results = data.get("results", [])
+                        for p in results[:max_results]:
+                            variants = p.get("variants", [])
+                            first_variant = variants[0] if variants else {}
+                            images = p.get("images", [])
+                            image_url = images[0].get("src") if images else None
+                            products.append(SearchProductResult(
+                                brand=self.brand_key,
+                                product_name=p.get("title") or "Sem titulo",
+                                url=urljoin(self.base_url, f"/products/{p.get('handle', '')}"),
+                                price_full=_parse_shopify_price(first_variant.get("price") or 0),
+                                image_url=image_url,
+                                available=any(v.get("available") for v in variants),
+                            ))
+                    else:
+                        text = await resp.text()
+                        logger.error(f"[{self.brand_key}] Busca Shopify (fallback) Status {resp.status}: {text[:200]}")
+            except Exception as e:
+                logger.error(f"[{self.brand_key}] Erro no fallback de busca Shopify: {e}")
 
         return BrandSearchResult(
             brand_key=self.brand_key,

@@ -1,22 +1,18 @@
-# Conventions: Intelligence Scraper
+# Conventions
 
-## Python Coding Standards
-- **Asynchronous First**: All I/O operations MUST be `async` using `aiohttp` or `playwright`.
-- **Typing**: Strict usage of Python Type Hints and Pydantic models for data structures.
-- **Naming**: `snake_case` for variables/functions, `PascalCase` for classes, and `UPPER_CASE` for constants.
-- **Error Handling**: Comprehensive try-except blocks with detailed logging using module-named loggers.
+## Coding Standards
+- **Python**: PEP 8, Type Hints obrigatórios em novos módulos.
+- **Async**: Uso extensivo de `async/await`. Evitar `time.sleep` (usar `asyncio.sleep`).
 
 ## Architectural Patterns
-- **Engine Pattern**: Platform-specific logic is encapsulated in subclasses of `BaseEngine`.
-- **Factory Pattern**: Centralized instance resolution via `factory.py` to ensure scalability.
-- **Service Layer**: Business logic is separated into specialized services (Orchestrators, Intelligence, Monitors).
-- **Session Lifecycle**: Global session management via `SessionManager` singleton to optimize connection overhead.
+- **Streaming Extraction**: Todos os métodos de extração em massa devem ser `AsyncGenerators` (`async def ... yield ...`).
+- **Singleton Browser**: O `BrowserManager` deve ser o único ponto de acesso para instâncias do Playwright.
+- **Dependency Injection**: Uso de `Depends` do FastAPI para Auth e recursos compartilhados.
 
-## Frontend Standards
-- **Component Architecture**: Functional components with Hooks and strict TypeScript typing.
-- **UI Consistency**: Use of `tailwind-merge` and `clsx` for dynamic styling and design consistency.
-- **Real-time Feedback**: Global logs and progress tracking via persistent WebSockets.
-- **Animations**: Framer Motion for micro-interactions and layout transitions.
+## Frontend
+- **State Management**: React Hooks (useState, useEffect, useRef).
+- **Communication**: Centralizada na classe `ApiClient`.
+- **CSS**: Escopo global via `App.css` usando variáveis CSS (`:root`).
 
-## Data Standards
-- **Layered Data**: Raw data (Bronze) is validated and transformed into structured models (Silver/Gold) before persistence or export.
+## Logging
+- Prefixos consistentes: `[ANTIBOT]`, `[PLAYWRIGHT]`, `[STREAM]`, `[AUTH]`.

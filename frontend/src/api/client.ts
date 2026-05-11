@@ -3,17 +3,53 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 export const API_KEY = import.meta.env.VITE_API_KEY || 'dev-key-123';
 
 export class ApiClient {
+  public static getToken(): string | null {
+    return localStorage.getItem('auth_token');
+  }
+
+  public static setToken(token: string) {
+    localStorage.setItem('auth_token', token);
+  }
+
+  public static clearToken() {
+    localStorage.removeItem('auth_token');
+  }
+
+  public static async login(credentials: FormData): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+      method: 'POST',
+      body: credentials,
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data?.detail || 'Falha no login');
+    }
+
+    this.setToken(data.access_token);
+    return data;
+  }
+
   public static async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const headers = {
+    const token = this.getToken();
+    const headers: any = {
       'Content-Type': 'application/json',
-      'X-API-Key': API_KEY,
       ...options.headers,
     };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
 
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers,
     });
+
+    if (response.status === 401) {
+      this.clearToken();
+      window.dispatchEvent(new Event('auth-expired'));
+    }
 
     let data: any;
     try {
@@ -50,12 +86,18 @@ export class ApiClient {
   }
 
   static async exportSearch(payload: { query: string; brands?: string[]; max_per_brand?: number; sort?: string; only_in_stock?: boolean }) {
+    const token = this.getToken();
+    const headers: any = {
+      'Content-Type': 'application/json',
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch(`${API_BASE_URL}/search/export`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': API_KEY,
-      },
+      headers,
       body: JSON.stringify(payload),
     });
 
@@ -120,9 +162,7 @@ export class ApiClient {
     return data?.categories || [];
   }
 
-  static discoverCategories(brand: string) {
-    return this.request<any>(`/brands/${brand}/auto-discovery`);
-  }
+  // discoveryCategories removido
 
   static deleteBrand(brand: string) {
     return this.request(`/brands/${brand}`, {

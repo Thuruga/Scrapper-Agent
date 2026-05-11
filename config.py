@@ -64,6 +64,12 @@ class Settings(BaseSettings):
     
     # Security
     SCRAPER_API_KEY: str = Field(default="dev-key-123", description="Chave de API para proteger os endpoints.")
+    JWT_SECRET: str = Field(default="super-secret-key-change-me", description="Chave secreta para JWT.")
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440 # 24 horas
+    
+    ADMIN_USER: str = Field(default="admin", description="Usuário administrador.")
+    ADMIN_PASS: str = Field(default="admin123", description="Senha do administrador.")
     
     USER_AGENTS: List[str] = Field(
         default_factory=lambda: DEFAULT_USER_AGENTS,

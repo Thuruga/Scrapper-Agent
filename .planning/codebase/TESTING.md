@@ -1,24 +1,16 @@
-# Testing: Intelligence Scraper
+# Testing Strategy
 
-## Methodology
-The project currently relies on **Experiential Testing** using "scratch" scripts for rapid feature validation and regression checks.
+## Manual Verification
+- **Anti-Bot Bypass**: Verificar se o Playwright é acionado após 403 em sites com Cloudflare.
+- **Auth Flow**: Validar redirecionamento para Login e persistência do Token no LocalStorage.
+- **Streaming Perf**: Monitorar uso de memória no Gerenciador de Tarefas durante extrações >2000 produtos.
 
-## Test Directory (`scratch/`)
-- **`verify_engine_abstraction.py`**: Validates the engine factory and platform-specific implementations.
-- **`test_category_matching.py`**: Tests the accuracy of the Fuzzy Matching algorithm.
-- **`check_buckman.py`**: Rapid diagnostic script for platform verification.
+## Automated Tests
+- **Backend (Pytest)**:
+  - `tests/test_auth.py`: Validação de tokens e proteção de rotas.
+  - `tests/test_streaming.py`: Verificar se os generators retornam os dados esperados.
+- **Frontend**: Validação de tipos via TypeScript Linting.
 
-## Manual Verification Flow
-1. **Bootstrap**: Run `app.py` to start the backend services.
-2. **UI Access**: Navigate to the local React frontend.
-3. **End-to-End Flow**:
-   - Perform Category Discovery.
-   - Select and Map categories.
-   - Execute a Scan/Extraction job.
-   - Monitor real-time logs via WebSocket.
-   - Verify Excel export integrity.
-
-## Future Testing Roadmap
-- **`pytest` Migration**: Implementation of `pytest` for all Engines using `pytest-asyncio`.
-- **API Mocking**: Establish stable CI/CD by mocking external platform APIs.
-- **Frontend Testing**: Introduce Vitest and React Testing Library for component validation.
+## Quality Gates
+- **Pydantic**: Validação de esquema para cada produto extraído antes do salvamento final.
+- **Logs**: Auditoria de logs para identificar falhas de fallback.

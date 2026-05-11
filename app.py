@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from config import settings
-from api import api_router
+from api import api_router, public_router
 
 # Configuração global de logs para ambiente Enterprise
 logging.basicConfig(
@@ -74,7 +74,10 @@ async def add_no_cache_header(request, call_next):
 # ---------------------------------------------------------------------------
 # Rotas
 # ---------------------------------------------------------------------------
-# Registra todos os endpoints da API sob o prefixo principal (ou sem prefixo)
+# Registra rotas públicas (Login, etc)
+app.include_router(public_router)
+
+# Registra todos os endpoints da API protegidos
 app.include_router(api_router)
 
 @app.get("/health-check")

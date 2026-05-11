@@ -4,7 +4,7 @@ import {
   LayoutDashboard,
   Search,
   Layers,
-  Settings as SettingsIcon,
+  Plus as PlusIcon,
   Zap,
   Clock,
   Package,
@@ -28,10 +28,89 @@ import {
   Tooltip,
   ResponsiveContainer
 } from 'recharts';
-import { ApiClient, API_KEY } from './api/client';
+import { ApiClient } from './api/client';
 import './App.css';
 
 // --- Components ---
+
+const LoginView = ({ onLogin }: { onLogin: (token: string) => void }) => {
+  const [username, setUsername] = useState('admin');
+  const [password, setPassword] = useState('admin123');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const formData = new FormData();
+      formData.append('username', username);
+      formData.append('password', password);
+
+      const res = await ApiClient.login(formData);
+      onLogin(res.access_token);
+    } catch (err: any) {
+      setError(err.message || 'Falha ao entrar. Verifique suas credenciais.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="login-container">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="login-card"
+      >
+        <div className="login-header">
+          <div className="login-logo">
+            <Zap size={32} className="text-accent" />
+          </div>
+          <h1>Intelligence Scraper</h1>
+          <p>Faça login para acessar o painel administrativo</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="form-stack">
+          {error && <div className="status-banner error">{error}</div>}
+
+          <div className="form-group">
+            <label className="label">Usuário</label>
+            <input
+              type="text"
+              className="input"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="label">Senha</label>
+            <input
+              type="password"
+              className="input"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+            />
+          </div>
+
+          <button className="btn btn-primary w-full" disabled={loading} style={{ marginTop: '12px' }}>
+            {loading ? <RefreshCw className="animate-spin" size={18} /> : 'Entrar no Sistema'}
+          </button>
+        </form>
+
+        <div className="login-footer">
+          <p>&copy; {new Date().getFullYear()} Thuruga Intelligence.</p>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 
 const SidebarItem = ({ icon: Icon, label, active, onClick }: any) => (
   <button
@@ -265,7 +344,7 @@ const MonitorPage = ({ brands }: { brands: any[] }) => {
                   <div className="monitor-image-small">
                     {m.image_url ? <img src={m.image_url} alt={m.product_name} /> : <Package size={24} className="text-muted" />}
                   </div>
-                  
+
                   <div className="monitor-info">
                     <div className="monitor-main">
                       <Package size={14} className="text-accent" />
@@ -330,8 +409,6 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
   const [logs, setLogs] = useState<any[]>([]);
   const [progress, setProgress] = useState({ current: 0, total: 0, success: 0, error: 0 });
   const [outputFile, setOutputFile] = useState<string | null>(null);
-  const [isDiscovering, setIsDiscovering] = useState(false);
-  const [suggestions, setSuggestions] = useState<any[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
 
   const logEndRef = useRef<HTMLDivElement>(null);
@@ -400,7 +477,7 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
       const jobId = res.job_id;
 
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const ws = new WebSocket(`${protocol}//${window.location.host}/ws/${jobId}?api_key=${API_KEY}`);
+      const ws = new WebSocket(`${protocol}//${window.location.host}/ws/${jobId}?token=${ApiClient.getToken()}`);
       wsRef.current = ws;
 
       ws.onmessage = (e) => {
@@ -427,27 +504,9 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
     }
   };
 
-  const handleAutoDiscover = async () => {
-    if (selectedBrands.length === 0) return;
-    setIsDiscovering(true);
-    setLogs(prev => [...prev, { type: 'info', text: "Iniciando descoberta inteligente...", time: new Date().toLocaleTimeString() }]);
 
-    try {
-      // Pega sugestões da primeira marca selecionada (para simplificar o MVP)
-      const res = await ApiClient.discoverCategories(selectedBrands[0]);
-      setSuggestions(res.suggestions || []);
-      setLogs(prev => [...prev, { type: 'success', text: `Encontradas ${res.suggestions?.length || 0} sugestões!`, time: new Date().toLocaleTimeString() }]);
-    } catch (err: any) {
-      setLogs(prev => [...prev, { type: 'error', text: `Erro na descoberta: ${err.message}`, time: new Date().toLocaleTimeString() }]);
-    } finally {
-      setIsDiscovering(false);
-    }
-  };
 
-  const handleUseSuggestion = (s: any) => {
-    setSelectedCategory(s.canonical_slug);
-    setLogs(prev => [...prev, { type: 'info', text: `Usando: ${s.canonical_label} (${s.vtex_path})`, time: new Date().toLocaleTimeString() }]);
-  };
+
 
 
   return (
@@ -502,39 +561,11 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
                 {isScraping ? "Processando..." : "Iniciar Varredura"}
               </button>
 
-              <div className="divider" />
 
-              <button
-                type="button"
-                className="btn btn-secondary w-full"
-                onClick={handleAutoDiscover}
-                disabled={isDiscovering || selectedBrands.length === 0}
-              >
-                {isDiscovering ? <RefreshCw className="animate-spin" size={18} /> : <Layers size={18} />}
-                {isDiscovering ? "Analisando..." : "Sugerir Categorias"}
-              </button>
             </div>
           </GlassCard>
 
-          {suggestions.length > 0 && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
-              <GlassCard title="Sugestões Encontradas" className="mt-4">
-                <div className="suggestion-list">
-                  {suggestions.map((s, i) => (
-                    <div key={i} className="suggestion-item">
-                      <div className="suggestion-info">
-                        <strong>{s.canonical_label}</strong>
-                        <span>{s.vtex_path}</span>
-                      </div>
-                      <button type="button" className="btn btn-sm btn-outline" onClick={() => handleUseSuggestion(s)}>
-                        Usar
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </GlassCard>
-            </motion.div>
-          )}
+
         </div>
 
 
@@ -672,28 +703,26 @@ const SearchPage = ({ brands }: { brands: any[] }) => {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
-            <button type="submit" className="btn btn-primary" disabled={loading || exporting} style={{ padding: '0.6rem 2rem' }}>
-              {loading ? <RefreshCw className="animate-spin" size={18} /> : "Comparar"}
-            </button>
           </div>
-          
-          <div className="search-filters-compact">
-            <div className="search-filters-left">
-              <select className="input input-sm" value={sort} onChange={e => setSort(e.target.value)} style={{ minWidth: '180px' }}>
-                <option value="relevance">Relevância</option>
-                <option value="price_asc">Menor Preço</option>
-                <option value="price_desc">Maior Preço</option>
-                <option value="top_selling">Mais Vendidos</option>
-              </select>
-              <label className="checkbox-label">
-                <input type="checkbox" checked={inStock} onChange={e => setInStock(e.target.checked)} />
-                <span>Somente em estoque</span>
-              </label>
+          <div className="search-filters">
+            <select className="input input-sm" value={sort} onChange={e => setSort(e.target.value)}>
+              <option value="relevance">Relevância</option>
+              <option value="price_asc">Menor Preço</option>
+              <option value="price_desc">Maior Preço</option>
+              <option value="top_selling">Mais Vendidos</option>
+            </select>
+            <label className="checkbox-label">
+              <input type="checkbox" checked={inStock} onChange={e => setInStock(e.target.checked)} />
+              <span>Em estoque</span>
+            </label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button type="submit" className="btn btn-primary" disabled={loading || exporting}>
+                {loading ? <RefreshCw className="animate-spin" size={18} /> : "Comparar"}
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={handleExport} disabled={loading || exporting || !query} title="Exportar para Excel">
+                {exporting ? <RefreshCw className="animate-spin" size={18} /> : <Package size={18} />}
+              </button>
             </div>
-            
-            <button type="button" className="btn btn-secondary btn-sm" onClick={handleExport} disabled={loading || exporting || !query} title="Exportar para Excel">
-              {exporting ? <RefreshCw className="animate-spin" size={18} /> : <><Package size={18} /> Exportar Excel</>}
-            </button>
           </div>
         </form>
 
@@ -736,19 +765,9 @@ const SearchPage = ({ brands }: { brands: any[] }) => {
       </GlassCard>
 
       <div className="results-container">
-        {results && results.results && Array.isArray(results.results) && results.results.map((brandRes: any) => {
-          const brandInfo = brands.find(b => b.brand_key === brandRes.brand_key);
-          return (
-            <div key={brandRes.brand_key} className="brand-column">
-              <h4 className="brand-header">
-                <img 
-                  src={brandInfo?.logo_url || `https://www.google.com/s2/favicons?domain=${brandInfo?.domain}&sz=64`} 
-                  className="brand-header-logo"
-                  alt=""
-                  onError={(e: any) => { e.target.src = `https://ui-avatars.com/api/?name=${brandRes.brand_name}&background=6366f1&color=fff`; }}
-                />
-                {brandRes.brand_name}
-              </h4>
+        {results && results.results && Array.isArray(results.results) && results.results.map((brandRes: any) => (
+          <div key={brandRes.brand_key} className="brand-column">
+            <h4 className="brand-header">{brandRes.brand_name}</h4>
             <div className="product-grid">
               {brandRes.products?.map((p: any) => (
                 <a
@@ -782,8 +801,7 @@ const SearchPage = ({ brands }: { brands: any[] }) => {
               )}
             </div>
           </div>
-          );
-        })}
+        ))}
       </div>
     </div>
   );
@@ -859,16 +877,6 @@ const SettingsPage = ({ brands, onRefresh }: { brands: any[], onRefresh: () => v
                 required
               />
             </div>
-            <div className="form-group">
-              <label className="label">URL da Logo (Opcional)</label>
-              <input
-                type="url"
-                className="input"
-                placeholder="https://.../logo.png"
-                value={newBrand.logo_url}
-                onChange={e => setNewBrand({ ...newBrand, logo_url: e.target.value })}
-              />
-            </div>
             <button className="btn btn-primary w-full" disabled={loading}>
               {loading ? <RefreshCw className="animate-spin" size={18} /> : <Plus size={18} />}
               Cadastrar Marca
@@ -917,16 +925,41 @@ const SettingsPage = ({ brands, onRefresh }: { brands: any[], onRefresh: () => v
 function App() {
   const [activeTab, setActiveTab] = useState('monitor');
   const [brands, setBrands] = useState<any[]>([]);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!ApiClient.getToken());
 
   const refreshBrands = () => {
+    if (!isAuthenticated) return;
     ApiClient.getBrands().then(data => {
       if (Array.isArray(data)) setBrands(data);
-    }).catch(console.error);
+    }).catch(err => {
+      console.error(err);
+      if (err.message.includes('401')) setIsAuthenticated(false);
+    });
   };
 
   useEffect(() => {
-    refreshBrands();
-  }, []);
+    const handleAuthExpired = () => setIsAuthenticated(false);
+    window.addEventListener('auth-expired', handleAuthExpired);
+
+    if (isAuthenticated) {
+      refreshBrands();
+    }
+
+    return () => window.removeEventListener('auth-expired', handleAuthExpired);
+  }, [isAuthenticated]);
+
+  const handleLogin = (_token: string) => {
+    setIsAuthenticated(true);
+  };
+
+  const handleLogout = () => {
+    ApiClient.clearToken();
+    setIsAuthenticated(false);
+  };
+
+  if (!isAuthenticated) {
+    return <LoginView onLogin={handleLogin} />;
+  }
 
   const renderTab = () => {
     switch (activeTab) {
@@ -966,8 +999,8 @@ function App() {
           />
           <div className="sidebar-spacer" />
           <SidebarItem
-            icon={SettingsIcon}
-            label="Configurações"
+            icon={PlusIcon}
+            label="Marcas"
             active={activeTab === 'settings'}
             onClick={() => setActiveTab('settings')}
           />
@@ -981,13 +1014,18 @@ function App() {
               activeTab === 'monitor' ? 'Painel de Monitoramento' :
                 activeTab === 'search' ? 'Busca Comparativa' :
                   activeTab === 'category' ? 'Varredura por Categoria' :
-                    'Configurações do Sistema'
-            }</h1>
-            <p className="header-subtitle">Intelligence Scraper</p>
+                    'Adicionar Marca'
+            }
+            </h1>
           </div>
-          <div className="user-badge">
-            <CheckCircle2 size={14} className="text-success" />
-            <span>Server Online</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div className="user-badge">
+              <CheckCircle2 size={14} className="text-success" />
+              <span>Server Online</span>
+            </div>
+            <button onClick={handleLogout} className="btn-icon text-muted" title="Sair">
+              <XCircle size={20} />
+            </button>
           </div>
         </header>
 
