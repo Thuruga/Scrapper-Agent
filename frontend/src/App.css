@@ -251,36 +251,49 @@ body {
 /* Monitor List */
 .monitor-list { display: flex; flex-direction: column; gap: 1rem; }
 .monitor-item {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  grid-template-areas: 
+    "image info pricing actions"
+    "chart chart chart chart";
   gap: 1rem;
-  padding: 1rem;
+  padding: 1.25rem;
   background: rgba(255, 255, 255, 0.03);
-  border-radius: 12px;
+  border-radius: 16px;
   border: 1px solid var(--border);
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  align-items: center;
 }
-.monitor-item:hover { background: rgba(255, 255, 255, 0.05); transform: translateX(5px); }
+.monitor-item:hover { 
+  background: rgba(255, 255, 255, 0.05); 
+  border-color: rgba(99, 102, 241, 0.3);
+  transform: translateY(-2px); 
+}
 .monitor-image-small {
-  width: 50px;
-  height: 50px;
+  grid-area: image;
+  width: 60px;
+  height: 60px;
   background: white;
-  border-radius: 8px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 4px;
   overflow: hidden;
   flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 .monitor-image-small img { max-width: 100%; max-height: 100%; object-fit: contain; }
-.monitor-info { flex: 1; min-width: 0; }
-.monitor-main { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 2px; }
-.monitor-product-name { font-size: 0.85rem; font-weight: 600; margin: 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.monitor-url { font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
-.monitor-pricing { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-.monitor-price-value { font-size: 1rem; font-weight: 800; color: var(--primary); }
-.monitor-price-pending { font-size: 0.8rem; color: var(--text-muted); font-style: italic; }
-.monitor-badge { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 600; }
+.monitor-info { grid-area: info; flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+.monitor-main { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 4px; }
+.monitor-product-name { font-size: 0.9rem; font-weight: 600; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-main); }
+.monitor-url { font-size: 0.75rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; opacity: 0.7; }
+.monitor-pricing { grid-area: pricing; text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; padding-left: 1rem; border-left: 1px solid var(--border); }
+.monitor-price-value { font-size: 1.15rem; font-weight: 800; color: var(--primary); letter-spacing: -0.5px; }
+.monitor-price-pending { font-size: 0.85rem; color: var(--text-muted); font-style: italic; }
+.monitor-badge { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+.monitor-actions { grid-area: actions; display: flex; align-items: center; gap: 0.5rem; padding-left: 0.5rem; }
+.monitor-chart-container { grid-area: chart; width: 100%; overflow: hidden; }
 
 
 .empty-state {
@@ -307,7 +320,21 @@ body {
   color: var(--text-muted);
   font-size: 0.85rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.brand-chip:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-2px);
+  color: var(--text-main);
+  border-color: rgba(99, 102, 241, 0.5);
+}
+
+.brand-chip.active {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
 }
 
 .brand-chip-icon {
@@ -328,11 +355,6 @@ body {
   object-fit: contain;
 }
 
-.brand-chip.active {
-  background: var(--primary);
-  color: white;
-  border-color: var(--primary);
-}
 
 .scrape-stats {
   display: grid;
@@ -415,7 +437,29 @@ body {
 .search-input { flex: 1; background: transparent; border: none; color: white; font-size: 1.1rem; padding: 0.5rem 0; }
 .search-input:focus { outline: none; }
 .search-filters { display: flex; align-items: center; gap: 1.5rem; }
-.checkbox-label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; cursor: pointer; }
+.checkbox-label { 
+  display: flex; 
+  align-items: center; 
+  gap: 0.5rem; 
+  font-size: 0.85rem; 
+  cursor: pointer; 
+  color: var(--text-muted);
+  transition: color 0.2s;
+}
+.checkbox-label:hover { color: var(--text-main); }
+
+.search-filters-compact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1rem;
+}
+
+.search-filters-left {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
 
 .results-container {
   display: flex;
@@ -425,62 +469,124 @@ body {
 }
 
 .brand-column {
-  min-width: 320px;
-  max-width: 320px;
+  min-width: 340px;
+  max-width: 340px;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.5rem;
+  padding: 0.5rem;
 }
 
 .brand-header {
-  padding: 1rem;
-  background: var(--card-bg);
-  border-radius: 12px;
-  font-weight: 700;
-  text-align: center;
+  padding: 1.25rem;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(6, 182, 212, 0.1));
+  backdrop-filter: var(--glass-effect);
+  border-radius: 16px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
   border: 1px solid var(--border);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.brand-header-logo {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: white;
+  padding: 2px;
+  object-fit: contain;
 }
 
 .product-grid { display: flex; flex-direction: column; gap: 1rem; }
 
 .product-card {
-  background: var(--card-bg);
-  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 20px;
   border: 1px solid var(--border);
   overflow: hidden;
-  transition: transform 0.2s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
 }
 
-.product-card:hover { transform: translateY(-5px); }
+.product-card:hover { 
+  transform: translateY(-8px); 
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(99, 102, 241, 0.4);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+}
 
 .product-image {
-  height: 180px;
+  height: 220px;
   background: white;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
+  overflow: hidden;
 }
 
-.product-image img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.product-image img { 
+  width: 100%; 
+  height: 100%; 
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.product-card:hover .product-image img {
+  transform: scale(1.05);
+}
 
 .badge-discount {
   position: absolute;
-  top: 10px;
-  right: 10px;
-  background: var(--error);
+  top: 12px;
+  right: 12px;
+  background: #ff4757;
   color: white;
-  font-size: 0.7rem;
-  font-weight: 800;
-  padding: 2px 6px;
-  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 900;
+  padding: 4px 8px;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(255, 71, 87, 0.4);
+  z-index: 2;
 }
 
-.product-details { padding: 1rem; }
-.product-name { font-size: 0.9rem; font-weight: 600; line-height: 1.4; height: 2.8em; overflow: hidden; margin-bottom: 0.75rem; }
+.product-details { 
+  padding: 1.25rem; 
+  background: linear-gradient(180deg, transparent, rgba(0,0,0,0.2));
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.product-name { 
+  font-size: 0.95rem; 
+  font-weight: 600; 
+  line-height: 1.5; 
+  height: 3em; 
+  overflow: hidden; 
+  margin-bottom: 1rem; 
+  color: var(--text-main);
+}
 .product-price { margin-bottom: 0.75rem; }
-.price-current { font-size: 1.25rem; font-weight: 800; color: var(--primary); }
-.product-meta { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--text-muted); }
+.price-current { 
+  font-size: 1.4rem; 
+  font-weight: 900; 
+  color: var(--primary); 
+  letter-spacing: -0.5px;
+}
+.product-meta { 
+  display: flex; 
+  align-items: center; 
+  gap: 0.6rem; 
+  font-size: 0.8rem; 
+  color: var(--text-muted);
+  margin-top: auto;
+}
 
 /* Settings Page Extras */
 .brand-list { display: flex; flex-direction: column; gap: 1rem; }

@@ -4,6 +4,7 @@ from services.engines.base_engine import BaseEngine
 from services.shopify_api_client import ShopifyApiClient
 from core.session_manager import SessionManager
 
+
 class ShopifyEngine(BaseEngine):
     """
     Motor de e-commerce para a plataforma Shopify.
@@ -24,16 +25,35 @@ class ShopifyEngine(BaseEngine):
         session = await SessionManager.get_session()
         client = ShopifyApiClient(self.brand_key, session=session)
         collections = await client.fetch_collections()
-            
-        # Transforma no formato esperado pelo CategoryIntelligenceService
-        return [
-            {
-                "name": c.get("title"),
-                "path": c.get("handle"), # Usamos o handle como path
-                "id": str(c.get("id"))
-            }
-            for c in collections
+
+        noise_handles = ["all", "frontpage", "test", "teste"]
+        noise_keywords = [
+            "estoque", "hidden", "policy", "terms", "quem-somos", "quem somos",
+            "ate-", "até", "desconto", "off", "giftcard", "reclame", 
+            "aumento-", "unt", "teste", "promo"
         ]
+
+        filtered = []
+        for c in collections:
+            handle = c.get("handle", "").lower()
+            title = c.get("title", "").lower()
+
+            is_noise = (
+                handle in noise_handles
+                or any(k in handle for k in noise_keywords)
+                or any(k in title for k in noise_keywords)
+            )
+
+            if not is_noise:
+                filtered.append(
+                    {
+                        "name": c.get("title"),
+                        "path": f"/collections/{handle}",  # Usamos o caminho relativo completo
+                        "id": str(c.get("id")),
+                    }
+                )
+
+        return filtered
 
     async def get_catalog(self) -> List[Dict[str, Any]]:
         """
@@ -44,10 +64,7 @@ class ShopifyEngine(BaseEngine):
         return [
             {
                 "group": "Coleções / Categorias",
-                "items": [
-                    {"label": c["name"], "path": c["path"]}
-                    for c in flat_cats
-                ]
+                "items": [{"label": c["name"], "path": c["path"]} for c in flat_cats],
             }
         ]
 
@@ -55,12 +72,12 @@ class ShopifyEngine(BaseEngine):
         self,
         category_url: str,
         log_callback: Optional[Callable] = None,
-        cancel_event: Optional[threading.Event] = None
+        cancel_event: Optional[threading.Event] = None,
     ) -> List[Dict[str, Any]]:
         """Executa varredura via ShopifyApiClient com logs padronizados."""
         session = await SessionManager.get_session()
         client = ShopifyApiClient(self.brand_key, session=session)
-        
+
         # Wrapper para garantir contrato de logs padronizado
         def emit(msg):
             self.emit_log(log_callback, msg)
@@ -74,7 +91,7 @@ class ShopifyEngine(BaseEngine):
         query: str,
         max_results: int = 10,
         sort: Optional[str] = None,
-        only_in_stock: bool = False
+        only_in_stock: bool = False,
     ) -> Any:
         """Realiza busca via ShopifyApiClient."""
         session = await SessionManager.get_session()

@@ -15,17 +15,18 @@ import {
   Terminal,
   XCircle,
   Globe,
-  TrendingUp
+  TrendingUp,
+  ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer 
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer
 } from 'recharts';
 import { ApiClient, API_KEY } from './api/client';
 import './App.css';
@@ -81,7 +82,15 @@ const StatusBanner = ({ type, message, onClear }: { type: 'success' | 'error' | 
 
 
 const PriceChart = ({ history }: { history: any[] }) => {
-  if (!history || history.length === 0) return <p className="text-muted" style={{ fontSize: '12px', padding: '10px' }}>Aguardando primeira variação de preço...</p>;
+  if (!history || history.length === 0) {
+    return (
+      <div className="monitor-chart-container">
+        <p className="text-muted" style={{ fontSize: '12px', padding: '20px', textAlign: 'center', background: 'rgba(0,0,0,0.1)', borderRadius: '8px', marginTop: '12px' }}>
+          Aguardando primeira variação de preço para gerar o gráfico...
+        </p>
+      </div>
+    );
+  }
 
   const data = history.map(h => ({
     time: new Date(h.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -89,46 +98,59 @@ const PriceChart = ({ history }: { history: any[] }) => {
     price: h.price
   }));
 
+  // Se tiver apenas 1 ponto, duplicamos para mostrar uma linha estável
+  const chartData = data.length === 1 ? [data[0], { ...data[0], time: 'Agora' }] : data;
+
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, height: 0 }}
       animate={{ opacity: 1, height: 'auto' }}
-      style={{ width: '100%', height: 180, marginTop: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '10px' }}
+      className="monitor-chart-container"
+      style={{ marginTop: '16px', background: 'rgba(0,0,0,0.2)', borderRadius: '12px', padding: '16px' }}
     >
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-          <XAxis 
-            dataKey="time" 
-            stroke="rgba(255,255,255,0.3)" 
-            fontSize={10}
-            tickLine={false}
-            axisLine={false}
-          />
-          <YAxis 
-            stroke="rgba(255,255,255,0.3)" 
-            fontSize={10}
-            tickLine={false}
-            axisLine={false}
-            tickFormatter={(value) => `R$${value}`}
-          />
-          <Tooltip 
-            contentStyle={{ backgroundColor: 'rgba(20, 20, 30, 0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '11px', color: '#fff' }}
-            itemStyle={{ color: '#6366f1' }}
-            formatter={(value: any) => [`R$ ${value.toFixed(2)}`, 'Preço']}
-            labelFormatter={(label, items) => items[0]?.payload?.fullDate || label}
-          />
-          <Line 
-            type="monotone" 
-            dataKey="price" 
-            stroke="#6366f1" 
-            strokeWidth={3}
-            dot={{ r: 4, fill: '#6366f1', strokeWidth: 2, stroke: '#fff' }}
-            activeDot={{ r: 6, strokeWidth: 0 }}
-            animationDuration={1000}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
+        <span>Histórico de Variações</span>
+        <span>{data.length} registros</span>
+      </div>
+      <div style={{ width: '100%', height: 180 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+            <XAxis
+              dataKey="time"
+              stroke="rgba(255,255,255,0.3)"
+              fontSize={10}
+              tickLine={false}
+              axisLine={false}
+              dy={10}
+            />
+            <YAxis
+              stroke="rgba(255,255,255,0.3)"
+              fontSize={10}
+              tickLine={false}
+              axisLine={false}
+              tickFormatter={(value) => `R$${value}`}
+              domain={['auto', 'auto']}
+              dx={-10}
+            />
+            <Tooltip
+              contentStyle={{ backgroundColor: 'rgba(20, 20, 30, 0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '11px', color: '#fff' }}
+              itemStyle={{ color: '#6366f1' }}
+              formatter={(value: any) => [`R$ ${value.toFixed(2)}`, 'Preço']}
+              labelFormatter={(label, items) => items[0]?.payload?.fullDate || label}
+            />
+            <Line
+              type="monotone"
+              dataKey="price"
+              stroke="#6366f1"
+              strokeWidth={3}
+              dot={{ r: 4, fill: '#6366f1', strokeWidth: 2, stroke: '#fff' }}
+              activeDot={{ r: 6, strokeWidth: 0 }}
+              animationDuration={1000}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
     </motion.div>
   );
 };
@@ -241,46 +263,51 @@ const MonitorPage = ({ brands }: { brands: any[] }) => {
               monitors.map((m: any) => (
                 <div key={m.job_id} className="monitor-item">
                   <div className="monitor-image-small">
-                    {m.image_url ? <img src={m.image_url} alt={m.product_name} /> : <Package size={20} />}
+                    {m.image_url ? <img src={m.image_url} alt={m.product_name} /> : <Package size={24} className="text-muted" />}
                   </div>
+                  
                   <div className="monitor-info">
-                    <div className="monitor-main" style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '8px' }}>
+                    <div className="monitor-main">
                       <Package size={14} className="text-accent" />
                       <strong>{m.brand.toUpperCase()}</strong>
-                      <button
-                        type="button"
-                        className="btn-icon text-error"
-                        style={{ marginLeft: 'auto' }}
-                        onClick={() => handleDeleteMonitor(m.job_id)}
-                        title="Excluir monitor"
-                      >
-                        <Trash2 size={16} />
-                      </button>
                     </div>
                     {m.product_name && <p className="monitor-product-name">{m.product_name}</p>}
-                    <span className="monitor-url">{m.url}</span>
+                    <span className="monitor-url" title={m.url}>{m.url}</span>
                   </div>
+
                   <div className="monitor-pricing">
                     {m.last_price ? (
                       <div className="monitor-price-value">R$ {m.last_price.toFixed(2)}</div>
                     ) : (
-                      <div className="monitor-price-pending">Aguardando...</div>
+                      <div className="monitor-price-pending">Pendente...</div>
                     )}
                     <div className="monitor-badge">
-                      {m.active ? <span className="status-dot online"></span> : <span className="status-dot offline"></span>}
+                      <span className={`status-dot ${m.active ? 'online' : 'offline'}`}></span>
                       <span>{m.active ? 'Ativo' : 'Inativo'}</span>
                     </div>
-                    <button 
+                  </div>
+
+                  <div className="monitor-actions">
+                    <button
                       className={`btn-icon ${expandedMonitorId === m.job_id ? 'text-accent' : 'text-muted'}`}
                       onClick={() => setExpandedMonitorId(expandedMonitorId === m.job_id ? null : m.job_id)}
                       title="Ver histórico de preços"
                     >
-                      <TrendingUp size={18} />
+                      <TrendingUp size={20} />
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-icon text-error"
+                      onClick={() => handleDeleteMonitor(m.job_id)}
+                      title="Excluir monitor"
+                    >
+                      <Trash2 size={18} />
                     </button>
                   </div>
+
                   <AnimatePresence>
                     {expandedMonitorId === m.job_id && (
-                      <div style={{ width: '100%', gridColumn: '1 / -1' }}>
+                      <div style={{ gridColumn: '1 / -1' }}>
                         <PriceChart history={m.history || []} />
                       </div>
                     )}
@@ -516,7 +543,7 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
             <div className="scrape-stats">
               {/* Total Detectado removido conforme solicitado */}
               <div className="stat-box">
-                <span className="stat-label">Processados (Páginas/Links)</span>
+                <span className="stat-label">Total</span>
                 <span className="stat-value">{progress.current}</span>
               </div>
               <div className="stat-box">
@@ -645,26 +672,28 @@ const SearchPage = ({ brands }: { brands: any[] }) => {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
+            <button type="submit" className="btn btn-primary" disabled={loading || exporting} style={{ padding: '0.6rem 2rem' }}>
+              {loading ? <RefreshCw className="animate-spin" size={18} /> : "Comparar"}
+            </button>
           </div>
-          <div className="search-filters">
-            <select className="input input-sm" value={sort} onChange={e => setSort(e.target.value)}>
-              <option value="relevance">Relevância</option>
-              <option value="price_asc">Menor Preço</option>
-              <option value="price_desc">Maior Preço</option>
-              <option value="top_selling">Mais Vendidos</option>
-            </select>
-            <label className="checkbox-label">
-              <input type="checkbox" checked={inStock} onChange={e => setInStock(e.target.checked)} />
-              <span>Em estoque</span>
-            </label>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button type="submit" className="btn btn-primary" disabled={loading || exporting}>
-                {loading ? <RefreshCw className="animate-spin" size={18} /> : "Comparar"}
-              </button>
-              <button type="button" className="btn btn-secondary" onClick={handleExport} disabled={loading || exporting || !query} title="Exportar para Excel">
-                {exporting ? <RefreshCw className="animate-spin" size={18} /> : <Package size={18} />}
-              </button>
+          
+          <div className="search-filters-compact">
+            <div className="search-filters-left">
+              <select className="input input-sm" value={sort} onChange={e => setSort(e.target.value)} style={{ minWidth: '180px' }}>
+                <option value="relevance">Relevância</option>
+                <option value="price_asc">Menor Preço</option>
+                <option value="price_desc">Maior Preço</option>
+                <option value="top_selling">Mais Vendidos</option>
+              </select>
+              <label className="checkbox-label">
+                <input type="checkbox" checked={inStock} onChange={e => setInStock(e.target.checked)} />
+                <span>Somente em estoque</span>
+              </label>
             </div>
+            
+            <button type="button" className="btn btn-secondary btn-sm" onClick={handleExport} disabled={loading || exporting || !query} title="Exportar para Excel">
+              {exporting ? <RefreshCw className="animate-spin" size={18} /> : <><Package size={18} /> Exportar Excel</>}
+            </button>
           </div>
         </form>
 
@@ -707,18 +736,37 @@ const SearchPage = ({ brands }: { brands: any[] }) => {
       </GlassCard>
 
       <div className="results-container">
-        {results && results.results && Array.isArray(results.results) && results.results.map((brandRes: any) => (
-          <div key={brandRes.brand_key} className="brand-column">
-            <h4 className="brand-header">{brandRes.brand_name}</h4>
+        {results && results.results && Array.isArray(results.results) && results.results.map((brandRes: any) => {
+          const brandInfo = brands.find(b => b.brand_key === brandRes.brand_key);
+          return (
+            <div key={brandRes.brand_key} className="brand-column">
+              <h4 className="brand-header">
+                <img 
+                  src={brandInfo?.logo_url || `https://www.google.com/s2/favicons?domain=${brandInfo?.domain}&sz=64`} 
+                  className="brand-header-logo"
+                  alt=""
+                  onError={(e: any) => { e.target.src = `https://ui-avatars.com/api/?name=${brandRes.brand_name}&background=6366f1&color=fff`; }}
+                />
+                {brandRes.brand_name}
+              </h4>
             <div className="product-grid">
               {brandRes.products?.map((p: any) => (
-                <div key={p.url} className="product-card">
+                <a
+                  key={p.url}
+                  href={p.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="product-card"
+                >
                   <div className="product-image">
                     {p.image_url ? <img src={p.image_url} alt={p.product_name} /> : <Package size={40} />}
                     {p.price_discount && <span className="badge-discount">OFF</span>}
                   </div>
                   <div className="product-details">
-                    <p className="product-name">{p.product_name}</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                      <p className="product-name">{p.product_name}</p>
+                      <ExternalLink size={14} className="text-muted" style={{ marginTop: '4px', flexShrink: 0 }} />
+                    </div>
                     <div className="product-price">
                       <span className="price-current">R$ {p.price_full.toFixed(2)}</span>
                     </div>
@@ -727,21 +775,22 @@ const SearchPage = ({ brands }: { brands: any[] }) => {
                       <span>{p.available ? 'Em estoque' : 'Esgotado'}</span>
                     </div>
                   </div>
-                </div>
+                </a>
               ))}
               {(!brandRes.products || brandRes.products.length === 0) && (
                 <div className="empty-column">Nenhum resultado</div>
               )}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
 };
 
 const SettingsPage = ({ brands, onRefresh }: { brands: any[], onRefresh: () => void }) => {
-  const [newBrand, setNewBrand] = useState({ brand_key: '', brand_name: '', domain: '', logo_url: '' });
+  const [newBrand, setNewBrand] = useState({ brand_key: '', brand_name: '', domain: '', logo_url: '', engine: 'vtex' });
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error' | 'info', message: string } | null>(null);
 
@@ -760,7 +809,7 @@ const SettingsPage = ({ brands, onRefresh }: { brands: any[], onRefresh: () => v
     setLoading(true);
     try {
       await ApiClient.saveBrand(newBrand);
-      setNewBrand({ brand_key: '', brand_name: '', domain: '', logo_url: '' });
+      setNewBrand({ brand_key: '', brand_name: '', domain: '', logo_url: '', engine: 'vtex' });
       onRefresh();
       setStatus({ type: 'success', message: 'Marca cadastrada com sucesso!' });
     } catch (err: any) {

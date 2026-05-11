@@ -735,6 +735,19 @@ class VtexApiClient(BaseScraper):
                                             price_discount = lp - price_full
                                     break
                         
+                        # Fallback: Se ainda estiver zerado (esgotado), tenta pegar o preço base do primeiro SKU
+                        if price_full == 0.0 and items:
+                            try:
+                                first_item = items[0]
+                                first_seller = first_item.get("sellers", [{}])[0]
+                                offer = first_seller.get("commertialOffer", {})
+                                price_full = offer.get("Price", 0.0)
+                                lp = offer.get("ListPrice", 0.0)
+                                if lp > price_full:
+                                    price_discount = lp - price_full
+                            except (IndexError, Exception):
+                                pass
+                        
                         image_url = items[0].get("images", [{}])[0].get("imageUrl") if items else None
                         
                         products.append(SearchProductResult(
