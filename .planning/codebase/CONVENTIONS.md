@@ -1,18 +1,21 @@
 # Conventions
 
 ## Coding Standards
-- **Python**: PEP 8, Type Hints obrigatórios em novos módulos.
-- **Async**: Uso extensivo de `async/await`. Evitar `time.sleep` (usar `asyncio.sleep`).
+- **Python**: PEP 8 rigoroso. Type Hints são obrigatórios em todas as funções.
+- **Async First**: Bloquear o loop de eventos é proibido. Operações de CPU/IO pesadas devem usar `asyncio.to_thread`.
+- **Cancellation**: Todo processo longo deve aceitar um `cancel_event: asyncio.Event` e checar periodicamente via `.is_set()`.
 
 ## Architectural Patterns
-- **Streaming Extraction**: Todos os métodos de extração em massa devem ser `AsyncGenerators` (`async def ... yield ...`).
-- **Singleton Browser**: O `BrowserManager` deve ser o único ponto de acesso para instâncias do Playwright.
-- **Dependency Injection**: Uso de `Depends` do FastAPI para Auth e recursos compartilhados.
+- **Engine Factory**: Instanciação de motores deve ser feita via `engine_factory`.
+- **Streaming**: Métodos de extração devem ser `AsyncGenerators`.
+- **Quality Gates**: Nenhum dado é salvo sem passar pela validação Pydantic no `BaseEngine`.
+- **WebSocket Feedback**: Logs estruturados via dicionários enviados em tempo real.
 
 ## Frontend
-- **State Management**: React Hooks (useState, useEffect, useRef).
-- **Communication**: Centralizada na classe `ApiClient`.
-- **CSS**: Escopo global via `App.css` usando variáveis CSS (`:root`).
+- **Functional Components**: Uso exclusivo de React Hooks.
+- **Type Safety**: Interfaces TypeScript devem espelhar os modelos Pydantic do backend.
+- **Visuals**: CSS puro com variáveis `:root` para tema dark/glassmorphism.
 
-## Logging
-- Prefixos consistentes: `[ANTIBOT]`, `[PLAYWRIGHT]`, `[STREAM]`, `[AUTH]`.
+## Error Handling
+- **Graceful Failures**: Usar logs `[WARNING]` para itens descartados por qualidade, reservando `[ERROR]` para falhas de infraestrutura.
+- **Bypass Logic**: Fallback automático entre clientes HTTP e Playwright.

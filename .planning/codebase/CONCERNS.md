@@ -1,18 +1,19 @@
 # Project Concerns & Technical Debt
 
-## Resolved / Improved (Phase 4)
-- [x] **Anti-Bot Resilience**: Implementado fallback Playwright.
-- [x] **Memory Saturation**: Pipeline convertido para `AsyncGenerator` (Streaming).
-- [x] **Insecure Dashboard**: Adicionada autenticação JWT.
+## Resolved / Improved (Phase 4.1)
+- [x] **Event Loop Blocking**: Resolvido via `asyncio.to_thread` para exportação de Excel.
+- [x] **Idiomatic Cancellation**: Migrado de `threading.Event` para `asyncio.Event`.
+- [x] **Data Expansion Safety**: Adicionado tratamento de NaNs na expansão de especificações Pandas.
+- [x] **Intelligence Debt**: Removido serviço legado de sugestão de categorias (Auto-Discovery agora é dinâmico por motor).
 
 ## High Priority
-- **Rate Limiting**: O endpoint de login está vulnerável a brute-force. Recomendo adicionar `slowapi`.
-- **Incremental Excel Writing**: Embora o pipeline seja streaming, o orquestrador ainda acumula produtos em uma lista antes de gerar o Excel final. Necessário migrar para `pd.ExcelWriter` incremental para volumes >50k SKUs.
+- **Incremental Excel Writing**: Atualmente acumulamos produtos na memória antes de salvar. Para volumes >50k itens, precisamos de escrita incremental direto no disco.
+- **WAF Sensitivity**: Alguns sites Shopify estão ficando mais agressivos. Pode ser necessário rotacionar proxies com maior frequência ou usar residential proxies.
 
 ## Medium Priority
-- **Proxy Rotation Strategy**: Atualmente usa um proxy por requisição. Falta uma lógica de "Sticky Session" para fluxos que exigem múltiplas chamadas seguidas.
-- **Error Granularity**: Algumas falhas de rede são capturadas genericamente como Exception. Melhorar o tratamento de `aiohttp` vs `curl_cffi` errors.
+- **Price History Depth**: Atualmente salvamos apenas o último preço. Falta uma tabela histórica robusta para gráficos de variação de 30 dias no frontend.
+- **Frontend State Persistence**: Se o usuário recarregar a página durante um Job, ele perde o progresso visual (embora o Job continue no backend). Necessário persistir estado do Job no LocalStorage ou via API.
 
 ## Maintenance
-- **Playwright Updates**: Manter drivers de navegador atualizados para evitar detecção por impressões digitais obsoletas.
-- **Token Rotation**: Implementar Refresh Tokens para evitar logouts frequentes dos usuários.
+- **Playwright Updates**: Drivers precisam ser atualizados mensalmente para evitar detecção.
+- **Brand Mapping**: O arquivo `category_mapping.py` está crescendo. Pode ser necessário mover para um banco de dados ou arquivos JSON separados por nicho.

@@ -1,18 +1,20 @@
 # Integrations
 
 ## External Services
-- **E-commerce APIs**: VTEX (API v1) e Shopify (Admin API/JSON endpoints).
-- **Proxies**: Integração com serviços de proxy rotativo via `IdentityManager`.
+- **E-commerce APIs**: 
+  - **VTEX**: Integração profunda via Catalog e Search API. Inclui módulo de **Auto-Discovery** de nomes de conta via inspeção de HTML.
+  - **Shopify**: Integração via endpoints JSON de coleções e produtos.
+- **Proxies**: Gestão de IPs rotativos via `IdentityManager` integrada aos clientes HTTP.
 
 ## Browser Automation
-- **Playwright**: Utilizado como mecanismo de bypass de última instância.
+- **Playwright**: Mecanismo de bypass de última instância para sites protegidos por Cloudflare ou que exigem renderização JS pesada.
   - Driver: Chromium (Headless).
-  - User-Agents: Dinâmicos para emulação de dispositivos reais.
+  - Persistência: `SessionManager` compartilha sessões entre clientes quando possível.
 
 ## Security & Auth
-- **JWT Standard**: Assinatura de tokens via algoritmo HS256.
-- **Bcrypt**: Hashing de senhas para persistência segura.
+- **JWT Standard**: Implementação customizada de proteção de rotas via FastAPI dependencies.
+- **WebSocket Auth**: Validação manual de tokens para conexões em tempo real.
 
 ## Data Formats
-- **Input**: JSON (API responses).
-- **Output**: XLSX (Pandas ExcelWriter) para relatórios de negócio.
+- **Input**: JSON (Respostas nativas de e-commerce).
+- **Output**: XLSX (Excel) gerado de forma não-bloqueante via `asyncio.to_thread`.

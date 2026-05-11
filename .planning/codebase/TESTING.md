@@ -1,16 +1,14 @@
 # Testing Strategy
 
 ## Manual Verification
-- **Anti-Bot Bypass**: Verificar se o Playwright é acionado após 403 em sites com Cloudflare.
-- **Auth Flow**: Validar redirecionamento para Login e persistência do Token no LocalStorage.
-- **Streaming Perf**: Monitorar uso de memória no Gerenciador de Tarefas durante extrações >2000 produtos.
+- **Job Cancellation**: Iniciar varredura e cancelar via dashboard. Verificar se a tarefa no backend encerra instantaneamente.
+- **Excel Performance**: Iniciar extração de >1000 produtos e navegar no dashboard. A interface não deve sofrer lentidão ao final da extração.
+- **WAF Bypass**: Validar se o motor Shopify/VTEX aciona o Playwright após detecção de 403.
 
-## Automated Tests
-- **Backend (Pytest)**:
-  - `tests/test_auth.py`: Validação de tokens e proteção de rotas.
-  - `tests/test_streaming.py`: Verificar se os generators retornam os dados esperados.
-- **Frontend**: Validação de tipos via TypeScript Linting.
+## Automated Verification
+- **Static Analysis**: TypeScript linting e Mypy (opcional) para Python.
+- **Data Integrity**: Cada extração passa por validação automática via Pydantic. Falhas são logadas com detalhes do motivo (ex: "Preço zerado").
 
-## Quality Gates
-- **Pydantic**: Validação de esquema para cada produto extraído antes do salvamento final.
-- **Logs**: Auditoria de logs para identificar falhas de fallback.
+## Stability Checks
+- **WebSocket Auth**: Tentar conectar no socket de logs sem token (deve ser rejeitado).
+- **Port Management**: Verificar se o sistema encerra processos órfãos que travam a porta 8000.
