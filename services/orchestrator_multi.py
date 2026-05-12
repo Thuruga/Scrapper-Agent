@@ -131,9 +131,12 @@ async def run_multi_orchestrator(
     Roda tudo no mesmo loop do FastAPI para reaproveitar conexões.
     """
     
+    # Captura o loop ANTES de ir para a thread — será usado pelo log_callback
+    loop = asyncio.get_running_loop()
+
     def log_callback(msg_dict):
-        # Agora podemos chamar o manager diretamente pois estamos no mesmo loop
-        asyncio.create_task(manager.send_message(msg_dict, job_id))
+        # Funciona tanto no loop principal quanto dentro de threads do executor
+        asyncio.run_coroutine_threadsafe(manager.send_message(msg_dict, job_id), loop)
 
     log_callback({
         "type": "info",
@@ -185,8 +188,7 @@ async def run_multi_orchestrator(
     arquivo_saida = f"dados_multimarca_{slug}_{timestamp}.xlsx"
 
     if all_products:
-        # Offload pandas operations to a thread to avoid blocking the loop
-        loop = asyncio.get_running_loop()
+        # Offload pandas operations to a thread para não bloquear o loop
         await loop.run_in_executor(
             None, 
             consolidate_and_save, 

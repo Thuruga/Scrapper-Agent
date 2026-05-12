@@ -70,13 +70,16 @@ class ScrapeCategoryRequest(BaseModel):
 
 
 class ScrapeMultiBrandRequest(BaseModel):
-    """Request para varredura multi-marca com mapeamento de/para."""
+    """Request para varredura multi-marca com mapeamento de/para ou manual."""
     brands: List[str] = Field(
         ..., min_length=1,
         description="Lista de brand_keys para varrer (ex: ['aramis', 'reserva'])"
     )
-    category_slug: str = Field(
-        ..., description="Slug canônico da categoria (ex: 'camisas', 'polos')"
+    category_slug: Optional[str] = Field(
+        None, description="Slug canônico da categoria (ex: 'camisas', 'polos')"
+    )
+    brand_category_map: Optional[Dict[str, str]] = Field(
+        None, description="Mapeamento manual {brand: path/url}"
     )
 
 
@@ -167,10 +170,10 @@ async def scrape_category_multi(
     Inicia job de varredura multi-marca em paralelo.
 
     Resolve automaticamente o mapeamento de/para usando o slug canônico,
-    garantindo que cada marca use o path VTEX correto para a mesma categoria.
+    OU usa o mapeamento manual enviado pelo frontend.
     """
     # Validar marcas
-    all_brands = [b.brand_key for b in brand_service.list_brands()]
+    all_brands = {b.brand_key: b for b in brand_service.list_brands()}
     invalid_brands = [b for b in request.brands if b.lower() not in all_brands]
     if invalid_brands:
         raise HTTPException(
@@ -178,17 +181,35 @@ async def scrape_category_multi(
             detail=f"Marcas não suportadas: {invalid_brands}"
         )
 
-    # Resolver mapeamento de/para
-    try:
-        brand_url_map = resolve_category_for_brands(
-            request.category_slug, request.brands
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    url_map = {}
+    category_label = "Múltiplas"
 
-    # Extrair apenas as URLs finais
-    url_map = {bk: info["url"] for bk, info in brand_url_map.items()}
-    category_label = brand_url_map[request.brands[0].lower()]["label"]
+    if request.brand_category_map:
+        # Modo Manual (Novo fluxo)
+        for bk, path_or_url in request.brand_category_map.items():
+            bk_lower = bk.lower()
+            if path_or_url.startswith("http"):
+                url_map[bk_lower] = clean_url(path_or_url)
+            else:
+                brand_info = all_brands.get(bk_lower)
+                domain = brand_info.domain if brand_info else ""
+                clean_path = path_or_url if path_or_url.startswith("/") else f"/{path_or_url}"
+                url_map[bk_lower] = f"https://{domain}{clean_path}"
+        
+        if request.category_slug:
+            category_label = request.category_slug.title()
+    elif request.category_slug:
+        # Modo Canônico (Antigo fluxo)
+        try:
+            brand_url_map = resolve_category_for_brands(
+                request.category_slug, request.brands
+            )
+            url_map = {bk: info["url"] for bk, info in brand_url_map.items()}
+            category_label = brand_url_map[request.brands[0].lower()]["label"]
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+    else:
+        raise HTTPException(status_code=400, detail="Forneça category_slug ou brand_category_map.")
 
     job_id = str(uuid.uuid4())
     

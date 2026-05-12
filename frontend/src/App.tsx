@@ -16,7 +16,9 @@ import {
   XCircle,
   Globe,
   TrendingUp,
-  ExternalLink
+  ExternalLink,
+  Download,
+  FileSpreadsheet
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -403,8 +405,8 @@ const MonitorPage = ({ brands }: { brands: any[] }) => {
 
 const CategoryPage = ({ brands }: { brands: any[] }) => {
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
-  const [canonicalCategories, setCanonicalCategories] = useState<any[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState("");
+  const [brandCategories, setBrandCategories] = useState<Record<string, any[]>>({});
+  const [brandSelections, setBrandSelections] = useState<Record<string, string>>({});
   const [isScraping, setIsScraping] = useState(false);
   const [logs, setLogs] = useState<any[]>([]);
   const [progress, setProgress] = useState({ current: 0, total: 0, success: 0, error: 0 });
@@ -414,43 +416,54 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
   const logEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    ApiClient.getCanonicalCategories().then(data => {
-      const flat = data.reduce((acc: any[], group: any) => [...acc, ...group.categories], []);
-      setCanonicalCategories(flat);
-    }).catch(console.error);
-  }, []);
-
-  useEffect(() => {
-    if (selectedBrands.length === 1) {
-      ApiClient.request<any>(`/brands/${selectedBrands[0]}/categories`).then(data => {
-        if (data && data.categories) {
-          const flat = data.categories.reduce((acc: any[], group: any) => {
-            const items = group.items.map((i: any) => ({ slug: i.path, label: `${group.group} - ${i.label}` }));
-            return [...acc, ...items];
-          }, []);
-          setCanonicalCategories(flat);
-        }
-      }).catch(console.error);
-    } else {
-      ApiClient.getCanonicalCategories().then(data => {
-        const flat = data.reduce((acc: any[], group: any) => [...acc, ...group.categories], []);
-        setCanonicalCategories(flat);
-      }).catch(console.error);
-    }
-  }, [selectedBrands]);
-
-  useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [logs]);
 
+  const fetchBrandCategories = async (brandKey: string) => {
+    if (brandCategories[brandKey]) return;
+    try {
+      const data = await ApiClient.request<any>(`/brands/${brandKey}/categories`);
+      if (data && data.categories) {
+        const flat = data.categories.reduce((acc: any[], group: any) => {
+          const items = group.items.map((i: any) => ({ slug: i.path, label: `${group.group} - ${i.label}` }));
+          return [...acc, ...items];
+        }, []);
+        setBrandCategories(prev => ({ ...prev, [brandKey]: flat }));
+      }
+    } catch (err) {
+      console.error(`Erro ao carregar categorias para ${brandKey}:`, err);
+    }
+  };
+
   const toggleBrand = (key: string) => {
-    setSelectedBrands(prev =>
-      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
-    );
+    setSelectedBrands(prev => {
+      const exists = prev.includes(key);
+      if (exists) {
+        const next = prev.filter(k => k !== key);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { [key]: _, ...rest } = brandSelections;
+        setBrandSelections(rest);
+        return next;
+      } else {
+        fetchBrandCategories(key);
+        return [...prev, key];
+      }
+    });
+  };
+
+  const updateBrandSelection = (brandKey: string, categoryPath: string) => {
+    setBrandSelections(prev => ({ ...prev, [brandKey]: categoryPath }));
   };
 
   const startScrape = async () => {
-    if (selectedBrands.length === 0 || !selectedCategory) return;
+    if (selectedBrands.length === 0) return;
+
+    // Validar se todas as marcas selecionadas têm uma categoria
+    const allSelected = selectedBrands.every(bk => brandSelections[bk]);
+    if (!allSelected) {
+      alert("Por favor, selecione uma categoria para cada marca.");
+      return;
+    }
 
     setIsScraping(true);
     setOutputFile(null);
@@ -462,14 +475,18 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
       let payload: any;
 
       if (isMulti) {
-        payload = { brands: selectedBrands, category_slug: selectedCategory };
+        payload = {
+          brands: selectedBrands,
+          brand_category_map: brandSelections,
+          category_slug: "Varredura Manual"
+        };
       } else {
         const brand = selectedBrands[0];
-        // Se a categoria selecionada for uma URL completa, enviamos como custom_url
-        if (selectedCategory.startsWith('http')) {
-          payload = { brand, custom_url: selectedCategory };
+        const selection = brandSelections[brand];
+        if (selection.startsWith('http')) {
+          payload = { brand, custom_url: selection };
         } else {
-          payload = { brand, category_path: selectedCategory };
+          payload = { brand, category_path: selection };
         }
       }
 
@@ -504,11 +521,6 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
     }
   };
 
-
-
-
-
-
   return (
     <div className="page-content">
       <div className="grid-category">
@@ -539,40 +551,54 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
               </div>
 
               <div className="form-group">
-                <label className="label">Categoria</label>
-                <select
-                  className="input"
-                  value={selectedCategory}
-                  onChange={e => setSelectedCategory(e.target.value)}
-                >
-                  <option value="">Selecione...</option>
-                  {canonicalCategories.map((cat: any) => (
-                    <option key={cat.slug} value={cat.slug}>{cat.label}</option>
-                  ))}
-                </select>
+                <label className="label">Categorias por Marca</label>
+                {selectedBrands.length === 0 && <p className="text-muted" style={{ fontSize: '13px' }}>Selecione marcas acima para configurar as categorias.</p>}
+
+                <div className="brand-category-selectors" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {selectedBrands.map(bk => {
+                    const brand = brands.find(b => b.brand_key === bk);
+                    return (
+                      <div key={bk} className="brand-category-item" style={{ background: 'rgba(255,255,255,0.05)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.2)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                          <img
+                            src={brand?.logo_url || `https://www.google.com/s2/favicons?domain=${brand?.domain}&sz=32`}
+                            style={{ width: '20px', height: '20px', borderRadius: '4px' }}
+                            alt=""
+                          />
+                          <span style={{ fontSize: '14px', fontWeight: 600 }}>{brand?.brand_name}</span>
+                        </div>
+                        <select
+                          className="input"
+                          style={{ height: '48px', fontSize: '14px', width: '100%', appearance: 'auto' }}
+                          value={brandSelections[bk] || ""}
+                          onChange={e => updateBrandSelection(bk, e.target.value)}
+                        >
+                          <option value="">Selecione a categoria...</option>
+                          {(brandCategories[bk] || []).map((cat: any) => (
+                            <option key={cat.slug} value={cat.slug}>{cat.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
               <button
                 className="btn btn-primary w-full"
                 onClick={startScrape}
-                disabled={isScraping || selectedBrands.length === 0 || !selectedCategory}
+                disabled={isScraping || selectedBrands.length === 0}
               >
                 {isScraping ? <RefreshCw className="animate-spin" size={18} /> : <Zap size={18} />}
                 {isScraping ? "Processando..." : "Iniciar Varredura"}
               </button>
-
-
             </div>
           </GlassCard>
-
-
         </div>
-
 
         <div className="category-main">
           <GlassCard title="Progresso e Logs" subtitle={isScraping ? "Acompanhando em tempo real..." : "Aguardando início..."}>
             <div className="scrape-stats">
-              {/* Total Detectado removido conforme solicitado */}
               <div className="stat-box">
                 <span className="stat-label">Total</span>
                 <span className="stat-value">{progress.current}</span>
@@ -611,17 +637,30 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
               </div>
             </div>
 
-            {outputFile && (
-              <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
+            {outputFile && !isScraping && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}
+              >
                 <a
                   href={`${import.meta.env.VITE_API_URL || ''}/download-report/${outputFile}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="btn btn-primary"
+                  className="btn btn-success"
+                  style={{ 
+                    padding: '12px 24px', 
+                    fontSize: '1rem', 
+                    background: '#10b981', 
+                    color: 'white',
+                    boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'
+                  }}
                 >
-                  <Package size={18} /> Baixar Relatório (Excel)
+                  <FileSpreadsheet size={20} /> 
+                  <span style={{ fontWeight: 700 }}>BAIXAR RESULTADOS (EXCEL)</span>
+                  <Download size={16} style={{ marginLeft: '8px', opacity: 0.8 }} />
                 </a>
-              </div>
+              </motion.div>
             )}
           </GlassCard>
         </div>
@@ -719,8 +758,16 @@ const SearchPage = ({ brands }: { brands: any[] }) => {
               <button type="submit" className="btn btn-primary" disabled={loading || exporting}>
                 {loading ? <RefreshCw className="animate-spin" size={18} /> : "Comparar"}
               </button>
-              <button type="button" className="btn btn-secondary" onClick={handleExport} disabled={loading || exporting || !query} title="Exportar para Excel">
-                {exporting ? <RefreshCw className="animate-spin" size={18} /> : <Package size={18} />}
+              <button 
+                type="button" 
+                className="btn btn-outline" 
+                onClick={handleExport} 
+                disabled={loading || exporting || !query} 
+                title="Exportar Busca para Excel"
+                style={{ borderColor: '#10b981', color: '#10b981' }}
+              >
+                {exporting ? <RefreshCw className="animate-spin" size={18} /> : <FileSpreadsheet size={18} />}
+                <span style={{ fontSize: '12px', marginLeft: '4px' }}>Excel</span>
               </button>
             </div>
           </div>
@@ -765,43 +812,51 @@ const SearchPage = ({ brands }: { brands: any[] }) => {
       </GlassCard>
 
       <div className="results-container">
-        {results && results.results && Array.isArray(results.results) && results.results.map((brandRes: any) => (
-          <div key={brandRes.brand_key} className="brand-column">
-            <h4 className="brand-header">{brandRes.brand_name}</h4>
-            <div className="product-grid">
-              {brandRes.products?.map((p: any) => (
-                <a
-                  key={p.url}
-                  href={p.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="product-card"
-                >
-                  <div className="product-image">
-                    {p.image_url ? <img src={p.image_url} alt={p.product_name} /> : <Package size={40} />}
-                    {p.price_discount && <span className="badge-discount">OFF</span>}
+        {results && (selectedBrands.length > 0 ? selectedBrands : brands.map(b => b.brand_key)).map((brandKey: string) => {
+          const brand = brands.find(b => b.brand_key === brandKey);
+          const brandRes = Array.isArray(results.results) ? results.results.find((r: any) => r.brand_key === brandKey) : null;
+          const products = brandRes?.products || [];
+
+          return (
+            <div key={brandKey} className="brand-column">
+              <h4 className="brand-header">{brand?.brand_name || brandKey}</h4>
+              <div className="product-grid">
+                {products.map((p: any) => (
+                  <a
+                    key={p.url}
+                    href={p.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="product-card"
+                  >
+                    <div className="product-image">
+                      {p.image_url ? <img src={p.image_url} alt={p.product_name} /> : <Package size={40} />}
+                      {p.price_discount && <span className="badge-discount">OFF</span>}
+                    </div>
+                    <div className="product-details">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                        <p className="product-name">{p.product_name}</p>
+                        <ExternalLink size={14} className="text-muted" style={{ marginTop: '4px', flexShrink: 0 }} />
+                      </div>
+                      <div className="product-price">
+                        <span className="price-current">R$ {p.price_full.toFixed(2)}</span>
+                      </div>
+                      <div className="product-meta">
+                        {p.available ? <CheckCircle2 size={14} className="text-success" /> : <XCircle size={14} className="text-error" />}
+                        <span>{p.available ? 'Em estoque' : 'Esgotado'}</span>
+                      </div>
+                    </div>
+                  </a>
+                ))}
+                {products.length === 0 && (
+                  <div className="empty-column" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px dashed var(--border)' }}>
+                    <p style={{ fontSize: '0.9rem' }}>Nenhum resultado encontrado</p>
                   </div>
-                  <div className="product-details">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                      <p className="product-name">{p.product_name}</p>
-                      <ExternalLink size={14} className="text-muted" style={{ marginTop: '4px', flexShrink: 0 }} />
-                    </div>
-                    <div className="product-price">
-                      <span className="price-current">R$ {p.price_full.toFixed(2)}</span>
-                    </div>
-                    <div className="product-meta">
-                      {p.available ? <CheckCircle2 size={14} className="text-success" /> : <XCircle size={14} className="text-error" />}
-                      <span>{p.available ? 'Em estoque' : 'Esgotado'}</span>
-                    </div>
-                  </div>
-                </a>
-              ))}
-              {(!brandRes.products || brandRes.products.length === 0) && (
-                <div className="empty-column">Nenhum resultado</div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
