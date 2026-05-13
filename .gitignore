@@ -5,7 +5,8 @@ __pycache__/
 .idea/
 *.json
 !/.planning/*.json
-!/frontend/vercel.json
+!/frontend/*.json
+!/frontend/**/*.json
 *.log
 .env
 *.xlsx
