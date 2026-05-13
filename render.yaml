@@ -15,9 +15,9 @@ services:
       - key: PYTHON_VERSION
         value: "3.11.9"
 
-      # --- Auth ---
+      # --- Auth --
       - key: INTERNAL_API_KEY
-        generateValue: true   # Render gera um valor aleatório seguro automaticamente
+        generateValue: true # Render gera um valor aleatório seguro automaticamente
 
       # --- Deploy ---
       - key: RENDER
@@ -25,17 +25,17 @@ services:
       - key: APP_HOST
         value: "0.0.0.0"
       - key: ALLOWED_ORIGINS
-        sync: false           # Preencher após o deploy do Vercel (ex: https://scrapper-agent.vercel.app)
+        sync: false # Preencher após o deploy do Vercel (ex: https://scrapper-agent.vercel.app)
 
       # --- Supabase ---
       - key: SUPABASE_URL
-        sync: false           # Preencher com a URL do projeto Supabase
+        sync: false # Preencher com a URL do projeto Supabase
       - key: SUPABASE_KEY
-        sync: false           # Preencher com a anon/service key do Supabase
+        sync: false # Preencher com a anon/service key do Supabase
 
       # --- Playwright ---
       - key: PLAYWRIGHT_ENABLED
-        value: "true"         # Mudar para "false" se sofrer OOM (usa só curl_cffi)
+        value: "true" # Mudar para "false" se sofrer OOM (usa só curl_cffi)
 
     healthCheckPath: /health-check
     autoDeploy: true
