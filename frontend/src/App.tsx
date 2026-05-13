@@ -33,85 +33,8 @@ import {
 import { ApiClient } from './api/client';
 import './App.css';
 
+
 // --- Components ---
-
-const LoginView = ({ onLogin }: { onLogin: (token: string) => void }) => {
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin123');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    try {
-      const formData = new FormData();
-      formData.append('username', username);
-      formData.append('password', password);
-
-      const res = await ApiClient.login(formData);
-      onLogin(res.access_token);
-    } catch (err: any) {
-      setError(err.message || 'Falha ao entrar. Verifique suas credenciais.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="login-container">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="login-card"
-      >
-        <div className="login-header">
-          <div className="login-logo">
-            <Zap size={32} className="text-accent" />
-          </div>
-          <h1>Intelligence Scraper</h1>
-          <p>Faça login para acessar o painel administrativo</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="form-stack">
-          {error && <div className="status-banner error">{error}</div>}
-
-          <div className="form-group">
-            <label className="label">Usuário</label>
-            <input
-              type="text"
-              className="input"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="label">Senha</label>
-            <input
-              type="password"
-              className="input"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-            />
-          </div>
-
-          <button className="btn btn-primary w-full" disabled={loading} style={{ marginTop: '12px' }}>
-            {loading ? <RefreshCw className="animate-spin" size={18} /> : 'Entrar no Sistema'}
-          </button>
-        </form>
-
-        <div className="login-footer">
-          <p>&copy; {new Date().getFullYear()} Thuruga Intelligence.</p>
-        </div>
-      </motion.div>
-    </div>
-  );
-};
 
 
 const SidebarItem = ({ icon: Icon, label, active, onClick }: any) => (
@@ -493,8 +416,18 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
       const res: any = await ApiClient.startScrape(payload, isMulti);
       const jobId = res.job_id;
 
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const ws = new WebSocket(`${protocol}//${window.location.host}/ws/${jobId}?token=${ApiClient.getToken()}`);
+      const apiUrl = import.meta.env.VITE_API_URL || '';
+      const apiKey = import.meta.env.VITE_API_KEY || 'dev-api-key';
+      let wsUrl: string;
+      if (apiUrl) {
+        // Produção (split deploy): converter http(s) → ws(s)
+        wsUrl = apiUrl.replace(/^http/, 'ws') + `/ws/${jobId}?api_key=${apiKey}`;
+      } else {
+        // Dev local (proxy): usar window.location
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        wsUrl = `${protocol}//${window.location.host}/ws/${jobId}?api_key=${apiKey}`;
+      }
+      const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
       ws.onmessage = (e) => {
@@ -975,46 +908,22 @@ const SettingsPage = ({ brands, onRefresh }: { brands: any[], onRefresh: () => v
 };
 
 
+
 // --- Main App ---
 
 function App() {
   const [activeTab, setActiveTab] = useState('monitor');
   const [brands, setBrands] = useState<any[]>([]);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!ApiClient.getToken());
 
   const refreshBrands = () => {
-    if (!isAuthenticated) return;
     ApiClient.getBrands().then(data => {
       if (Array.isArray(data)) setBrands(data);
-    }).catch(err => {
-      console.error(err);
-      if (err.message.includes('401')) setIsAuthenticated(false);
-    });
+    }).catch(err => console.error('Erro ao carregar marcas:', err));
   };
 
   useEffect(() => {
-    const handleAuthExpired = () => setIsAuthenticated(false);
-    window.addEventListener('auth-expired', handleAuthExpired);
-
-    if (isAuthenticated) {
-      refreshBrands();
-    }
-
-    return () => window.removeEventListener('auth-expired', handleAuthExpired);
-  }, [isAuthenticated]);
-
-  const handleLogin = (_token: string) => {
-    setIsAuthenticated(true);
-  };
-
-  const handleLogout = () => {
-    ApiClient.clearToken();
-    setIsAuthenticated(false);
-  };
-
-  if (!isAuthenticated) {
-    return <LoginView onLogin={handleLogin} />;
-  }
+    refreshBrands();
+  }, []);
 
   const renderTab = () => {
     switch (activeTab) {
@@ -1078,9 +987,6 @@ function App() {
               <CheckCircle2 size={14} className="text-success" />
               <span>Server Online</span>
             </div>
-            <button onClick={handleLogout} className="btn-icon text-muted" title="Sair">
-              <XCircle size={20} />
-            </button>
           </div>
         </header>
 

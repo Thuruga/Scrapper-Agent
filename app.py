@@ -36,11 +36,17 @@ logger = logging.getLogger("App")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup logic
+    # Startup: carrega dados persistentes
+    from services.brand_service import brand_service
     from services.price_monitor_service import monitor_service
+
+    # Supabase (se configurado) — seed automático se tabela vazia
+    brand_service.load_from_supabase()
+
+    # Monitores de preço (arquivo local — efêmeros por design)
     monitor_service.load_monitors()
     yield
-    # Shutdown logic (optional)
+    # Shutdown (opcional)
 
 app = FastAPI(
     title="Intelligence Scraper API",
@@ -49,10 +55,16 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Enable CORS
+# Enable CORS — dynamic origins for split deploy
+_origins = (
+    ["*"]
+    if settings.ALLOWED_ORIGINS == "*"
+    else [o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()]
+)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -74,10 +86,10 @@ async def add_no_cache_header(request, call_next):
 # ---------------------------------------------------------------------------
 # Rotas
 # ---------------------------------------------------------------------------
-# Registra rotas públicas (Login, etc)
+# Router público: WebSocket (/ws/{job_id}) — sem autenticação HTTP obrigatória
 app.include_router(public_router)
 
-# Registra todos os endpoints da API protegidos
+# Endpoints protegidos por X-API-Key
 app.include_router(api_router)
 
 @app.get("/health-check")
@@ -100,14 +112,21 @@ async def download_report(filename: str):
 
 
 # ---------------------------------------------------------------------------
-# Frontend (React Build)
+# Frontend (React Build) — skipped on Render (split deploy)
 # ---------------------------------------------------------------------------
-@app.get("/")
-async def read_index():
-    return FileResponse("frontend/dist/index.html")
+import os as _os
 
-app.mount("/assets", StaticFiles(directory="frontend/dist/assets"), name="assets")
-app.mount("/static", StaticFiles(directory="static"), name="static")
+if not settings.RENDER:
+    @app.get("/")
+    async def read_index():
+        return FileResponse("frontend/dist/index.html")
+
+    if _os.path.isdir("frontend/dist/assets"):
+        app.mount("/assets", StaticFiles(directory="frontend/dist/assets"), name="assets")
+    if _os.path.isdir("static"):
+        app.mount("/static", StaticFiles(directory="static"), name="static")
+else:
+    logger.info("RENDER=true — frontend static mount disabled (split deploy)")
 
 
 # ---------------------------------------------------------------------------

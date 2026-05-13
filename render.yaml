@@ -1,0 +1,41 @@
+# Render Blueprint — Intelligence Scraper Backend
+# https://docs.render.com/blueprint-spec
+
+services:
+  - type: web
+    name: scrapper-agent
+    runtime: python
+    repo: https://github.com/Thuruga/Scrapper-Agent
+    plan: free
+    buildCommand: |
+      pip install -r requirements.txt
+      playwright install --with-deps chromium
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+
+      # --- Auth ---
+      - key: INTERNAL_API_KEY
+        generateValue: true   # Render gera um valor aleatório seguro automaticamente
+
+      # --- Deploy ---
+      - key: RENDER
+        value: "true"
+      - key: APP_HOST
+        value: "0.0.0.0"
+      - key: ALLOWED_ORIGINS
+        sync: false           # Preencher após o deploy do Vercel (ex: https://scrapper-agent.vercel.app)
+
+      # --- Supabase ---
+      - key: SUPABASE_URL
+        sync: false           # Preencher com a URL do projeto Supabase
+      - key: SUPABASE_KEY
+        sync: false           # Preencher com a anon/service key do Supabase
+
+      # --- Playwright ---
+      - key: PLAYWRIGHT_ENABLED
+        value: "true"         # Mudar para "false" se sofrer OOM (usa só curl_cffi)
+
+    healthCheckPath: /health-check
+    autoDeploy: true
