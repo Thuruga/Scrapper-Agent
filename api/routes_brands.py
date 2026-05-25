@@ -66,7 +66,29 @@ async def create_brand(brand_data: DynamicBrandCreate):
 @router.get("/brands/", response_model=List[DynamicBrand])
 async def list_brands():
     """Lista todas as marcas cadastradas."""
-    return brand_service.list_brands()
+    brands = brand_service.list_brands()
+    
+    # Inject virtual marketplaces so they appear in the UI filters
+    brands.append(
+        DynamicBrand(
+            brand_key="mercadolivre",
+            brand_name="Mercado Livre",
+            domain="mercadolivre.com.br",
+            engine="mercadolivre",
+            mappings=[]
+        )
+    )
+    brands.append(
+        DynamicBrand(
+            brand_key="netshoes",
+            brand_name="Netshoes",
+            domain="netshoes.com.br",
+            engine="netshoes",
+            mappings=[]
+        )
+    )
+    
+    return brands
 
 
 @router.get("/brands/{brand_key}/discover")

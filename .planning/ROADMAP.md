@@ -80,3 +80,12 @@ Plans:
 | 4. Expansion Spike | 1/1 | Completed | 2026-05-08 |
 | 5. Data Quality Gates | 1/1 | Completed | 2026-05-08 |
 | 6. Resilience, Optimization & Security | 1/1 | Completed | 2026-05-11 |
+
+### Phase 7: Marketplace and Web Search Integration
+**Goal**: Expand comparative search to include Netshoes and Mercado Livre, extracting prices, sizes, and colors.
+**Depends on**: Phase 6
+**Success Criteria**:
+  1. The /search route returns Mercado Livre and Netshoes results alongside VTEX brands.
+  2. Search results include available sizes and colors.
+**Plans**: 1 plan
+

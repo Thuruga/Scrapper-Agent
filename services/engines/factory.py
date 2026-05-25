@@ -2,6 +2,8 @@ from typing import Optional, List
 from services.engines.base_engine import BaseEngine
 from services.engines.vtex_engine import VTEXEngine
 from services.engines.shopify_engine import ShopifyEngine
+from services.engines.mercadolivre_engine import MercadoLivreEngine
+from services.engines.netshoes_engine import NetshoesEngine
 from services.brand_service import brand_service
 from core.models import BrandSearchResult
 
@@ -29,6 +31,10 @@ class EngineFactory:
 
         if engine_type == "shopify":
             return ShopifyEngine(brand_key)
+        elif brand_key == "mercadolivre":
+            return MercadoLivreEngine()
+        elif brand_key == "netshoes":
+            return NetshoesEngine()
             
         return VTEXEngine(brand_key)
 
@@ -49,7 +55,13 @@ class EngineFactory:
         if not query or not query.strip():
             return []
 
-        target_brands = brands or [b.brand_key for b in brand_service.list_brands()]
+        if brands:
+            target_brands = brands
+        else:
+            # Default search includes all stored brands PLUS the virtual marketplaces
+            target_brands = [b.brand_key for b in brand_service.list_brands()]
+            target_brands.extend(["mercadolivre", "netshoes"])
+
         target_brands = [b.lower() for b in target_brands]
 
         async def _search_one(brand_key: str) -> BrandSearchResult:

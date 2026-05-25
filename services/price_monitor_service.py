@@ -134,19 +134,36 @@ class PriceMonitorService:
                     if product.raw_title and not config.product_name:
                         config.product_name = product.raw_title
                         needs_save = True
+
+                    current_colors = product.available_colors or []
+                    current_sizes = product.available_sizes or []
                     
                     if needs_save:
                         self._save_monitors()
 
-                    # Verifica se houve mudança de preço ou disponibilidade
-
+                    # Verifica se houve mudança de preço, disponibilidade, cores ou tamanhos
                     has_change = False
+                    
                     if config.last_price is None or config.last_price != current_price:
                         has_change = True
+                        
+                    # Checa se houve alteração nas numerações/cores disponíveis
+                    if sorted(config.available_colors) != sorted(current_colors):
+                        has_change = True
+                        config.available_colors = current_colors
+                    
+                    if sorted(config.available_sizes) != sorted(current_sizes):
+                        has_change = True
+                        config.available_sizes = current_sizes
                     
                     # Registra no histórico se houve mudança
                     if has_change:
-                        entry = PriceHistoryEntry(price=current_price, available=bool(available))
+                        entry = PriceHistoryEntry(
+                            price=current_price, 
+                            available=bool(available),
+                            available_colors=current_colors,
+                            available_sizes=current_sizes
+                        )
                         config.history.append(entry)
                         config.last_price = current_price
                         self._save_monitors()
@@ -156,8 +173,10 @@ class PriceMonitorService:
                             "type": "price_update",
                             "price": current_price,
                             "available": available,
+                            "available_colors": current_colors,
+                            "available_sizes": current_sizes,
                             "history": [e.model_dump() for e in config.history],
-                            "message": f"Mudança detectada! Novo preço: R$ {current_price:.2f}"
+                            "message": f"Mudança detectada! Preço: R$ {current_price:.2f} | Tamanhos: {len(current_sizes)}"
                         }, job_id)
                     else:
                         # Apenas log de "tudo igual"

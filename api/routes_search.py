@@ -42,10 +42,10 @@ class SearchRequest(BaseModel):
         default=None,
         description=(
             "Lista de marcas para pesquisar. "
-            "Se omitido, busca em todas as marcas cadastradas. "
-            "Valores válidos: 'aramis', 'reserva', 'tommy'."
+            "Se omitido, busca em todas as marcas cadastradas e marketplaces virtuais. "
+            "Valores válidos: 'aramis', 'reserva', 'tommy', 'mercadolivre', 'netshoes'."
         ),
-        examples=[["aramis", "reserva", "tommy"]],
+        examples=[["aramis", "reserva", "tommy", "mercadolivre", "netshoes"]],
     )
     max_per_brand: int = Field(
         default=10,
@@ -88,6 +88,7 @@ async def search_products(request: SearchRequest) -> ComparisonResult:
     """
     # Valida marcas fornecidas, se explicitadas
     all_brands = [b.brand_key for b in brand_service.list_brands()]
+    all_brands.extend(["mercadolivre", "netshoes"])
     if request.brands:
         invalid = [b for b in request.brands if b.lower() not in all_brands]
         if invalid:
@@ -141,9 +142,12 @@ async def search_products_get(
         only_in_stock=only_in_stock
     )
 
+    all_brands = [b.brand_key for b in brand_service.list_brands()]
+    all_brands.extend(["mercadolivre", "netshoes"])
+
     return ComparisonResult(
         query=q,
-        brands_searched=[b.brand_key for b in brand_service.list_brands()],
+        brands_searched=all_brands,
         results=brand_results,
     )
 
@@ -158,6 +162,7 @@ async def export_search_products(request: SearchRequest):
     Executa a busca comparativa e retorna o resultado como download de arquivo Excel.
     """
     all_brands = [b.brand_key for b in brand_service.list_brands()]
+    all_brands.extend(["mercadolivre", "netshoes"])
     if request.brands:
         invalid = [b for b in request.brands if b.lower() not in all_brands]
         if invalid:

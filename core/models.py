@@ -73,6 +73,8 @@ class SearchProductResult(BaseModel):
     available: Optional[bool] = None
     rating: Optional[float] = None
     review_count: Optional[int] = None
+    available_colors: List[str] = Field(default_factory=list)
+    available_sizes: List[str] = Field(default_factory=list)
 
 
 class BrandSearchResult(BaseModel):
@@ -105,6 +107,8 @@ class PriceHistoryEntry(BaseModel):
     timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     price: float
     available: bool
+    available_colors: List[str] = Field(default_factory=list)
+    available_sizes: List[str] = Field(default_factory=list)
 
 
 class PriceMonitorConfig(BaseModel):
@@ -120,6 +124,8 @@ class PriceMonitorConfig(BaseModel):
     active: bool = True
     image_url: Optional[str] = None
     product_name: Optional[str] = None
+    available_colors: List[str] = Field(default_factory=list)
+    available_sizes: List[str] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
