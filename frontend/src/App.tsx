@@ -879,7 +879,8 @@ const ProtectedBannerImage = ({ runId, banner }: { runId: string, banner: Banner
 };
 
 const BannersPage = ({ brands }: { brands: any[] }) => {
-  const activeBrands = brands.filter(brand => brand.is_active !== false);
+  const virtualMarketplaces = new Set(['mercado_livre', 'netshoes', 'amazon']);
+  const activeBrands = brands.filter(brand => brand.is_active !== false && !virtualMarketplaces.has(brand.brand_key));
   const {
     selectedBrands, activeJobId, run, selectedBannerIds, history, historyLoading,
     setSelectedBrands, initializeBrands, start, stop, toggleBanner, selectAllBanners,
