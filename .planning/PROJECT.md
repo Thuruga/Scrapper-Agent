@@ -8,17 +8,17 @@ Um sistema robusto de web scraping focado em monitoramento de preços e descober
 
 Extração automatizada e resiliente de dados de mercado com mínima intervenção humana e alta fidelidade de dados.
 
-## Current Milestone: v2.0 Cobertura de Concorrentes & Confiabilidade
+## Current Milestone: v3.0 Expansão Multi-Plataforma de Concorrentes & Frete VTEX
 
-**Goal:** Ampliar a cobertura competitiva (9 novas marcas + gestão/desativação) e elevar a confiabilidade da plataforma (busca que sobrevive à troca de abas, histórico completo de buscas e cálculo de frete por checkout em mais motores).
+**Goal:** Onboardar marcas concorrentes que rodam fora do VTEX (construindo 2 engines novos — SFCC e Wake Commerce) e entregar o cálculo de frete VTEX que ficou pendente do v2.0.
 
 **Target features:**
-- **Concorrentes:** onboard de 9 marcas (Lacoste, Levi's, Richards, HugoBoss, Calvin Klein, Track&Field, Austral, Zapalla, Zara), com auto-detecção de engine (VTEX/Shopify); marcas em plataforma não suportada (ex.: Wake Commerce) são sinalizadas e adiadas.
-- **Gestão de marca:** ação de desativar/reativar marca (aplicar o `is_active`, hoje ignorado na busca) + campo de gestão (adicionar/remover/desativar).
-- **Robustez de busca:** a busca continua viva ao trocar de aba (estado sai do componente desmontado para um store global) + histórico salva e reexibe todas as buscas (incl. comparativa, que hoje não salva).
-- **Checkout/frete:** preço + prazo de frete via checkout em mais motores (hoje só VTEX completo).
+- **Engine SFCC (browser público):** onboard de **Lacoste** e **HugoBoss** via extração browser-rendered (JSON-LD/OpenGraph) — catálogo + preço apenas.
+- **Engine Wake Commerce:** onboard de **Richards** via API GraphQL (`TCS-Access-Token` por loja), precedido de um spike de confirmação do token.
+- **Detecção de engine:** `detect_engine` reconhece e rotula `sfcc` e `wake` (hoje retornam `unknown`), liberando o cadastro com o engine certo.
+- **Frete VTEX (carregado do v2.0):** preço + prazo de frete via checkout nos sites de marca VTEX.
 
-**Key context:** Auth permanece com API key compartilhada — perfis de acesso/login (ARAMIS/URBAN/NEXT/MARKETPLACE) e o estudo de banners→SharePoint foram adiados para um milestone futuro. O engine Wake Commerce (ref.: Shop2gether) **não** será construído neste milestone; é risco conhecido para marcas que dependam dele.
+**Key context:** O caminho SFCC validado por spike é **público via browser** — sem frete/checkout, estoque por CEP, OCAPI/SCAPI (exige credenciais) ou bypass de anti-bot. **Zara / Inditex IOP** (COMP-FUT-03) permanece deferido (sem caminho público validado). Auth segue API key compartilhada; perfis de acesso e banners→SharePoint seguem adiados.
 
 ## Requirements
 
@@ -26,9 +26,10 @@ Extração automatizada e resiliente de dados de mercado com mínima intervenç�
 
 <!-- REQ-IDs canônicos e escopo detalhado vivem em .planning/REQUIREMENTS.md; o roadmap mapeia cada um a uma phase. -->
 
-- [ ] **COMP-01**: Onboarding das 9 novas marcas concorrentes (auto-detecção de engine; marcas em plataforma não suportada sinalizadas).
-- [ ] **PERS-01**: Uma busca em andamento continua viva ao trocar de aba e ao voltar.
-- [ ] **FRET-05**: Preço e prazo de frete via checkout disponíveis em mais motores além do VTEX.
+- [ ] **COMP-03**: Operador onboarda e busca produtos das marcas SFCC **Lacoste** e **HugoBoss** (catálogo + preço) via extração pública browser-rendered. (cumpre COMP-FUT-02)
+- [ ] **COMP-04**: Operador onboarda e busca produtos da **Richards** (Wake Commerce) via GraphQL com `TCS-Access-Token` por loja. (cumpre COMP-FUT-01; bloqueado por spike de confirmação)
+- [ ] **COMP-05**: `detect_engine` reconhece e rotula `sfcc` e `wake`, permitindo cadastrar essas marcas com o engine correto.
+- [ ] **FRET-05**: Preço e prazo de frete via checkout nos sites de marca VTEX (carregado do v2.0).
 
 ### Validated (v2.0)
 
@@ -149,4 +150,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-20 — Phase 27 (Histórico Completo + Gestão de Marcas na UI) complete: HIST-01 + HIST-02 + MGMT-02 validated.*
+*Last updated: 2026-06-23 — Milestone v3.0 iniciado (Expansão Multi-Plataforma: SFCC, Wake & Frete VTEX).*

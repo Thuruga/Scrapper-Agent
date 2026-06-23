@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.0
-milestone_name: Cobertura de Concorrentes & Confiabilidade
-status: Awaiting next milestone
-stopped_at: Phase 29 (Diagnóstico) removida — Frete (nova Phase 29) ainda não planejada
-last_updated: "2026-06-23T13:34:50.820Z"
-last_activity: 2026-06-23 — Milestone v2.0 completed and archived
+milestone: v3.0
+milestone_name: Expansão Multi-Plataforma de Concorrentes & Frete VTEX
+status: planning
+last_updated: "2026-06-23T13:39:57.403Z"
+last_activity: 2026-06-23
 progress:
-  total_phases: 5
-  completed_phases: 4
-  total_plans: 13
-  completed_plans: 13
-  percent: 80
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State: Intelligence Scraper
@@ -21,20 +20,20 @@ progress:
 See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/scrapper/.planning/PROJECT.md) (updated 2026-06-18)
 
 **Core value:** Extração automatizada e resiliente de dados de mercado com mínima intervenção humana e alta fidelidade de dados.
-**Current focus:** Phase 29 — Frete via Checkout nos Sites VTEX
+**Current focus:** v3.0 — definindo requisitos
 
-## Current Milestone: v2.0 Cobertura de Concorrentes & Confiabilidade
+## Current Milestone: v3.0 Expansão Multi-Plataforma de Concorrentes & Frete VTEX
 
-**Goal:** Ampliar a cobertura competitiva (5 marcas VTEX + gestão/desativação) e elevar a confiabilidade da plataforma (busca que sobrevive à troca de abas, histórico completo de buscas e cálculo de frete por checkout nos sites de marca VTEX).
-**Phases:** 5 phases (Phases 25-29)
-**Progress:** [██████████] 100%
+**Goal:** Onboardar marcas concorrentes que rodam fora do VTEX (engines SFCC e Wake Commerce) e entregar o cálculo de frete VTEX pendente do v2.0.
+**Phases:** definindo (roadmap pendente)
+**Progress:** [░░░░░░░░░░] 0%
 
 ## Current Position
 
-Phase: Milestone v2.0 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-06-23 — Milestone v2.0 completed and archived
+Status: Defining requirements
+Last activity: 2026-06-23 — Milestone v3.0 started
 
 ## Performance Metrics
 
