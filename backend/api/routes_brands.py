@@ -45,12 +45,12 @@ async def detect_engine(domain: str) -> str:
             html = await resp.text()
             html_lower = html.lower()
 
-            # Step 3 (Wake Commerce — D-02, Pitfall 1): probe ANTES do VTEX HTML.
+            # Step 3 (Wake Commerce — D-02, D-05, Pitfall 1): probe ANTES do VTEX HTML.
             # fbitsstatic.net é o CDN exclusivo da plataforma Wake Commerce.
-            # Wake não é suportado neste milestone → retorna "unknown" e loga.
+            # D-05: retorna "wake" (engine correto) para não acionar a regra D-04 (unknown → inativo).
             if "fbitsstatic.net" in html_lower:
                 logger.info("detect_engine: Wake Commerce detectado para %s (fbitsstatic.net)", domain)
-                return "unknown"
+                return "wake"
 
             # Step 4 (VTEX HTML — T-25-01-WK): apenas marcadores exclusivos da VTEX.
             # Removida a condição solta '"vtex" in html_lower' que causava falso
