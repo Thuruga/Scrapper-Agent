@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from services.banner_extraction_service import BannerExtractionService, is_safe_public_http_url
+from services.banner_extraction_service import BannerExtractionService, is_safe_public_http_url, normalize_image_content_type
 from services.banner_storage_service import BannerStorageService
 
 
@@ -16,6 +16,13 @@ def test_public_url_policy_rejects_local_and_non_http():
     assert not is_safe_public_http_url("http://127.0.0.1/admin")
     assert not is_safe_public_http_url("http://169.254.169.254/latest/meta-data")
     assert is_safe_public_http_url("https://example.com/banner.webp", resolve_dns=False)
+
+
+def test_octet_stream_uses_safe_url_extension_or_image_signature():
+    assert normalize_image_content_type("application/octet-stream", "https://cdn.example/banner.webp?x=1", b"x") == "image/webp"
+    assert normalize_image_content_type("", "https://cdn.example/image", b"\x89PNG\r\n\x1a\nrest") == "image/png"
+    with pytest.raises(ValueError):
+        normalize_image_content_type("application/octet-stream", "https://cdn.example/file.bin", b"not-an-image")
 
 
 def test_cancelled_before_collection_does_no_browser_or_file_work(tmp_path):

@@ -20,6 +20,13 @@ USER_AGENT = (
 MAX_SLIDES = 12
 NAVIGATION_TIMEOUT_MS = 30_000
 SETTLE_MS = 4_000
+KNOWN_IMAGE_MIME = {
+    "image/avif", "image/gif", "image/jpeg", "image/png", "image/svg+xml", "image/webp",
+}
+MIME_BY_SUFFIX = {
+    ".avif": "image/avif", ".gif": "image/gif", ".jpeg": "image/jpeg", ".jpg": "image/jpeg",
+    ".png": "image/png", ".svg": "image/svg+xml", ".webp": "image/webp",
+}
 
 
 COLLECT_BANNERS_JS = r"""
@@ -120,6 +127,30 @@ def is_safe_public_http_url(url: str, *, resolve_dns: bool = True) -> bool:
 
 def _cancelled(cancel_event: Any) -> bool:
     return bool(cancel_event and cancel_event.is_set())
+
+
+def normalize_image_content_type(content_type: str, url: str, body: bytes) -> str:
+    normalized = (content_type or "").split(";", 1)[0].strip().lower()
+    if normalized in KNOWN_IMAGE_MIME:
+        return normalized
+    suffix = urlparse(url).path.lower()
+    for extension, mime in MIME_BY_SUFFIX.items():
+        if suffix.endswith(extension):
+            return mime
+    head = body[:32]
+    if head.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if head.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if head.startswith((b"GIF87a", b"GIF89a")):
+        return "image/gif"
+    if head.startswith(b"RIFF") and head[8:12] == b"WEBP":
+        return "image/webp"
+    if b"ftypavif" in head or b"ftypavis" in head:
+        return "image/avif"
+    if body.lstrip()[:4].lower() == b"<svg":
+        return "image/svg+xml"
+    raise ValueError(f"unsupported banner content type: {content_type or 'missing'}")
 
 
 @dataclass
@@ -264,7 +295,7 @@ class BannerExtractionService:
         body = response.body()
         if len(body) > self.storage.max_asset_bytes:
             raise ValueError("banner asset exceeds configured byte limit")
-        return body, response.headers.get("content-type", "")
+        return body, normalize_image_content_type(response.headers.get("content-type", ""), response.url, body)
 
 
 banner_extraction_service = BannerExtractionService()
