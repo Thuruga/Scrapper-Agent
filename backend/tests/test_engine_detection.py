@@ -1,22 +1,36 @@
 """
-Testes RED de deteccao de motor de plataforma (Phase 25, Wave 0 — COMP-02).
+Suite GREEN de deteccao de motor de plataforma (Phase 30 — COMP-05, D-11).
 
-Cobertura:
+Regression base (mantida da baseline v2.0):
   - TestDetectEngine: exercita detect_engine com sessoes HTTP mockadas
       1. Shopify via collections.json → "shopify"
       2. VTEX via category tree → "vtex"
-      3. Wake Commerce (fbitsstatic.net) → "unknown"  (RED: hoje retorna "vtex")
-      4. Todas as probes falham → "unknown"           (RED: hoje retorna "vtex")
   - TestCreateBrandUnknown: integração
       5. create_brand com engine detectado "unknown" → marca salva com
-         engine="unknown" e is_active=False            (RED: hoje nao desativa)
+         engine="unknown" e is_active=False (regra D-04)
 
-Estes testes devem coletar sem erros de importacao e FALHAR (RED) contra o
-codigo atual enquanto as implementacoes de Wave 1/2 nao existirem.
+Expansao Phase 30 (prova SC-1..SC-4 contra os plans 30-01/30-02):
+  - SC-2: Wake Commerce (fbitsstatic.net) → "wake"  (antes era "unknown")
+  - SC-1: SFCC via browser probe (demandware.static no HTML renderizado) → "sfcc"
+  - SC-4: anti-falso-positivo — 403 + HTML renderizado SEM marcador demandware → "unknown"
+  - SC-4: todas as probes (incl. browser) falham → "unknown"
+  - SC-3: marca cujo engine detectado e sfcc/wake permanece ATIVA (a regra D-04
+          so desativa "unknown") — verificado SEM modificar create_brand.
+
+A probe SFCC importa `BrowserManager` de forma lazy dentro de detect_engine
+(`from core.browser_manager import BrowserManager`), entao o seam de mock e a
+classe de origem `core.browser_manager.BrowserManager.fetch_html` (e NAO um
+atributo de modulo em api.routes_brands, que nao existe). Todos os casos novos
+mockam o browser — nenhum teste lanca um Playwright real (T-30-09, suite hermetica).
 """
 import asyncio
 import aiohttp
 from unittest.mock import MagicMock, AsyncMock, patch
+
+# Seam de mock para a probe SFCC (last-resort). detect_engine faz
+# `from core.browser_manager import BrowserManager` lazy; portanto o alvo de
+# patch e o metodo na classe de origem (D-11).
+_BROWSER_FETCH_TARGET = "core.browser_manager.BrowserManager.fetch_html"
 
 # ---------------------------------------------------------------------------
 # Helpers de mock — adaptados do padrao do projeto (test_cross_marketplace_service.py)
@@ -59,7 +73,7 @@ def _make_mock_session(responses: dict):
 # ---------------------------------------------------------------------------
 
 class TestDetectEngine:
-    """Testes unitarios de detect_engine (api.routes_brands) com HTTP mockado."""
+    """Testes unitarios de detect_engine (api.routes_brands) com HTTP/browser mockado."""
 
     def test_shopify_detected_via_collections_json(self):
         """Shopify: collections.json retorna 200 com chave 'collections' → 'shopify'."""
@@ -89,11 +103,12 @@ class TestDetectEngine:
             result = asyncio.run(detect_engine("www.aramis.com.br"))
         assert result == "vtex"
 
-    def test_wake_commerce_returns_unknown(self):
-        """Wake Commerce: probes de API falham; HTML contem fbitsstatic.net → 'unknown'.
+    def test_wake_commerce_detected_returns_wake(self):
+        """SC-2 — Wake Commerce: probes de API falham; HTML contem fbitsstatic.net → 'wake'.
 
-        RED: o codigo atual nao proba Wake — cai no fallback 'vtex' (L53).
-        Esta falha e esperada ate a implementacao de Wave 1 (COMP-02 SC-1).
+        Apos o plan 30-01 (D-05), o branch fbitsstatic.net retorna o engine correto
+        'wake' (antes retornava 'unknown'), evitando a auto-desativacao da regra D-04.
+        A probe Wake roda ANTES do VTEX HTML (Pitfall 1), entao o browser nem e acionado.
         """
         no = _make_mock_response(404)
         html_wake = _make_mock_response(
@@ -111,14 +126,74 @@ class TestDetectEngine:
         ):
             from api.routes_brands import detect_engine
             result = asyncio.run(detect_engine("www.shop2gether.com.br"))
-        # Deve retornar "unknown" (Wake nao suportado); hoje retorna "vtex" → RED
+        assert result == "wake"
+
+    def test_sfcc_detected_via_browser(self):
+        """SC-1 — SFCC: HTTP probes 403/404; o HTML renderizado pelo browser contem
+        'demandware.static' → 'sfcc'.
+
+        Caso Lacoste/HugoBoss: HTTP direto e 403 (sem marcadores), mas a home
+        renderizada via Playwright expoe assets demandware. O seam BrowserManager.fetch_html
+        e mockado (AsyncMock) — nenhum browser real e lancado.
+        """
+        blocked = _make_mock_response(403, text_data="<html><body>Access Denied</body></html>")
+        no = _make_mock_response(404)
+        mock_session = _make_mock_session({
+            "collections.json": no,
+            "category/tree/1": no,
+            "lacoste.com.br": blocked,  # home — 403 sem marcadores VTEX/Wake/Shopify
+        })
+        rendered_sfcc = (
+            '<html><head>'
+            '<link rel="stylesheet" href="/on/demandware.static/-/Sites/default/dw1a2b/css/main.css">'
+            '</head><body>Lacoste BR</body></html>'
+        )
+        with patch(
+            "api.routes_brands.SessionManager.get_session",
+            new=AsyncMock(return_value=mock_session),
+        ), patch(
+            _BROWSER_FETCH_TARGET,
+            new=AsyncMock(return_value=rendered_sfcc),
+        ):
+            from api.routes_brands import detect_engine
+            result = asyncio.run(detect_engine("www.lacoste.com.br"))
+        assert result == "sfcc"
+
+    def test_sfcc_anti_false_positive_403_no_demandware(self):
+        """SC-4 — anti-falso-positivo (caso Zara/Inditex): todas as probes HTTP
+        retornam 403 e o HTML renderizado NAO contem demandware.static /
+        demandware.edgesuite.net → 'unknown'.
+
+        Garante que a probe SFCC usa marcadores exclusivos e nao rotula 'sfcc'
+        qualquer pagina bloqueada/generica.
+        """
+        blocked = _make_mock_response(403, text_data="<html><body>Forbidden</body></html>")
+        mock_session = _make_mock_session({
+            "collections.json": blocked,
+            "category/tree/1": blocked,
+            "zara.com": blocked,  # home — 403 generico
+        })
+        rendered_generic = (
+            '<html><head><link rel="stylesheet" href="https://static.zara.net/stylesheets/app.css">'
+            '</head><body>ZARA</body></html>'
+        )
+        with patch(
+            "api.routes_brands.SessionManager.get_session",
+            new=AsyncMock(return_value=mock_session),
+        ), patch(
+            _BROWSER_FETCH_TARGET,
+            new=AsyncMock(return_value=rendered_generic),
+        ):
+            from api.routes_brands import detect_engine
+            result = asyncio.run(detect_engine("www.zara.com"))
         assert result == "unknown"
 
     def test_all_probes_fail_returns_unknown(self):
-        """Nenhum probe identifica plataforma: todas as probes retornam 404 → 'unknown'.
+        """SC-4 — nenhuma probe identifica plataforma: HTTP retorna 404/generico e o
+        HTML renderizado pelo browser tambem nao tem marcador demandware → 'unknown'.
 
-        RED: o codigo atual retorna 'vtex' como fallback incondicional (L53).
-        Esta falha e esperada ate a implementacao de Wave 1 (D-01).
+        Apos o plan 30-01, o fallback incondicional para 'vtex' foi removido (D-01).
+        O browser e mockado para HTML sem marcadores (hermetico, T-30-09).
         """
         no = _make_mock_response(404)
         empty_html = _make_mock_response(200, text_data="<html><body>generic page</body></html>")
@@ -130,23 +205,21 @@ class TestDetectEngine:
         with patch(
             "api.routes_brands.SessionManager.get_session",
             new=AsyncMock(return_value=mock_session),
+        ), patch(
+            _BROWSER_FETCH_TARGET,
+            new=AsyncMock(return_value="<html><body>generic rendered</body></html>"),
         ):
             from api.routes_brands import detect_engine
             result = asyncio.run(detect_engine("www.genericstore.com.br"))
-        # Deve retornar "unknown"; hoje retorna "vtex" → RED
         assert result == "unknown"
 
 
 # ---------------------------------------------------------------------------
-# TestCreateBrandUnknown — integracao: create_brand com engine unknown
+# TestCreateBrandUnknown — integracao: create_brand com engine unknown (regra D-04)
 # ---------------------------------------------------------------------------
 
 class TestCreateBrandUnknown:
-    """Testa que create_brand persiste marca com engine='unknown' e is_active=False.
-
-    RED: o codigo atual nao trata o caso 'unknown' — marca e salva com is_active=True.
-    Esta falha e esperada ate a implementacao de Wave 1 (D-04).
-    """
+    """Regressao D-04: create_brand persiste marca 'unknown' com is_active=False."""
 
     def test_unknown_engine_brand_saved_inactive(self):
         """Marca com engine detectado como 'unknown' deve ser salva com is_active=False.
@@ -154,22 +227,22 @@ class TestCreateBrandUnknown:
         Estrategia:
           - Mocka detect_engine para retornar 'unknown' diretamente
           - Mocka brand_service.add_brand para evitar I/O real
-          - Mocka brand_service.set_active (pode nao existir ainda — RED esperado)
+          - Mocka brand_service.set_active
           - Verifica que o brand retornado tem is_active=False e engine='unknown'
           - Nenhuma HTTPException deve ser lancada (D-04: nao e erro, e aviso)
         """
         from core.models import DynamicBrand, DynamicBrandCreate
         import api.routes_brands as routes_brands_module
 
-        # Simula brand adicionado com is_active=True (comportamento atual)
+        # Simula brand adicionado com is_active=True (antes do set_active)
         fake_added_brand = DynamicBrand(
             brand_key="shop2gether",
             brand_name="Shop2Gether",
             domain="www.shop2gether.com.br",
             engine="unknown",
-            is_active=True,  # comportamento atual — ainda nao foi desativado
+            is_active=True,
         )
-        # Simula brand depois do set_active (esperado pos-Wave 1)
+        # Simula brand depois do set_active(False) (regra D-04)
         fake_deactivated_brand = DynamicBrand(
             brand_key="shop2gether",
             brand_name="Shop2Gether",
@@ -197,23 +270,88 @@ class TestCreateBrandUnknown:
                 "add_brand",
                 return_value=fake_added_brand,
             ):
-                # set_active nao existe ainda (sera criado no Wave 1).
-                # Usa create=True para nao falhar no setup do patch.
                 with patch.object(
                     routes_brands_module.brand_service,
                     "set_active",
                     return_value=fake_deactivated_brand,
-                    create=True,  # permite patch mesmo quando atributo nao existe
+                    create=True,
                 ):
                     result = asyncio.run(
                         routes_brands_module.create_brand(brand_create_data)
                     )
 
-        # Pos-Wave 1: brand deve ter engine="unknown" e is_active=False
         assert result.engine == "unknown", (
             f"Expected engine='unknown', got '{result.engine}'"
         )
         assert result.is_active is False, (
-            f"Expected is_active=False for unknown engine, got {result.is_active}. "
-            "create_brand nao implementa D-04 ainda (RED esperado em Wave 0)."
+            f"Expected is_active=False for unknown engine, got {result.is_active} (D-04)."
         )
+
+
+# ---------------------------------------------------------------------------
+# TestCreateBrandActive — SC-3: marcas sfcc/wake permanecem ATIVAS (regra D-04
+# so desativa 'unknown'). Verifica a logica D-04 EXISTENTE sem alterar create_brand.
+# ---------------------------------------------------------------------------
+
+class TestCreateBrandActive:
+    """SC-3: uma marca cujo engine detectado e sfcc/wake e salva is_active=True
+    e NAO passa pelo branch de desativacao D-04 (que so trata 'unknown')."""
+
+    def _run_create_brand_with_detected_engine(self, engine: str):
+        """Dirige create_brand com detect_engine mockado para `engine`.
+
+        Retorna (result, set_active_mock) para que o teste possa asserir que
+        set_active NAO foi chamado (o branch D-04 'unknown' nao dispara).
+        """
+        from core.models import DynamicBrand, DynamicBrandCreate
+        import api.routes_brands as routes_brands_module
+
+        fake_added_brand = DynamicBrand(
+            brand_key="lacoste",
+            brand_name="Lacoste",
+            domain="www.lacoste.com.br",
+            engine=engine,
+            is_active=True,
+        )
+        brand_create_data = DynamicBrandCreate(
+            brand_key="lacoste",
+            brand_name="Lacoste",
+            domain="www.lacoste.com.br",
+            engine="auto",
+        )
+
+        set_active_mock = MagicMock()
+        with patch.object(
+            routes_brands_module,
+            "detect_engine",
+            new=AsyncMock(return_value=engine),
+        ):
+            with patch.object(
+                routes_brands_module.brand_service,
+                "add_brand",
+                return_value=fake_added_brand,
+            ):
+                with patch.object(
+                    routes_brands_module.brand_service,
+                    "set_active",
+                    new=set_active_mock,
+                    create=True,
+                ):
+                    result = asyncio.run(
+                        routes_brands_module.create_brand(brand_create_data)
+                    )
+        return result, set_active_mock
+
+    def test_sfcc_brand_stays_active(self):
+        """SC-3: engine detectado 'sfcc' → marca permanece ativa; D-04 nao desativa."""
+        result, set_active_mock = self._run_create_brand_with_detected_engine("sfcc")
+        assert result.engine == "sfcc"
+        assert result.is_active is True
+        set_active_mock.assert_not_called()
+
+    def test_wake_brand_stays_active(self):
+        """SC-3: engine detectado 'wake' → marca permanece ativa; D-04 nao desativa."""
+        result, set_active_mock = self._run_create_brand_with_detected_engine("wake")
+        assert result.engine == "wake"
+        assert result.is_active is True
+        set_active_mock.assert_not_called()
