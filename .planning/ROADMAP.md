@@ -46,7 +46,10 @@ Phases 19-29 pertencem a milestones CONCLUÍDOS (v1.10-v2.0). As phases ativas d
   3. Ao cadastrar uma marca via `POST /brands/` com engine `auto`, uma marca SFCC ou Wake é persistida com o engine detectado e **permanece ativa** (não é auto-desativada pela regra D-04 de engine desconhecido).
   4. Domínios que não são SFCC, Wake, VTEX nem Shopify continuam retornando `"unknown"` e sendo auto-desativados — a detecção nova não introduz falsos positivos.
 
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 30-01-PLAN.md — detect_engine: flip Wake branch to "wake" + last-resort SFCC browser probe (demandware markers)
+- [ ] 30-02-PLAN.md — EngineFactory.get_engine guard: raise NotImplementedError for sfcc/wake (no silent VTEX fallback)
+- [ ] 30-03-PLAN.md — test_engine_detection.py: regression base + SFCC/Wake/anti-false-positive + SC-3 stays-active
 
 ### Phase 31: Engine SFCC (Browser Público) — Lacoste & HugoBoss
 
@@ -130,7 +133,7 @@ Phases ativas executam em ordem numérica: 30 → 31 → 32 → 33 → 34 → 35
 | 22-23. v1.11 (Precisão SKU) | v1.11 | - | Complete | shipped |
 | 24. Exportação Excel | v1.12 | - | Complete | shipped |
 | 25-29. v2.0 (Concorrentes & Confiabilidade) | v2.0 | - | Complete | shipped |
-| 30. Detecção de Engine SFCC & Wake | v3.0 | 0/? | Not started | - |
+| 30. Detecção de Engine SFCC & Wake | v3.0 | 0/3 | Planned | - |
 | 31. Engine SFCC (Browser Público) | v3.0 | 0/? | Not started | - |
 | 32. Engine Wake Commerce — Richards | v3.0 | 0/? | Not started | - |
 | 33. Frete via Checkout nos Sites VTEX | v3.0 | 0/? | Not started | - |
