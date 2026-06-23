@@ -88,6 +88,8 @@ def test_brand_failure_is_isolated_but_run_stays_out_of_history(tmp_path):
 
 
 def test_authenticated_routes_approve_reopen_asset_report_and_delete(tmp_path, monkeypatch):
+    from api.auth import verify_api_key
+
     storage = BannerStorageService(tmp_path)
     service = BannerJobService(storage, FakeCollector(storage), FakeBrands(), fake_browser)
     monkeypatch.setattr(routes, "banner_storage_service", storage)
@@ -95,7 +97,14 @@ def test_authenticated_routes_approve_reopen_asset_report_and_delete(tmp_path, m
     monkeypatch.setattr(routes, "banner_report_service", BannerReportService(storage))
     client = TestClient(app)
     headers = {"X-API-Key": "dev-api-key"}
-    assert client.get("/banners/history").status_code in {422, 403}
+    # Another test module installs a collection-time dependency override globally;
+    # temporarily remove it so this route proves it inherits api_router auth.
+    prior_override = app.dependency_overrides.pop(verify_api_key, None)
+    try:
+        assert client.get("/banners/history").status_code in {422, 403}
+    finally:
+        if prior_override is not None:
+            app.dependency_overrides[verify_api_key] = prior_override
 
     run = service.create_job(["a"])
     # Route start is tested independently from browser work; direct lifecycle state is authoritative.
@@ -133,4 +142,3 @@ def test_create_job_rejects_unknown_or_empty_brand(tmp_path):
             pass
         else:
             raise AssertionError("invalid brand selection should fail")
-
