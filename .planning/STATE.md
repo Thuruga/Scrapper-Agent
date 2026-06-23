@@ -2,9 +2,10 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Expansão Multi-Plataforma de Concorrentes & Frete VTEX
-status: roadmapped
-last_updated: "2026-06-23T14:35:10.108Z"
-last_activity: 2026-06-23
+status: Roadmap criado — aguardando `/gsd-plan-phase 30`
+stopped_at: Phase 30 context gathered
+last_updated: "2026-06-23T17:05:37.914Z"
+last_activity: 2026-06-23 — Roadmap v3.0 ampliado (Phases 30-35, cobertura 10/10)
 progress:
   total_phases: 6
   completed_phases: 0
@@ -140,9 +141,9 @@ Last activity: 2026-06-23 — Roadmap v3.0 ampliado (Phases 30-35, cobertura 10/
 
 ## Session Continuity
 
-Last session: 2026-06-23T14:35:10.108Z
-Stopped at: Roadmap v3.0 ampliado (Phases 30-35; 10 requisitos mapeados, cobertura 10/10)
-Resume file: (nenhum — Phase 30 ainda não tem contexto de planejamento)
+Last session: 2026-06-23T17:05:37.898Z
+Stopped at: Phase 30 context gathered
+Resume file: .planning/phases/30-detec-o-de-engine-sfcc-wake/30-CONTEXT.md
 
 ## Operator Next Steps
 
