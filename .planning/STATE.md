@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Expansão Multi-Plataforma de Concorrentes & Frete VTEX
-status: executing
-stopped_at: Completed 34-03-PLAN.md
-last_updated: "2026-06-23T17:33:08.920Z"
-last_activity: 2026-06-23 -- Phase 30 execution started
+status: completed
+stopped_at: Completed 34-04-PLAN.md; live run awaiting approval
+last_updated: "2026-06-23T17:56:08.247Z"
+last_activity: 2026-06-23 -- Phase 30 Plan 01 executed (Wake flip + SFCC browser probe)
 progress:
   total_phases: 6
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 7
-  completed_plans: 3
-  percent: 0
+  completed_plans: 5
+  percent: 17
 ---
 
 # Project State: Intelligence Scraper
@@ -27,14 +27,14 @@ See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/sc
 
 **Goal:** Onboardar marcas concorrentes fora do VTEX, entregar o frete VTEX pendente e automatizar a extração de banners desktop com publicação no SharePoint.
 **Phases:** 6 (30-35) — Phase 34 planejada em 4 waves
-**Progress:** [████░░░░░░] 43%
+**Progress:** [███████░░░] 71%
 
 ## Current Position
 
 Phase: 30 (detec-o-de-engine-sfcc-wake) — EXECUTING
-Plan: 2 of 3
-Status: Ready to execute
-Last activity: 2026-06-23 -- Phase 30 execution started
+Plan: 3 of 3
+Status: Plan 01 complete — ready for Plan 02
+Last activity: 2026-06-23 -- Phase 30 Plan 01 executed (Wake flip + SFCC browser probe)
 
 ## Performance Metrics
 
@@ -70,11 +70,15 @@ Last activity: 2026-06-23 -- Phase 30 execution started
 | Phase 28-persist-ncia-da-busca-entre-abas P02 | 3m | 2 tasks | 4 files |
 | Phase 28-persist-ncia-da-busca-entre-abas P03 | 30min | 2 tasks | 1 files |
 | 28 | 3 | - | - |
+| Phase 30-detec-o-de-engine-sfcc-wake P01 | 10m | 2 tasks | 1 files |
 
 ## Accumulated Context
 
 ### Decisions
 
+- [30-01/D-05]: Wake branch returns 'wake' — fbitsstatic.net probe now labels Richards correctly; D-04 auto-deactivation no longer fires for Wake brands.
+- [30-01/D-02+D-07]: SFCC browser probe uses exclusive demandware.static/demandware.edgesuite.net markers and is last-resort (after Shopify, VTEX, HTML probes); SC-4 guaranteed.
+- [30-01/D-03]: BrowserManager imported lazily inside try block in detect_engine; Playwright-absent startup does not break module load.
 - [v3.0 roadmap]: 6 phases, 30-35. COMP-05→Phase 30 (detecção SFCC/Wake), COMP-03→Phase 31 (engine SFCC), COMP-04→Phase 32 (engine Wake, spike-gated), FRET-05→Phase 33 (frete VTEX), BANNER-01..04→Phase 34 (extração desktop), BANNER-05..06→Phase 35 (SharePoint). Cobertura 10/10.
 - [v3.0 ordering]: Phase 30 (detecção) é pré-requisito compartilhado das Phases 31 e 32 — sem rotular `sfcc`/`wake`, as marcas seriam auto-desativadas no cadastro (regra D-04). Phases 33 (frete VTEX) e 34 (extração de banners) são ortogonais e podem rodar em paralelo; Phase 35 depende da 34.
 - [v3.0 COMP-04]: O build do engine Wake é gated por um spike de confirmação (Wave 0 da Phase 32) do fluxo GraphQL + `TCS-Access-Token` contra a Richards/Shop2gether — Wake é HIGH confidence documentalmente mas NÃO foi testado empiricamente. GO/NO-GO registrado antes do engine completo.
@@ -141,9 +145,9 @@ Last activity: 2026-06-23 -- Phase 30 execution started
 
 ## Session Continuity
 
-Last session: 2026-06-23T17:33:08.902Z
-Stopped at: Completed 34-03-PLAN.md
-Resume file: None
+Last session: 2026-06-23T17:56:08.236Z
+Stopped at: Completed 34-04-PLAN.md; live run awaiting approval
+Resume file: .planning/phases/34-extra-o-de-banners-desktop/34-04-SUMMARY.md
 
 ## Operator Next Steps
 

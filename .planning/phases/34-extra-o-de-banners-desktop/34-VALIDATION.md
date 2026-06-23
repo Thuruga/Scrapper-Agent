@@ -32,15 +32,15 @@ created: 2026-06-23
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 34-01-01 | 01 | 1 | BANNER-02 | T-34-01 | Paths derive only from digest and allowlisted extension | unit | `python -m pytest backend/tests/test_banner_models.py backend/tests/test_banner_storage.py -q` | task creates | pending |
-| 34-01-02 | 01 | 1 | BANNER-04 | T-34-02 | Atomic immutable approval, retention and orphan cleanup | unit | `python -m pytest backend/tests/test_banner_storage.py -q` | task creates | pending |
-| 34-02-01 | 02 | 2 | BANNER-01, BANNER-02, BANNER-03 | T-34-03 | Only registered HTTP(S) page-discovered assets are fetched | unit | `python -m pytest backend/tests/test_banner_extraction.py -q` | task creates | pending |
-| 34-02-02 | 02 | 2 | BANNER-01, BANNER-03 | T-34-02 | Limits and cancellation bound browser/file work | browser fixture | `python -m pytest backend/tests/test_banner_extraction.py -q` | task creates | pending |
-| 34-03-01 | 03 | 3 | BANNER-01, BANNER-04 | T-34-04 | Authenticated job-scoped state and cancel flags | API unit | `python -m pytest backend/tests/test_banner_routes.py -q` | task creates | pending |
-| 34-03-02 | 03 | 3 | BANNER-04 | T-34-04 | Partial/cancelled runs cannot enter history | API unit | `python -m pytest backend/tests/test_banner_routes.py -q` | task creates | pending |
-| 34-04-01 | 04 | 4 | BANNER-01, BANNER-04 | T-34-05 | Late events cannot overwrite a newer job | compile/lint | `npm run lint && npm run build` | existing infrastructure | pending |
-| 34-04-02 | 04 | 4 | BANNER-01, BANNER-04 | — | Accessible states expose selection, stop, review and history | compile/lint | `npm run lint && npm run build` | existing infrastructure | pending |
-| 34-04-03 | 04 | 4 | BANNER-01..04 | — | Full vertical contract remains integrated | regression | `python -m pytest backend/tests -q; cd frontend; npm run lint; npm run build` | existing infrastructure | pending |
+| 34-01-01 | 01 | 1 | BANNER-02 | T-34-01 | Paths derive only from digest and allowlisted extension | unit | `python -m pytest backend/tests/test_banner_models.py backend/tests/test_banner_storage.py -q` | yes | green |
+| 34-01-02 | 01 | 1 | BANNER-04 | T-34-02 | Atomic immutable approval, retention and orphan cleanup | unit | `python -m pytest backend/tests/test_banner_storage.py -q` | yes | green |
+| 34-02-01 | 02 | 2 | BANNER-01, BANNER-02, BANNER-03 | T-34-03 | Only registered HTTP(S) page-discovered assets are fetched | unit | `python -m pytest backend/tests/test_banner_extraction.py -q` | yes | green |
+| 34-02-02 | 02 | 2 | BANNER-01, BANNER-03 | T-34-02 | Limits and cancellation bound browser/file work | browser fixture | `python -m pytest backend/tests/test_banner_extraction.py -q` | yes | green |
+| 34-03-01 | 03 | 3 | BANNER-01, BANNER-04 | T-34-04 | Authenticated job-scoped state and cancel flags | API unit | `python -m pytest backend/tests/test_banner_routes.py -q` | yes | green |
+| 34-03-02 | 03 | 3 | BANNER-04 | T-34-04 | Partial/cancelled runs cannot enter history | API unit | `python -m pytest backend/tests/test_banner_routes.py -q` | yes | green |
+| 34-04-01 | 04 | 4 | BANNER-01, BANNER-04 | T-34-05 | Late events cannot overwrite a newer job | compile/lint | `npm run lint && npm run build` | existing infrastructure | green |
+| 34-04-02 | 04 | 4 | BANNER-01, BANNER-04 | — | Accessible states expose selection, stop, review and history | compile/lint | `npm run lint && npm run build` | existing infrastructure | green |
+| 34-04-03 | 04 | 4 | BANNER-01..04 | — | Full vertical contract remains integrated | regression | `python -m pytest backend/tests -q; cd frontend; npm run lint; npm run build` | existing infrastructure | green with unrelated Phase 30 test debt noted |
 
 ## Wave 0 Requirements
 
@@ -63,4 +63,3 @@ Existing pytest, TypeScript, ESLint, Vite, Playwright and fixture infrastructure
 - [x] `nyquist_compliant: true` set in frontmatter.
 
 **Approval:** approved 2026-06-23
-
