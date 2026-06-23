@@ -18,6 +18,18 @@ Requisitos comprometidos para este milestone. Cada um mapeia para uma phase no R
 
 - [ ] **FRET-05**: O sistema calcula preço e prazo de frete via checkout para os sites de marca VTEX (que hoje retornam vazio em `calculate_shipping`), com unidade correta (centavos→reais) e detecção de frete grátis.
 
+### Banners Desktop — Extração
+
+- [ ] **BANNER-01**: Operador consegue executar uma coleta desktop (`1366×768`) em todas as marcas ativas cadastradas e obter todos os slides de imagem do carrossel principal da primeira tela.
+- [ ] **BANNER-02**: Para cada banner extraído, o sistema preserva o arquivo original e registra marca, URL de origem, link de destino, texto alternativo, dimensões, tipo de mídia, data da coleta e hash SHA-256.
+- [ ] **BANNER-03**: O sistema navega o carrossel para descobrir slides ocultos ou carregados sob demanda e contabiliza slides em vídeo sem classificá-los ou baixá-los como imagens.
+- [ ] **BANNER-04**: Cada execução gera JSON, CSV, galeria visual e screenshot por site, isolando e reportando a falha de uma marca sem interromper as demais.
+
+### Banners Desktop — SharePoint
+
+- [ ] **BANNER-05**: Operador consegue configurar o destino e as credenciais do SharePoint sem armazenar segredos no código ou nos artefatos gerados.
+- [ ] **BANNER-06**: Operador consegue publicar os banners originais e seus metadados no SharePoint, organizados por marca e sem duplicar o mesmo arquivo em reexecuções, com resultado de envio por item.
+
 ## Future Requirements
 
 Reconhecidos, porém adiados — não entram no roadmap deste milestone.
@@ -33,10 +45,6 @@ Reconhecidos, porém adiados — não entram no roadmap deste milestone.
 ### Frete (próximas iterações)
 
 - [ ] **FRET-06**: Calcular frete via checkout para sites de marca Shopify. Adiado por incerteza de viabilidade — o fluxo AJAX Cart (`prepare/async_shipping_rates`) exige cookie de sessão e pode demandar Playwright; validar com um spike antes de comprometer.
-
-### Banners → SharePoint (estudo)
-
-- [ ] **BANNER-FUT-01**: Estudar a viabilidade de identificar imagens/informações dos banners da primeira tela dos sites e migrá-las para o SharePoint. Item de estudo/spike, não feature pronta.
 
 ### Carryover de milestones anteriores
 
@@ -55,7 +63,9 @@ Explicitamente excluído deste milestone, com motivo.
 | Bypass de anti-bot / proxy / stealth / CAPTCHA / WAF | Extração SFCC e Wake permanece na superfície pública; sem evasão de bloqueio. |
 | Engine **Zara / Inditex IOP** | Plataforma proprietária sem caminho público validado; permanece deferida (COMP-FUT-03). |
 | Reforma de autenticação / perfis de acesso por usuário | Disruptivo (hoje é API key compartilhada); permanece Future (PROFILE-FUT-01). |
-| Banners → SharePoint | Estudo de viabilidade, não feature comprometida; permanece Future (BANNER-FUT-01). |
+| Banners mobile | O milestone cobre somente viewport desktop; imagens responsivas/mobile exigem coleta e validação próprias. |
+| Download de slides em vídeo | Vídeos são contabilizados para completar o carrossel, mas a entrega comprometida é somente de imagens. |
+| Agendamento recorrente da coleta | A execução será disparada sob demanda; cadência automática não foi definida. |
 
 ## Traceability
 
@@ -65,14 +75,20 @@ Explicitamente excluído deste milestone, com motivo.
 | COMP-03 | Phase 31 | Pending |
 | COMP-04 | Phase 32 | Pending |
 | FRET-05 | Phase 33 | Pending |
+| BANNER-01 | Phase 34 | Pending |
+| BANNER-02 | Phase 34 | Pending |
+| BANNER-03 | Phase 34 | Pending |
+| BANNER-04 | Phase 34 | Pending |
+| BANNER-05 | Phase 35 | Pending |
+| BANNER-06 | Phase 35 | Pending |
 
 **Coverage:**
 
-- v3.0 requirements: 4 total
-- Mapped to phases: 4 (COMP-05→30, COMP-03→31, COMP-04→32, FRET-05→33)
+- v3.0 requirements: 10 total
+- Mapped to phases: 10 (COMP-05→30, COMP-03→31, COMP-04→32, FRET-05→33, BANNER-01..04→34, BANNER-05..06→35)
 - Unmapped: 0 ✓
-- Deferred (Future): COMP-FUT-03, PROFILE-FUT-01, FRET-06, BANNER-FUT-01, EXPORT-HIST-01, EXPORT-UNIFY-01, IDENT-01
+- Deferred (Future): COMP-FUT-03, PROFILE-FUT-01, FRET-06, EXPORT-HIST-01, EXPORT-UNIFY-01, IDENT-01
 
 ---
 *Requirements defined: 2026-06-23 for milestone v3.0*
-*Last updated: 2026-06-23 — Milestone v3.0 roadmapeado; COMP-05→Phase 30, COMP-03→Phase 31, COMP-04→Phase 32 (spike-gated), FRET-05→Phase 33; cobertura 4/4.*
+*Last updated: 2026-06-23 — Banners desktop incorporados ao v3.0; BANNER-01..04→Phase 34 e BANNER-05..06→Phase 35; cobertura 10/10.*

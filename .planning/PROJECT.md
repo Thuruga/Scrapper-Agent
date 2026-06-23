@@ -10,15 +10,17 @@ Extração automatizada e resiliente de dados de mercado com mínima intervenç�
 
 ## Current Milestone: v3.0 Expansão Multi-Plataforma de Concorrentes & Frete VTEX
 
-**Goal:** Onboardar marcas concorrentes que rodam fora do VTEX (construindo 2 engines novos — SFCC e Wake Commerce) e entregar o cálculo de frete VTEX que ficou pendente do v2.0.
+**Goal:** Onboardar marcas concorrentes que rodam fora do VTEX, entregar o cálculo de frete VTEX pendente do v2.0 e automatizar a coleta dos banners desktop para publicação no SharePoint.
 
 **Target features:**
 - **Engine SFCC (browser público):** onboard de **Lacoste** e **HugoBoss** via extração browser-rendered (JSON-LD/OpenGraph) — catálogo + preço apenas.
 - **Engine Wake Commerce:** onboard de **Richards** via API GraphQL (`TCS-Access-Token` por loja), precedido de um spike de confirmação do token.
 - **Detecção de engine:** `detect_engine` reconhece e rotula `sfcc` e `wake` (hoje retornam `unknown`), liberando o cadastro com o engine certo.
 - **Frete VTEX (carregado do v2.0):** preço + prazo de frete via checkout nos sites de marca VTEX.
+- **Banners desktop:** extrair todos os slides de imagem do carrossel principal da primeira tela de cada marca ativa, preservando arquivos originais e metadados.
+- **Publicação no SharePoint:** enviar os banners extraídos para um destino configurável, com deduplicação e relatório por arquivo.
 
-**Key context:** O caminho SFCC validado por spike é **público via browser** — sem frete/checkout, estoque por CEP, OCAPI/SCAPI (exige credenciais) ou bypass de anti-bot. **Zara / Inditex IOP** (COMP-FUT-03) permanece deferido (sem caminho público validado). Auth segue API key compartilhada; perfis de acesso e banners→SharePoint seguem adiados.
+**Key context:** O caminho SFCC validado por spike é **público via browser** — sem frete/checkout, estoque por CEP, OCAPI/SCAPI (exige credenciais) ou bypass de anti-bot. **Zara / Inditex IOP** (COMP-FUT-03) permanece deferido (sem caminho público validado). Auth segue API key compartilhada. O spike de banners validou 13/13 sites ativos e 37 imagens desktop; mobile, download de vídeos e execução agendada ficam fora deste milestone. A publicação no SharePoint depende de destino, credenciais e permissões fornecidos externamente.
 
 ## Requirements
 
@@ -30,6 +32,12 @@ Extração automatizada e resiliente de dados de mercado com mínima intervenç�
 - [ ] **COMP-04**: Operador onboarda e busca produtos da **Richards** (Wake Commerce) via GraphQL com `TCS-Access-Token` por loja. (cumpre COMP-FUT-01; bloqueado por spike de confirmação)
 - [ ] **COMP-05**: `detect_engine` reconhece e rotula `sfcc` e `wake`, permitindo cadastrar essas marcas com o engine correto.
 - [ ] **FRET-05**: Preço e prazo de frete via checkout nos sites de marca VTEX (carregado do v2.0).
+- [ ] **BANNER-01**: Operador executa a coleta desktop nas marcas ativas e obtém todos os slides de imagem do carrossel principal da primeira tela.
+- [ ] **BANNER-02**: Cada banner é preservado no arquivo original com metadados de origem, apresentação e integridade.
+- [ ] **BANNER-03**: Slides lazy/ocultos são descobertos ao navegar o carrossel; vídeos são contabilizados sem serem tratados como imagens.
+- [ ] **BANNER-04**: Cada execução gera saídas auditáveis e isola falhas por site.
+- [ ] **BANNER-05**: Destino e credenciais do SharePoint são configuráveis sem segredos hardcoded.
+- [ ] **BANNER-06**: Banners e metadados são publicados no SharePoint de forma idempotente, com resultado por arquivo.
 
 ### Validated (v2.0)
 
@@ -150,4 +158,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-23 — Milestone v3.0 iniciado (Expansão Multi-Plataforma: SFCC, Wake & Frete VTEX).*
+*Last updated: 2026-06-23 — Banners desktop e publicação no SharePoint adicionados ao milestone v3.0 (Phases 34-35).*

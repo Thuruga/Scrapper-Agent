@@ -6,13 +6,15 @@
 - ✅ **v1.11 Precisão da Busca por SKU** - Phases 22-23 (shipped)
 - ✅ **v1.12 Exportação Excel da Busca por SKU** - Phase 24 (shipped)
 - ✅ **v2.0 Cobertura de Concorrentes & Confiabilidade** - Phases 25-29 (shipped — ver `.planning/milestones/v2.0-ROADMAP.md`)
-- 🚧 **v3.0 Expansão Multi-Plataforma de Concorrentes & Frete VTEX** - Phases 30-33 (active)
+- 🚧 **v3.0 Expansão Multi-Plataforma de Concorrentes & Frete VTEX** - Phases 30-35 (active)
 
-**Milestone Goal (v3.0):** Onboardar marcas concorrentes que rodam fora do VTEX — construindo dois engines novos (SFCC público via browser e Wake Commerce via GraphQL) — e entregar o cálculo de frete VTEX que ficou pendente do v2.0.
+**Milestone Goal (v3.0):** Onboardar marcas concorrentes que rodam fora do VTEX, entregar o cálculo de frete VTEX pendente do v2.0 e automatizar a extração dos banners desktop com publicação no SharePoint.
 
 ## Overview
 
 Com a fundação de motores (engine factory + `detect_engine` + flag `is_active`) já shipped no v2.0, o v3.0 expande a cobertura competitiva para plataformas que hoje caem em `unknown`. A pedra fundamental é ensinar `detect_engine` a reconhecer `sfcc` e `wake` (Phase 30): sem isso, Lacoste/HugoBoss/Richards seriam auto-desativadas no cadastro. Com a detecção pronta, dois engines novos são construídos em paralelo lógico: SFCC público (Phase 31, caminho validado por spike — só catálogo + preço) e Wake Commerce (Phase 32, **precedido de um spike de confirmação do token GraphQL** antes de comprometer o engine completo). O frete VTEX (Phase 33) é ortogonal aos engines novos — usa o caminho interno do `VtexApiClient` já existente — e pode rodar em paralelo.
+
+O milestone também incorpora a frente de banners, validada por um protótipo executado nos 13 sites ativos. A Phase 34 transforma o spike em um motor de extração desktop observável, cobrindo todos os slides de imagem do hero e reconhecendo vídeos intercalados. A Phase 35 publica os arquivos e metadados no SharePoint; começa por um gate de conectividade, destino e permissões, pois essas informações são dependências externas ainda não disponíveis.
 
 ## Phases
 
@@ -21,12 +23,14 @@ Com a fundação de motores (engine factory + `detect_engine` + flag `is_active`
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
-Phases 19-29 pertencem a milestones CONCLUÍDOS (v1.10-v2.0). As phases ativas do v3.0 são **30-33**.
+Phases 19-29 pertencem a milestones CONCLUÍDOS (v1.10-v2.0). As phases ativas do v3.0 são **30-35**.
 
 - [ ] **Phase 30: Detecção de Engine SFCC & Wake** - `detect_engine` reconhece e rotula `sfcc` e `wake` (em vez de `unknown`), liberando o cadastro dessas marcas com o engine correto (COMP-05)
 - [ ] **Phase 31: Engine SFCC (Browser Público) — Lacoste & HugoBoss** - Onboarding e busca das marcas SFCC via extração pública browser-rendered (JSON-LD / OpenGraph): catálogo + preço apenas (COMP-03)
 - [ ] **Phase 32: Engine Wake Commerce — Richards** - Spike de confirmação do GraphQL + `TCS-Access-Token` e, se validado, engine Wake completo para onboarding e busca da Richards (COMP-04)
 - [ ] **Phase 33: Frete via Checkout nos Sites VTEX** - Cálculo de preço e prazo de frete via checkout simulation nos sites de marca VTEX, com contrato de unidade (centavos→reais) documentado e detecção de frete grátis (FRET-05)
+- [ ] **Phase 34: Extração de Banners Desktop** - Motor reutilizável percorre as marcas ativas, coleta todos os slides de imagem do carrossel principal e produz arquivos originais, metadados e relatório visual auditável (BANNER-01, BANNER-02, BANNER-03, BANNER-04)
+- [ ] **Phase 35: Publicação de Banners no SharePoint** - Configuração segura do destino e publicação idempotente dos banners e metadados, com resultado por arquivo e gate inicial de acesso/permissões (BANNER-05, BANNER-06)
 
 ## Phase Details
 
@@ -85,10 +89,40 @@ Phases 19-29 pertencem a milestones CONCLUÍDOS (v1.10-v2.0). As phases ativas d
 
 **Plans**: TBD
 
+### Phase 34: Extração de Banners Desktop
+
+**Goal**: Um operador executa, sob demanda, a extração dos banners desktop de todas as marcas ativas e recebe todos os slides de imagem do carrossel principal da primeira tela, com arquivos originais, metadados e evidências visuais — sem falsos positivos de logos/produtos e sem parar o lote quando um site falha.
+**Depends on**: Nothing (ortogonal aos engines e ao frete; parte do spike validado em `testes/extrair_banners.py` e da infraestrutura Playwright existente)
+**Requirements**: BANNER-01, BANNER-02, BANNER-03, BANNER-04
+**Success Criteria** (what must be TRUE):
+
+  1. Uma execução desktop (`1366×768`) percorre todas as marcas ativas cadastradas e extrai cada slide de imagem do primeiro grande carrossel/hero, inclusive slides ocultos ou carregados ao avançar — sem incluir logos, cards de produto ou seções inferiores.
+  2. Cada item extraído preserva o arquivo original e registra marca, URL de origem, link de destino, texto alternativo, dimensões, tipo de mídia, data da coleta e hash SHA-256.
+  3. Carrosséis com vídeos intercalados continuam sendo percorridos até o final; os vídeos são contabilizados no resultado, mas não são classificados nem baixados como banners de imagem.
+  4. O lote produz JSON, CSV, galeria visual e screenshot por site; uma falha de navegação ou download fica atribuída à marca/item e não interrompe as demais.
+  5. O conjunto de referência do spike permanece reproduzível: os 13 sites ativos completam a execução e os casos VTEX/Shopify representativos passam por conferência visual sem falsos positivos conhecidos.
+
+**Plans**: TBD
+
+### Phase 35: Publicação de Banners no SharePoint
+
+**Goal**: O operador configura um destino SharePoint e publica os banners desktop coletados e seus metadados de forma segura e idempotente, organizados por marca e com rastreabilidade de sucesso ou falha por arquivo.
+**Depends on**: Phase 34 (a publicação consome o contrato estável de arquivos e metadados do motor de extração). O build começa por um gate de confirmação do site/biblioteca de destino, credenciais e permissões disponíveis.
+**Requirements**: BANNER-05, BANNER-06
+**Success Criteria** (what must be TRUE):
+
+  1. **Gate de acesso:** um teste de conectividade confirma o site/biblioteca de destino e as permissões necessárias antes da implementação completa; ausência de credenciais ou permissão gera diagnóstico explícito.
+  2. Segredos e identificadores sensíveis do SharePoint são fornecidos por configuração externa e não aparecem hardcoded no repositório, JSON/CSV, galeria ou logs.
+  3. Banners originais e metadados são publicados no destino configurado com organização por marca; o relatório local registra o resultado do envio por item.
+  4. Reexecutar a publicação com o mesmo SHA-256 não cria duplicatas; arquivos novos ou alterados são distinguíveis e publicados conforme a política documentada.
+  5. Uma falha no SharePoint não apaga nem invalida a coleta local, permitindo correção de acesso e nova tentativa sem raspar os sites novamente.
+
+**Plans**: TBD
+
 ## Progress
 
 **Execution Order:**
-Phases ativas executam em ordem numérica: 30 → 31 → 32 → 33. Phase 33 (frete VTEX) é independente das Phases 30-32 e pode ser paralelizada; Phase 31 e Phase 32 dependem ambas da Phase 30. O build do engine na Phase 32 é gated pelo spike de confirmação (Wave 0) interno.
+Phases ativas executam em ordem numérica: 30 → 31 → 32 → 33 → 34 → 35. Phase 33 (frete VTEX) e Phase 34 (extração de banners) são independentes das Phases 30-32 e podem ser paralelizadas; Phase 31 e Phase 32 dependem da Phase 30. Phase 35 depende da Phase 34 e começa por um gate de acesso ao SharePoint. O build do engine na Phase 32 é gated pelo spike de confirmação (Wave 0) interno.
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -100,3 +134,5 @@ Phases ativas executam em ordem numérica: 30 → 31 → 32 → 33. Phase 33 (fr
 | 31. Engine SFCC (Browser Público) | v3.0 | 0/? | Not started | - |
 | 32. Engine Wake Commerce — Richards | v3.0 | 0/? | Not started | - |
 | 33. Frete via Checkout nos Sites VTEX | v3.0 | 0/? | Not started | - |
+| 34. Extração de Banners Desktop | v3.0 | 0/? | Not started | - |
+| 35. Publicação de Banners no SharePoint | v3.0 | 0/? | Not started | - |

@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Expansão Multi-Plataforma de Concorrentes & Frete VTEX
 status: roadmapped
-last_updated: "2026-06-23T13:45:33.000Z"
+last_updated: "2026-06-23T14:35:10.108Z"
 last_activity: 2026-06-23
 progress:
-  total_phases: 4
+  total_phases: 6
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -24,16 +24,16 @@ See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/sc
 
 ## Current Milestone: v3.0 Expansão Multi-Plataforma de Concorrentes & Frete VTEX
 
-**Goal:** Onboardar marcas concorrentes que rodam fora do VTEX (engines SFCC e Wake Commerce) e entregar o cálculo de frete VTEX pendente do v2.0.
-**Phases:** 4 (30-33) — roadmap definido; nenhuma planejada ainda
-**Progress:** [░░░░░░░░░░] 0% (0/4 phases)
+**Goal:** Onboardar marcas concorrentes fora do VTEX, entregar o frete VTEX pendente e automatizar a extração de banners desktop com publicação no SharePoint.
+**Phases:** 6 (30-35) — roadmap definido; nenhuma planejada ainda
+**Progress:** [░░░░░░░░░░] 0% (0/6 phases)
 
 ## Current Position
 
 Phase: 30 — Detecção de Engine SFCC & Wake (roadmapped, não planejada)
 Plan: —
 Status: Roadmap criado — aguardando `/gsd-plan-phase 30`
-Last activity: 2026-06-23 — Roadmap v3.0 criado (Phases 30-33, cobertura 4/4)
+Last activity: 2026-06-23 — Roadmap v3.0 ampliado (Phases 30-35, cobertura 10/10)
 
 ## Performance Metrics
 
@@ -74,12 +74,15 @@ Last activity: 2026-06-23 — Roadmap v3.0 criado (Phases 30-33, cobertura 4/4)
 
 ### Decisions
 
-- [v3.0 roadmap]: 4 phases, 30-33. COMP-05→Phase 30 (detecção SFCC/Wake), COMP-03→Phase 31 (engine SFCC), COMP-04→Phase 32 (engine Wake, spike-gated), FRET-05→Phase 33 (frete VTEX). Cobertura 4/4.
-- [v3.0 ordering]: Phase 30 (detecção) é pré-requisito compartilhado das Phases 31 e 32 — sem rotular `sfcc`/`wake`, as marcas seriam auto-desativadas no cadastro (regra D-04). Phase 33 (frete VTEX) é ortogonal e pode rodar em paralelo.
+- [v3.0 roadmap]: 6 phases, 30-35. COMP-05→Phase 30 (detecção SFCC/Wake), COMP-03→Phase 31 (engine SFCC), COMP-04→Phase 32 (engine Wake, spike-gated), FRET-05→Phase 33 (frete VTEX), BANNER-01..04→Phase 34 (extração desktop), BANNER-05..06→Phase 35 (SharePoint). Cobertura 10/10.
+- [v3.0 ordering]: Phase 30 (detecção) é pré-requisito compartilhado das Phases 31 e 32 — sem rotular `sfcc`/`wake`, as marcas seriam auto-desativadas no cadastro (regra D-04). Phases 33 (frete VTEX) e 34 (extração de banners) são ortogonais e podem rodar em paralelo; Phase 35 depende da 34.
 - [v3.0 COMP-04]: O build do engine Wake é gated por um spike de confirmação (Wave 0 da Phase 32) do fluxo GraphQL + `TCS-Access-Token` contra a Richards/Shop2gether — Wake é HIGH confidence documentalmente mas NÃO foi testado empiricamente. GO/NO-GO registrado antes do engine completo.
 - [v3.0 COMP-03]: Caminho SFCC é público via browser (JSON-LD/OpenGraph), validado por spikes 003-006 — HTTP direto é 403. Escopo: catálogo + preço APENAS. SEM frete/checkout, estoque por CEP, OCAPI/SCAPI ou bypass de anti-bot.
 - [v3.0 FRET-05]: Frete VTEX continua via `VtexApiClient` interno — NÃO rotear pelo hook `calculate_shipping` (decisão arquitetural herdada do v2.0 para evitar regressão).
-- [v3.0 scope]: Zara/Inditex IOP (COMP-FUT-03) permanece deferido (sem caminho público validado). Auth segue API key compartilhada (PROFILE-FUT-01 adiado); FRET-06 (Shopify shipping) e banners→SharePoint seguem Future.
+- [v3.0 scope]: Zara/Inditex IOP (COMP-FUT-03) permanece deferido (sem caminho público validado). Auth segue API key compartilhada (PROFILE-FUT-01 adiado); FRET-06 (Shopify shipping) segue Future.
+- [v3.0 banners]: BANNER-FUT-01 foi promovido para BANNER-01..06. Phase 34 entrega extração desktop (todos os slides de imagem do hero, arquivos originais, metadados e relatório); Phase 35 entrega publicação idempotente no SharePoint com gate de acesso/permissões.
+- [v3.0 banners scope]: Viewport desktop `1366×768` apenas. Mobile, download de vídeos e agendamento recorrente ficam fora do milestone; vídeos intercalados são contabilizados para que a navegação não pare antes de banners posteriores.
+- [v3.0 banners spike]: Protótipo `testes/extrair_banners.py` validado em 13/13 sites ativos: 37 imagens extraídas, 3 slides em vídeo identificados e zero falhas de download na rodada de 2026-06-23.
 - [v2.0 scope]: Apenas 5 marcas VTEX confirmadas foram onboardadas (Levi's, Calvin Klein, Zapalla, Austral, Track & Field). Richards/Lacoste/Hugo Boss/Zara ficaram fora do v2.0 — agora COMP-FUT-01/02 viram COMP-03/04 no v3.0.
 - [v2.0 scope]: Auth permanece API key compartilhada — perfis de acesso (PROFILE-FUT-01) adiados.
 - [ARCH]: `is_active` enforcement vai no chokepoint único `brand_service.list_brands(active_only=True)` — NÃO por call site.
@@ -115,6 +118,7 @@ Last activity: 2026-06-23 — Roadmap v3.0 criado (Phases 30-33, cobertura 4/4)
 - [v3.0/COMP-04] Wake/Richards: fluxo GraphQL + `TCS-Access-Token` é HIGH confidence documentalmente (wakecommerce.readme.io) mas NÃO testado empiricamente. Phase 32 deve iniciar pelo spike de confirmação (Wave 0) com decisão GO/NO-GO antes do engine completo.
 - [v3.0/COMP-03] Lacoste/HugoBoss (SFCC): HTTP direto é 403; extração validada apenas pela via pública browser-rendered (JSON-LD/OpenGraph). Escopo limitado a catálogo + preço — sem frete/checkout/estoque por CEP.
 - FRET-06 (Shopify): permanece adiado — smoke test necessário antes de comprometer (sessão/cookie no AJAX Cart pode requerer Playwright). Fora do escopo do v3.0.
+- [v3.0/BANNER-05] SharePoint: site/biblioteca de destino, credenciais e permissões ainda não foram fornecidos. Phase 35 deve começar por um gate de conectividade e acesso antes do publicador completo.
 
 ### Quick Tasks Completed
 
@@ -133,12 +137,11 @@ Last activity: 2026-06-23 — Roadmap v3.0 criado (Phases 30-33, cobertura 4/4)
 | Concorrentes | COMP-FUT-03 (Zara/Inditex IOP) | Deferred | v2.0 init |
 | Acesso | PROFILE-FUT-01 (perfis por equipe) | Deferred | v2.0 init |
 | Frete | FRET-06 (Shopify checkout shipping) | Deferred (viabilidade) | v2.0 init |
-| Banners | BANNER-FUT-01 (banners→SharePoint) | Deferred (estudo) | v2.0 init |
 
 ## Session Continuity
 
-Last session: 2026-06-23T13:45:33.000Z
-Stopped at: Roadmap v3.0 criado (Phases 30-33; COMP-05/03/04/FRET-05 mapeados, cobertura 4/4)
+Last session: 2026-06-23T14:35:10.108Z
+Stopped at: Roadmap v3.0 ampliado (Phases 30-35; 10 requisitos mapeados, cobertura 10/10)
 Resume file: (nenhum — Phase 30 ainda não tem contexto de planejamento)
 
 ## Operator Next Steps
