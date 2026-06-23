@@ -1,33 +1,20 @@
 # Requirements: Intelligence Scraper
 
-**Defined:** 2026-06-18
-**Milestone:** v2.0 Cobertura de Concorrentes & Confiabilidade
+**Defined:** 2026-06-23
+**Milestone:** v3.0 Expansão Multi-Plataforma de Concorrentes & Frete VTEX
 **Core Value:** Extração automatizada e resiliente de dados de mercado com mínima intervenção humana e alta fidelidade de dados.
 
-## v2.0 Requirements
+## v3.0 Requirements
 
 Requisitos comprometidos para este milestone. Cada um mapeia para uma phase no ROADMAP.
 
-### Concorrentes
+### Concorrentes — Novas Plataformas
 
-- [x] **COMP-01**: Usuário pode adicionar e buscar/monitorar as 5 marcas concorrentes em VTEX — Levi's, Calvin Klein, Zapalla, Austral e Track&Field — com a engine reconfirmada via `detect_engine` no momento da adição.
-- [x] **COMP-02**: Quando a plataforma de um site não é suportada, o sistema a identifica (engine `"unknown"` + probe Wake Commerce) em vez de cair em VTEX por padrão, e a marca incompatível não entra silenciosamente na busca (sem resultado "0 produtos" mascarado).
+- [ ] **COMP-03**: Operador consegue onboardar e buscar produtos das marcas SFCC **Lacoste** e **HugoBoss** (catálogo + preço) via extração pública browser-rendered (JSON-LD / OpenGraph). _(cumpre COMP-FUT-02)_
+- [ ] **COMP-04**: Operador consegue onboardar e buscar produtos da **Richards** (Wake Commerce) via API GraphQL com header `TCS-Access-Token` por loja. _(cumpre COMP-FUT-01; gated por um spike de confirmação do fluxo GraphQL + token antes de construir o engine)_
+- [ ] **COMP-05**: Ao cadastrar uma marca SFCC ou Wake, o sistema detecta e rotula o engine correto (`detect_engine` retorna `sfcc` / `wake` em vez de `unknown`), permitindo o cadastro com o engine certo em vez de desativar a marca.
 
-### Gestão de Marca
-
-- [x] **MGMT-01**: Usuário pode ativar/desativar uma marca; uma marca inativa é excluída da busca, do monitoramento, da exportação e do scheduler (aplicação do flag `is_active` no ponto único `list_brands`).
-- [x] **MGMT-02**: A interface oferece um campo de gestão de marcas (adicionar / remover / ativar-desativar) em um único lugar.
-
-### Robustez de Busca — Persistência
-
-- [x] **PERS-01**: Uma busca em andamento sobrevive à troca de abas — ao sair para outra aba e voltar, o progresso e os resultados continuam disponíveis, sem cancelamento nem perda de estado (estado movido dos componentes que desmontam para um store global).
-
-### Robustez de Busca — Histórico
-
-- [x] **HIST-01**: Buscas comparativas também são salvas no histórico (hoje apenas as buscas por SKU são persistidas).
-- [x] **HIST-02**: Usuário pode reabrir qualquer busca salva (comparativa ou por SKU) a partir do histórico e reexibir seus resultados (corrige o `preloadedJobId`, hoje nunca propagado a partir de `App.tsx`).
-
-### Frete (Checkout)
+### Frete (Checkout) — carregado do v2.0
 
 - [ ] **FRET-05**: O sistema calcula preço e prazo de frete via checkout para os sites de marca VTEX (que hoje retornam vazio em `calculate_shipping`), com unidade correta (centavos→reais) e detecção de frete grátis.
 
@@ -37,13 +24,11 @@ Reconhecidos, porém adiados — não entram no roadmap deste milestone.
 
 ### Concorrentes em plataformas não suportadas (precisam de engine novo)
 
-- [ ] **COMP-FUT-01**: Engine Wake Commerce (GraphQL + `TCS-Access-Token` por loja) para onboardar **Richards** (ref.: Shop2gether). Candidato a v3.0.
-- [ ] **COMP-FUT-02**: Engine/integração Salesforce Commerce Cloud para **Lacoste** e **Hugo Boss** (plataforma com confiança média — sites retornaram 403; reconfirmar). Spike de pesquisa.
-- [ ] **COMP-FUT-03**: Engine para **Zara** (Inditex IOP, proprietário — sem API padrão de catálogo).
+- [ ] **COMP-FUT-03**: Engine para **Zara** (Inditex IOP, proprietário — sem API padrão de catálogo). Sem caminho público validado; exige spike de pesquisa de viabilidade antes de comprometer.
 
 ### Perfis de acesso (adiado da reunião 17/06)
 
-- [ ] **PROFILE-FUT-01**: Perfis de acesso por equipe (ARAMIS: Janete/Edna/Heitor; URBAN: Aline/Caio; NEXT: Aline/Caio; MARKETPLACE: Cauan), com login por usuário, papéis e seleção de marcas a acompanhar no 1º acesso. Exige reforma da auth (hoje API key compartilhada). Provável milestone próprio (v3.0).
+- [ ] **PROFILE-FUT-01**: Perfis de acesso por equipe (ARAMIS: Janete/Edna/Heitor; URBAN: Aline/Caio; NEXT: Aline/Caio; MARKETPLACE: Cauan), com login por usuário, papéis e seleção de marcas a acompanhar no 1º acesso. Exige reforma da auth (hoje API key compartilhada). Provável milestone próprio.
 
 ### Frete (próximas iterações)
 
@@ -65,32 +50,29 @@ Explicitamente excluído deste milestone, com motivo.
 
 | Feature | Reason |
 |---------|--------|
-| Construir qualquer engine novo (Wake/SFCC/Inditex IOP) | Esforço alto; as 4 marcas que dependem disso foram movidas para Future. v2.0 entrega só as 5 marcas VTEX. |
-| Onboarding "às cegas" de marca em plataforma não suportada | Proibido por design — COMP-02 exige detecção de `"unknown"` e exclusão da busca em vez de falha silenciosa. |
-| Reforma de autenticação / perfis de acesso por usuário | Disruptivo (hoje é API key compartilhada); movido para Future (PROFILE-FUT-01). |
-| Banners → SharePoint | É um estudo de viabilidade, não feature comprometida; movido para Future (BANNER-FUT-01). |
-| Reescrever shipping de ML/Amazon/Netshoes | Já funcionam; o gap real de frete é VTEX-brand-sites (FRET-05) e Shopify (FRET-06). |
+| Frete / checkout / estoque por CEP para marcas SFCC | O caminho SFCC validado por spike é só catálogo+preço via browser público; checkout/frete exigiria OCAPI/SCAPI (credenciais) — fora de escopo. |
+| OCAPI / SCAPI (APIs autenticadas SFCC) | Exigem credenciais comerciais não disponíveis; a extração SFCC fica na via pública browser-rendered. |
+| Bypass de anti-bot / proxy / stealth / CAPTCHA / WAF | Extração SFCC e Wake permanece na superfície pública; sem evasão de bloqueio. |
+| Engine **Zara / Inditex IOP** | Plataforma proprietária sem caminho público validado; permanece deferida (COMP-FUT-03). |
+| Reforma de autenticação / perfis de acesso por usuário | Disruptivo (hoje é API key compartilhada); permanece Future (PROFILE-FUT-01). |
+| Banners → SharePoint | Estudo de viabilidade, não feature comprometida; permanece Future (BANNER-FUT-01). |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| COMP-01 | Phase 26 | Complete |
-| COMP-02 | Phase 25 | Complete |
-| MGMT-01 | Phase 25 | Complete |
-| MGMT-02 | Phase 27 | Complete |
-| PERS-01 | Phase 28 | Complete |
-| HIST-01 | Phase 27 | Complete |
-| HIST-02 | Phase 27 | Complete |
-| FRET-05 | Phase 29 | Pending |
+| COMP-03 | — | Pending |
+| COMP-04 | — | Pending |
+| COMP-05 | — | Pending |
+| FRET-05 | — | Pending |
 
 **Coverage:**
 
-- v2.0 requirements: 8 total
-- Mapped to phases: 8
-- Unmapped: 0
-- Deferred (Future): COMP-FUT-01/02/03, PROFILE-FUT-01, BANNER-FUT-01, FRET-06, EXPORT-HIST-01, EXPORT-UNIFY-01, IDENT-01
+- v3.0 requirements: 4 total
+- Mapped to phases: 0 (a preencher pelo roadmap)
+- Unmapped: 4
+- Deferred (Future): COMP-FUT-03, PROFILE-FUT-01, FRET-06, BANNER-FUT-01, EXPORT-HIST-01, EXPORT-UNIFY-01, IDENT-01
 
 ---
-*Requirements defined: 2026-06-18 for milestone v2.0*
-*Last updated: 2026-06-23 — Phase 29 (Diagnóstico) removida; DIAG-01/02 retirados; Frete renumerada para Phase 29*
+*Requirements defined: 2026-06-23 for milestone v3.0*
+*Last updated: 2026-06-23 — Milestone v3.0 iniciado; COMP-FUT-01/02 promovidos a COMP-03/04/05; FRET-05 carregado do v2.0.*
