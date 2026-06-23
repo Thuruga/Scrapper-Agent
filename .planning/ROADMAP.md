@@ -137,7 +137,7 @@ Phases ativas executam em ordem numérica: 30 → 31 → 32 → 33 → 34 → 35
 | 22-23. v1.11 (Precisão SKU) | v1.11 | - | Complete | shipped |
 | 24. Exportação Excel | v1.12 | - | Complete | shipped |
 | 25-29. v2.0 (Concorrentes & Confiabilidade) | v2.0 | - | Complete | shipped |
-| 30. Detecção de Engine SFCC & Wake | v3.0 | 3/3 | Complete   | 2026-06-23 |
+| 30. Detecção de Engine SFCC & Wake | v3.0 | 3/3 | Complete    | 2026-06-23 |
 | 31. Engine SFCC (Browser Público) | v3.0 | 0/? | Not started | - |
 | 32. Engine Wake Commerce — Richards | v3.0 | 0/? | Not started | - |
 | 33. Frete via Checkout nos Sites VTEX | v3.0 | 0/? | Not started | - |
