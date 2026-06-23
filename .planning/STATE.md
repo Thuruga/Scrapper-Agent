@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Cobertura de Concorrentes & Confiabilidade
 status: executing
-stopped_at: Phase 29 context gathered
-last_updated: "2026-06-22T13:43:56.534Z"
-last_activity: 2026-06-22 -- Phase 29 planning complete
+stopped_at: Phase 29 (Frete) não planejada
+last_updated: "2026-06-23T12:50:54.862Z"
+last_activity: 2026-06-23 -- Phase 29 (Diagnóstico) removida; Frete renumerada para 29
 progress:
-  total_phases: 6
+  total_phases: 5
   completed_phases: 4
   total_plans: 13
   completed_plans: 13
-  percent: 67
+  percent: 80
 ---
 
 # Project State: Intelligence Scraper
@@ -21,20 +21,20 @@ progress:
 See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/scrapper/.planning/PROJECT.md) (updated 2026-06-18)
 
 **Core value:** Extração automatizada e resiliente de dados de mercado com mínima intervenção humana e alta fidelidade de dados.
-**Current focus:** Phase 28 — persist-ncia-da-busca-entre-abas
+**Current focus:** Phase 29 — Frete via Checkout nos Sites VTEX
 
 ## Current Milestone: v2.0 Cobertura de Concorrentes & Confiabilidade
 
-**Goal:** Ampliar a cobertura competitiva (5 marcas VTEX + gestão/desativação) e elevar a confiabilidade da plataforma (busca que sobrevive à troca de abas, histórico completo de buscas, diagnóstico de categorias e cálculo de frete por checkout nos sites de marca VTEX).
-**Phases:** 6 phases (Phases 25-30)
+**Goal:** Ampliar a cobertura competitiva (5 marcas VTEX + gestão/desativação) e elevar a confiabilidade da plataforma (busca que sobrevive à troca de abas, histórico completo de buscas e cálculo de frete por checkout nos sites de marca VTEX).
+**Phases:** 5 phases (Phases 25-29)
 **Progress:** [██████████] 100%
 
 ## Current Position
 
 Phase: 29
 Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-22 -- Phase 29 planning complete
+Status: Needs planning
+Last activity: 2026-06-23 -- Phase 29 (Diagnóstico) removida; Frete renumerada para 29
 
 ## Performance Metrics
 
@@ -136,5 +136,5 @@ Last activity: 2026-06-22 -- Phase 29 planning complete
 ## Session Continuity
 
 Last session: 2026-06-22T13:13:06.243Z
-Stopped at: Phase 29 context gathered
-Resume file: .planning/phases/29-diagn-stico-de-categorias-vazias-erro/29-CONTEXT.md
+Stopped at: Phase 29 (Diagnóstico) removida — Frete (nova Phase 29) ainda não planejada
+Resume file: (nenhum — Phase 29 Frete ainda não tem contexto)

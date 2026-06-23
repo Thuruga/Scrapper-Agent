@@ -10,13 +10,12 @@ Extração automatizada e resiliente de dados de mercado com mínima intervenç�
 
 ## Current Milestone: v2.0 Cobertura de Concorrentes & Confiabilidade
 
-**Goal:** Ampliar a cobertura competitiva (9 novas marcas + gestão/desativação) e elevar a confiabilidade da plataforma (busca que sobrevive à troca de abas, histórico completo de buscas, diagnóstico de categorias e cálculo de frete por checkout em mais motores).
+**Goal:** Ampliar a cobertura competitiva (9 novas marcas + gestão/desativação) e elevar a confiabilidade da plataforma (busca que sobrevive à troca de abas, histórico completo de buscas e cálculo de frete por checkout em mais motores).
 
 **Target features:**
 - **Concorrentes:** onboard de 9 marcas (Lacoste, Levi's, Richards, HugoBoss, Calvin Klein, Track&Field, Austral, Zapalla, Zara), com auto-detecção de engine (VTEX/Shopify); marcas em plataforma não suportada (ex.: Wake Commerce) são sinalizadas e adiadas.
 - **Gestão de marca:** ação de desativar/reativar marca (aplicar o `is_active`, hoje ignorado na busca) + campo de gestão (adicionar/remover/desativar).
 - **Robustez de busca:** a busca continua viva ao trocar de aba (estado sai do componente desmontado para um store global) + histórico salva e reexibe todas as buscas (incl. comparativa, que hoje não salva).
-- **Diagnóstico de motores:** identificar categorias sem produtos e com erro, de forma rastreável.
 - **Checkout/frete:** preço + prazo de frete via checkout em mais motores (hoje só VTEX completo).
 
 **Key context:** Auth permanece com API key compartilhada — perfis de acesso/login (ARAMIS/URBAN/NEXT/MARKETPLACE) e o estudo de banners→SharePoint foram adiados para um milestone futuro. O engine Wake Commerce (ref.: Shop2gether) **não** será construído neste milestone; é risco conhecido para marcas que dependam dele.
@@ -29,7 +28,6 @@ Extração automatizada e resiliente de dados de mercado com mínima intervenç�
 
 - [ ] **COMP-01**: Onboarding das 9 novas marcas concorrentes (auto-detecção de engine; marcas em plataforma não suportada sinalizadas).
 - [ ] **PERS-01**: Uma busca em andamento continua viva ao trocar de aba e ao voltar.
-- [ ] **DIAG-01**: Sistema identifica e reporta categorias sem produtos e com erro por motor.
 - [ ] **FRET-05**: Preço e prazo de frete via checkout disponíveis em mais motores além do VTEX.
 
 ### Validated (v2.0)

@@ -5,13 +5,13 @@
 - ✅ **v1.10 Refatoração do Motor de Relevância & Performance da IA** - Phases 19-21 (shipped)
 - ✅ **v1.11 Precisão da Busca por SKU** - Phases 22-23 (shipped)
 - ✅ **v1.12 Exportação Excel da Busca por SKU** - Phase 24 (shipped)
-- 🚧 **v2.0 Cobertura de Concorrentes & Confiabilidade** - Phases 25-30 (active)
+- 🚧 **v2.0 Cobertura de Concorrentes & Confiabilidade** - Phases 25-29 (active)
 
-**Milestone Goal (v2.0):** Ampliar a cobertura competitiva (5 marcas VTEX + gestão/desativação) e elevar a confiabilidade da plataforma (busca que sobrevive à troca de abas, histórico completo de buscas, diagnóstico de categorias e cálculo de frete por checkout nos sites de marca VTEX).
+**Milestone Goal (v2.0):** Ampliar a cobertura competitiva (5 marcas VTEX + gestão/desativação) e elevar a confiabilidade da plataforma (busca que sobrevive à troca de abas, histórico completo de buscas e cálculo de frete por checkout nos sites de marca VTEX).
 
 ## Overview
 
-Com a exportação Excel entregue (Phase 24), v2.0 adiciona três eixos ortogonais: cobertura competitiva (onboard de marcas concorrentes com engine verificada, desativação real), robustez de UX (busca viva entre abas, histórico completo) e observabilidade operacional (diagnóstico de categorias, frete checkout). A fundação backend (Phase 25) habilita todos os demais: o gate de engine desconhecida previne poluição silenciosa e o chokepoint `list_brands(active_only)` garante que desativação seja real.
+Com a exportação Excel entregue (Phase 24), v2.0 adiciona três eixos ortogonais: cobertura competitiva (onboard de marcas concorrentes com engine verificada, desativação real), robustez de UX (busca viva entre abas, histórico completo) e observabilidade operacional (frete checkout). A fundação backend (Phase 25) habilita todos os demais: o gate de engine desconhecida previne poluição silenciosa e o chokepoint `list_brands(active_only)` garante que desativação seja real.
 
 ## Phases
 
@@ -20,14 +20,13 @@ Com a exportação Excel entregue (Phase 24), v2.0 adiciona três eixos ortogona
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
-Phases 19-24 pertencem aos milestones v1.10-v1.12 (CONCLUÍDOS e shipped). As phases ativas são 25-30.
+Phases 19-24 pertencem aos milestones v1.10-v1.12 (CONCLUÍDOS e shipped). As phases ativas são 25-29.
 
 - [x] **Phase 25: Fundação de Motores** - Detecção de plataforma não suportada (`detect_engine` retorna `"unknown"` + probe Wake) e aplicação real do flag `is_active` no chokepoint `list_brands` (COMP-02, MGMT-01)
 - [x] **Phase 26: Onboarding das 5 Marcas VTEX** - Cadastro das marcas concorrentes VTEX com engine reconfirmada por `detect_engine` na adição e mapeamento de categorias (COMP-01) (completed 2026-06-19)
 - [x] **Phase 27: Histórico Completo + Gestão de Marcas na UI** - Buscas comparativas salvas no histórico, `preloadedJobId` propagado em `App.tsx`, campo de gestão de marcas na interface (HIST-01, HIST-02, MGMT-02) (completed 2026-06-20)
 - [x] **Phase 28: Persistência da Busca Entre Abas** - Estado de busca em andamento migrado para store zustand global; busca sobrevive à troca de abas sem cancelamento nem perda de resultado (PERS-01) (completed 2026-06-22)
-- [ ] **Phase 29: Diagnóstico de Categorias Vazias/Erro** - Serviço de diagnóstico three-state (ok/vazia/erro) por marca/motor com endpoint e painel na UI (DIAG-01, DIAG-02)
-- [ ] **Phase 30: Frete via Checkout nos Sites VTEX** - Cálculo de preço e prazo de frete via checkout simulation nos sites de marca VTEX, com contrato de unidade (centavos→reais) documentado e testado (FRET-05)
+- [ ] **Phase 29: Frete via Checkout nos Sites VTEX** - Cálculo de preço e prazo de frete via checkout simulation nos sites de marca VTEX, com contrato de unidade (centavos→reais) documentado e testado (FRET-05)
 
 ## Phase Details
 
@@ -249,40 +248,7 @@ Phases 19-24 pertencem aos milestones v1.10-v1.12 (CONCLUÍDOS e shipped). As ph
 
 ---
 
-#### Phase 29: Diagnóstico de Categorias Vazias/Erro
-
-**Goal**: O sistema identifica e reporta o estado de saúde de cada categoria por marca/motor — distinguindo explicitamente categorias funcionais, vazias (sem produtos) e com erro — e o usuário visualiza esse relatório em um painel na interface.
-**Depends on**: Phase 26 (as marcas onboardadas são necessárias para que o diagnóstico tenha cobertura real; Phase 25 garante que engines desconhecidas não geram resultados enganosos no diagnóstico)
-**Requirements**: DIAG-01, DIAG-02
-**Success Criteria** (what must be TRUE):
-
-  1. Ao acionar o diagnóstico para uma marca, o sistema retorna um resultado por categoria com status `ok`, `empty` ou `error` — incluindo `http_status` e `error_detail` quando aplicável.
-  2. Uma categoria que responde com código HTTP 404 ou 500 aparece como `error`; uma categoria que responde com sucesso mas retorna zero produtos aparece como `empty`; uma categoria com produtos aparece como `ok` — os três estados são distintos e não intercambiáveis.
-  3. O usuário visualiza um painel de saúde de categorias por marca/motor, podendo identificar rapidamente quais categorias estão com problema sem precisar executar uma busca completa.
-
-**Plans**: 4 plans (4 waves)
-
-**Wave 1** *(RED test scaffold)*
-
-- [ ] 29-01-PLAN.md — Wave 0/RED: offline contract test tests/test_category_diagnostic.py (three-state classifier matrix + no_probe brand filter)
-
-**Wave 2** *(blocked on Wave 1; makes the test GREEN)*
-
-- [ ] 29-02-PLAN.md — DIAG-01: services/category_diagnostic_service.py (raw probe + 3-state classify + per-brand base-url resolution + no_probe marker) + Pydantic models in core/models.py
-
-**Wave 3** *(blocked on Wave 2)*
-
-- [ ] 29-03-PLAN.md — DIAG-01: thin synchronous GET /diagnostic/brands/{key} + /diagnostic/all (api/routes_diagnostic.py) + router registration; un-skip endpoint test
-
-**Wave 4** *(blocked on Wave 3)*
-
-- [ ] 29-04-PLAN.md — DIAG-02: DiagnosticPage panel (brand-grouped, status chips, expandable rows) + ApiClient.getDiagnostic + App.tsx tab wiring + human-verify checkpoint
-
-**UI hint**: yes
-
----
-
-#### Phase 30: Frete via Checkout nos Sites VTEX
+#### Phase 29: Frete via Checkout nos Sites VTEX
 
 **Goal**: O sistema calcula preço e prazo de frete via checkout simulation para os sites de marca VTEX que hoje retornam vazio, com unidade corretamente convertida (centavos para reais) e detecção de frete grátis.
 **Depends on**: Phase 26 (as marcas VTEX precisam estar cadastradas para que o frete seja testável contra sites reais; Phase 25 garante que apenas sites VTEX chegam ao engine correto)
@@ -312,5 +278,4 @@ Phases ativas executam em ordem numérica: 25 → 26 → 27 → 28 → 29 → 30
 | 26. Onboarding das 5 Marcas VTEX | v2.0 | 2/2 | Complete   | 2026-06-19 |
 | 27. Histórico Completo + Gestão de Marcas na UI | v2.0 | 4/4 | Complete    | 2026-06-20 |
 | 28. Persistência da Busca Entre Abas | v2.0 | 3/3 | Complete    | 2026-06-22 |
-| 29. Diagnóstico de Categorias Vazias/Erro | v2.0 | 0/? | Not started | - |
-| 30. Frete via Checkout nos Sites VTEX | v2.0 | 0/? | Not started | - |
+| 29. Frete via Checkout nos Sites VTEX | v2.0 | 0/? | Not started | - |

@@ -27,11 +27,6 @@ Requisitos comprometidos para este milestone. Cada um mapeia para uma phase no R
 - [x] **HIST-01**: Buscas comparativas também são salvas no histórico (hoje apenas as buscas por SKU são persistidas).
 - [x] **HIST-02**: Usuário pode reabrir qualquer busca salva (comparativa ou por SKU) a partir do histórico e reexibir seus resultados (corrige o `preloadedJobId`, hoje nunca propagado a partir de `App.tsx`).
 
-### Diagnóstico de Motores
-
-- [ ] **DIAG-01**: O sistema identifica e reporta, por marca/motor, categorias sem produtos (vazias) e categorias com erro, distinguindo explicitamente "vazia" (pode ser sazonal/legítima) de "erro" (quebra real), com status + código HTTP + detalhe.
-- [ ] **DIAG-02**: Usuário pode visualizar um relatório/painel de saúde das categorias por marca/motor (status ok / vazia / erro).
-
 ### Frete (Checkout)
 
 - [ ] **FRET-05**: O sistema calcula preço e prazo de frete via checkout para os sites de marca VTEX (que hoje retornam vazio em `calculate_shipping`), com unidade correta (centavos→reais) e detecção de frete grátis.
@@ -75,7 +70,6 @@ Explicitamente excluído deste milestone, com motivo.
 | Reforma de autenticação / perfis de acesso por usuário | Disruptivo (hoje é API key compartilhada); movido para Future (PROFILE-FUT-01). |
 | Banners → SharePoint | É um estudo de viabilidade, não feature comprometida; movido para Future (BANNER-FUT-01). |
 | Reescrever shipping de ML/Amazon/Netshoes | Já funcionam; o gap real de frete é VTEX-brand-sites (FRET-05) e Shopify (FRET-06). |
-| Auto-desativar categorias com base em "vazia" | Categorias sazonalmente vazias são legítimas; DIAG só reporta, não desativa. |
 
 ## Traceability
 
@@ -88,17 +82,15 @@ Explicitamente excluído deste milestone, com motivo.
 | PERS-01 | Phase 28 | Complete |
 | HIST-01 | Phase 27 | Complete |
 | HIST-02 | Phase 27 | Complete |
-| DIAG-01 | Phase 29 | Pending |
-| DIAG-02 | Phase 29 | Pending |
-| FRET-05 | Phase 30 | Pending |
+| FRET-05 | Phase 29 | Pending |
 
 **Coverage:**
 
-- v2.0 requirements: 10 total
-- Mapped to phases: 10
+- v2.0 requirements: 8 total
+- Mapped to phases: 8
 - Unmapped: 0
 - Deferred (Future): COMP-FUT-01/02/03, PROFILE-FUT-01, BANNER-FUT-01, FRET-06, EXPORT-HIST-01, EXPORT-UNIFY-01, IDENT-01
 
 ---
 *Requirements defined: 2026-06-18 for milestone v2.0*
-*Last updated: 2026-06-18 — Traceability filled after roadmap creation*
+*Last updated: 2026-06-23 — Phase 29 (Diagnóstico) removida; DIAG-01/02 retirados; Frete renumerada para Phase 29*
