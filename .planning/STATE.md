@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Expansão Multi-Plataforma de Concorrentes & Frete VTEX
-status: planning
-last_updated: "2026-06-23T13:39:57.403Z"
+status: roadmapped
+last_updated: "2026-06-23T13:45:33.000Z"
 last_activity: 2026-06-23
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,29 +17,29 @@ progress:
 
 ## Project Reference
 
-See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/scrapper/.planning/PROJECT.md) (updated 2026-06-18)
+See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/scrapper/.planning/PROJECT.md) (updated 2026-06-23)
 
 **Core value:** Extração automatizada e resiliente de dados de mercado com mínima intervenção humana e alta fidelidade de dados.
-**Current focus:** v3.0 — definindo requisitos
+**Current focus:** v3.0 — Phase 30 (Detecção de Engine SFCC & Wake), pronta para planejar
 
 ## Current Milestone: v3.0 Expansão Multi-Plataforma de Concorrentes & Frete VTEX
 
 **Goal:** Onboardar marcas concorrentes que rodam fora do VTEX (engines SFCC e Wake Commerce) e entregar o cálculo de frete VTEX pendente do v2.0.
-**Phases:** definindo (roadmap pendente)
-**Progress:** [░░░░░░░░░░] 0%
+**Phases:** 4 (30-33) — roadmap definido; nenhuma planejada ainda
+**Progress:** [░░░░░░░░░░] 0% (0/4 phases)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 30 — Detecção de Engine SFCC & Wake (roadmapped, não planejada)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-06-23 — Milestone v3.0 started
+Status: Roadmap criado — aguardando `/gsd-plan-phase 30`
+Last activity: 2026-06-23 — Roadmap v3.0 criado (Phases 30-33, cobertura 4/4)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 11 (neste milestone)
+- Total plans completed (v2.0): 11
 - Average duration: —
 
 **By Phase (milestones anteriores):**
@@ -74,14 +74,18 @@ Last activity: 2026-06-23 — Milestone v3.0 started
 
 ### Decisions
 
-- [v2.0 scope]: Apenas 5 marcas VTEX confirmadas são onboardadas (Levi's, Calvin Klein, Zapalla, Austral, Track & Field). Richards (Wake), Lacoste/Hugo Boss (SFCC), Zara (Inditex) **não** são registradas neste milestone — movidas para Future Requirements (COMP-FUT-01/02/03). Se um operador tentar adicioná-las, a detecção COMP-02 (Phase 25) impede o cadastro silencioso como VTEX.
+- [v3.0 roadmap]: 4 phases, 30-33. COMP-05→Phase 30 (detecção SFCC/Wake), COMP-03→Phase 31 (engine SFCC), COMP-04→Phase 32 (engine Wake, spike-gated), FRET-05→Phase 33 (frete VTEX). Cobertura 4/4.
+- [v3.0 ordering]: Phase 30 (detecção) é pré-requisito compartilhado das Phases 31 e 32 — sem rotular `sfcc`/`wake`, as marcas seriam auto-desativadas no cadastro (regra D-04). Phase 33 (frete VTEX) é ortogonal e pode rodar em paralelo.
+- [v3.0 COMP-04]: O build do engine Wake é gated por um spike de confirmação (Wave 0 da Phase 32) do fluxo GraphQL + `TCS-Access-Token` contra a Richards/Shop2gether — Wake é HIGH confidence documentalmente mas NÃO foi testado empiricamente. GO/NO-GO registrado antes do engine completo.
+- [v3.0 COMP-03]: Caminho SFCC é público via browser (JSON-LD/OpenGraph), validado por spikes 003-006 — HTTP direto é 403. Escopo: catálogo + preço APENAS. SEM frete/checkout, estoque por CEP, OCAPI/SCAPI ou bypass de anti-bot.
+- [v3.0 FRET-05]: Frete VTEX continua via `VtexApiClient` interno — NÃO rotear pelo hook `calculate_shipping` (decisão arquitetural herdada do v2.0 para evitar regressão).
+- [v3.0 scope]: Zara/Inditex IOP (COMP-FUT-03) permanece deferido (sem caminho público validado). Auth segue API key compartilhada (PROFILE-FUT-01 adiado); FRET-06 (Shopify shipping) e banners→SharePoint seguem Future.
+- [v2.0 scope]: Apenas 5 marcas VTEX confirmadas foram onboardadas (Levi's, Calvin Klein, Zapalla, Austral, Track & Field). Richards/Lacoste/Hugo Boss/Zara ficaram fora do v2.0 — agora COMP-FUT-01/02 viram COMP-03/04 no v3.0.
 - [v2.0 scope]: Auth permanece API key compartilhada — perfis de acesso (PROFILE-FUT-01) adiados.
-- [v2.0 scope]: Engine Wake Commerce não construído neste milestone — é risco conhecido para marcas que dependam dele.
-- [v2.0 scope]: FRET-05 cobre apenas sites de marca VTEX. FRET-06 (Shopify shipping) permanece adiado por incerteza de viabilidade.
 - [ARCH]: `is_active` enforcement vai no chokepoint único `brand_service.list_brands(active_only=True)` — NÃO por call site.
 - [ARCH]: Estado de busca migra para store zustand module-scoped — NÃO remover AnimatePresence, NÃO converter busca para async job/polling.
 - [ARCH]: VTEX shipping continua via `VtexApiClient` interno — NÃO rotear pelo hook `calculate_shipping` para evitar regressão.
-- [PERS-01]: Prerequisito: fix do WebSocket cleanup em `CategoryPage` (5 linhas de useEffect) vem ANTES do store zustand, na mesma phase.
+- [v2.0/PERS-01]: Prerequisito: fix do WebSocket cleanup em `CategoryPage` (5 linhas de useEffect) vem ANTES do store zustand, na mesma phase.
 - [D-07/25-02]: `list_brands` default `active_only=False` mantido — flip para True quebraria GET /brands/ e a management UI.
 - [D-05/25-02]: `set_active` apenas seta o flag `is_active` e persiste via `_save`; NÃO cancela monitores ativos (isso é responsabilidade de `delete_brand`).
 - [D-06/25-02]: `set_active` é um set idempotente, não um toggle — chamar duas vezes com o mesmo valor é semanticamente no-op.
@@ -108,8 +112,9 @@ Last activity: 2026-06-23 — Milestone v3.0 started
 
 ### Blockers/Concerns
 
-- Lacoste/Hugo Boss: confiança MÉDIA na detecção de plataforma (sites retornaram 403). Estão fora do escopo (Future); se forem tentadas no onboarding, COMP-02 deve identificá-las como plataforma não suportada.
-- FRET-06 (Shopify): adiado para milestone futuro — smoke test necessário antes de comprometer (sessão/cookie no AJAX Cart pode requerer Playwright). FRET-05 (sites VTEX) é o único frete no escopo do v2.0.
+- [v3.0/COMP-04] Wake/Richards: fluxo GraphQL + `TCS-Access-Token` é HIGH confidence documentalmente (wakecommerce.readme.io) mas NÃO testado empiricamente. Phase 32 deve iniciar pelo spike de confirmação (Wave 0) com decisão GO/NO-GO antes do engine completo.
+- [v3.0/COMP-03] Lacoste/HugoBoss (SFCC): HTTP direto é 403; extração validada apenas pela via pública browser-rendered (JSON-LD/OpenGraph). Escopo limitado a catálogo + preço — sem frete/checkout/estoque por CEP.
+- FRET-06 (Shopify): permanece adiado — smoke test necessário antes de comprometer (sessão/cookie no AJAX Cart pode requerer Playwright). Fora do escopo do v3.0.
 
 ### Quick Tasks Completed
 
@@ -125,19 +130,17 @@ Last activity: 2026-06-23 — Milestone v3.0 started
 | Identidade de Produto | IDENT-01 (sinal além do EAN) | Deferred (research) | v1.11 init |
 | Exportação | EXPORT-HIST-01 (export do histórico) | Deferred | v1.12 init |
 | Exportação | EXPORT-UNIFY-01 (unificar com export por marca) | Deferred | v1.12 init |
-| Concorrentes | COMP-FUT-01 (Richards/Wake Commerce) | Deferred to v3.0 | v2.0 init |
-| Concorrentes | COMP-FUT-02 (Lacoste/Hugo Boss SFCC) | Deferred (spike) | v2.0 init |
 | Concorrentes | COMP-FUT-03 (Zara/Inditex IOP) | Deferred | v2.0 init |
-| Acesso | PROFILE-FUT-01 (perfis por equipe) | Deferred (v3.0) | v2.0 init |
+| Acesso | PROFILE-FUT-01 (perfis por equipe) | Deferred | v2.0 init |
 | Frete | FRET-06 (Shopify checkout shipping) | Deferred (viabilidade) | v2.0 init |
 | Banners | BANNER-FUT-01 (banners→SharePoint) | Deferred (estudo) | v2.0 init |
 
 ## Session Continuity
 
-Last session: 2026-06-22T13:13:06.243Z
-Stopped at: Phase 29 (Diagnóstico) removida — Frete (nova Phase 29) ainda não planejada
-Resume file: (nenhum — Phase 29 Frete ainda não tem contexto)
+Last session: 2026-06-23T13:45:33.000Z
+Stopped at: Roadmap v3.0 criado (Phases 30-33; COMP-05/03/04/FRET-05 mapeados, cobertura 4/4)
+Resume file: (nenhum — Phase 30 ainda não tem contexto de planejamento)
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Planejar a primeira phase do v3.0 com `/gsd-plan-phase 30`

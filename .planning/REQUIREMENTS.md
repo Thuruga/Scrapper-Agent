@@ -61,18 +61,18 @@ Explicitamente excluído deste milestone, com motivo.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| COMP-03 | — | Pending |
-| COMP-04 | — | Pending |
-| COMP-05 | — | Pending |
-| FRET-05 | — | Pending |
+| COMP-05 | Phase 30 | Pending |
+| COMP-03 | Phase 31 | Pending |
+| COMP-04 | Phase 32 | Pending |
+| FRET-05 | Phase 33 | Pending |
 
 **Coverage:**
 
 - v3.0 requirements: 4 total
-- Mapped to phases: 0 (a preencher pelo roadmap)
-- Unmapped: 4
+- Mapped to phases: 4 (COMP-05→30, COMP-03→31, COMP-04→32, FRET-05→33)
+- Unmapped: 0 ✓
 - Deferred (Future): COMP-FUT-03, PROFILE-FUT-01, FRET-06, BANNER-FUT-01, EXPORT-HIST-01, EXPORT-UNIFY-01, IDENT-01
 
 ---
 *Requirements defined: 2026-06-23 for milestone v3.0*
-*Last updated: 2026-06-23 — Milestone v3.0 iniciado; COMP-FUT-01/02 promovidos a COMP-03/04/05; FRET-05 carregado do v2.0.*
+*Last updated: 2026-06-23 — Milestone v3.0 roadmapeado; COMP-05→Phase 30, COMP-03→Phase 31, COMP-04→Phase 32 (spike-gated), FRET-05→Phase 33; cobertura 4/4.*
