@@ -1,0 +1,127 @@
+{
+  "spike": "005-sfcc-public-parser-prototype",
+  "source": "Derived from Spike 004 browser-rendered public observations",
+  "observations": [
+    {
+      "id": "hugoboss_category_productgroup",
+      "brand_hint": "Hugo Boss",
+      "page_type": "category",
+      "category_hint": "Polo Shirts",
+      "source_url": "https://www.hugoboss.com/us/men-polo-shirts/",
+      "visible_price_text": "$119.00",
+      "jsonld_products": [
+        {
+          "@context": "https://schema.org/",
+          "@type": "ProductGroup",
+          "@id": "https://www.hugoboss.com/us/slim-fit-cotton-polo-shirt/hbna50564688_835.html",
+          "url": "https://www.hugoboss.com/us/slim-fit-cotton-polo-shirt/hbna50564688_835.html",
+          "name": "Slim-fit cotton polo shirt",
+          "description": "A BOSS Menswear polo shirt in a modern slim fit. Made from breathable pure cotton. Featuring a structured flat-knit collar and soft-touch logo for a refined look.",
+          "brand": {
+            "@type": "Brand",
+            "name": "BOSS"
+          },
+          "color": "Light Orange",
+          "image": [
+            "https://images.hugoboss.com/is/image/boss/hbna50564688_835_350?wid=1980&qlt=80&resMode=sharp2"
+          ]
+        }
+      ],
+      "opengraph_meta": {},
+      "visible_cards": []
+    },
+    {
+      "id": "hugoboss_product_productgroup",
+      "brand_hint": "Hugo Boss",
+      "page_type": "product",
+      "category_hint": "Polo Shirts",
+      "source_url": "https://www.hugoboss.com/us/slim-fit-cotton-polo-shirt/hbna50564688_835.html",
+      "visible_price_text": "$119.00",
+      "visible_text": "SLIM-FIT COTTON POLO SHIRT $119.00 Slim fit Color: Light Orange DETAILS A BOSS Menswear polo shirt in a modern slim fit. Made from breathable pure cotton. Featuring a structured flat-knit collar and soft-touch logo for a refined look. PL_NETWORK PAULE - 50564688",
+      "jsonld_products": [
+        {
+          "@context": "https://schema.org/",
+          "@type": "ProductGroup",
+          "@id": "https://www.hugoboss.com/us/slim-fit-cotton-polo-shirt/hbna50564688_835.html",
+          "url": "https://www.hugoboss.com/us/slim-fit-cotton-polo-shirt/hbna50564688_835.html",
+          "name": "Slim-fit cotton polo shirt",
+          "description": "A BOSS Menswear polo shirt in a modern slim fit. Made from breathable pure cotton. Featuring a structured flat-knit collar and soft-touch logo for a refined look.",
+          "brand": {
+            "@type": "Brand",
+            "name": "BOSS"
+          },
+          "color": "Light Orange",
+          "image": [
+            "https://images.hugoboss.com/is/image/boss/hbna50564688_835_350?wid=1980&qlt=80&resMode=sharp2"
+          ]
+        }
+      ],
+      "opengraph_meta": {
+        "og:title": "BOSS - Slim-fit cotton polo shirt - Light Orange",
+        "og:description": "Slim-fit cotton polo shirt - Light Orange Polo Shirts from BOSS for Men in the official HUGO BOSS Online Store free shipping",
+        "og:image": "https://images.hugoboss.com/is/image/boss/hbna50564688_835_100?$social_sharing$",
+        "og:url": "https://www.hugoboss.com/us/slim-fit-cotton-polo-shirt/hbna50564688_835.html"
+      },
+      "visible_cards": []
+    },
+    {
+      "id": "lacoste_category_card",
+      "brand_hint": "Lacoste",
+      "page_type": "category",
+      "category_hint": "Polo Shirts",
+      "source_url": "https://www.lacoste.com/us/lacoste/men/clothing/polos/",
+      "visible_text": "508 results $110.00 Men's Classic Fit Original L.12.12 Polo + 59 SELECT COLORS ON SALE $54.99 Price after discount: $54.99 $110.00 Original price before discount: $110.00",
+      "jsonld_products": [],
+      "opengraph_meta": {},
+      "visible_cards": [
+        {
+          "url": "https://www.lacoste.com/us/lacoste/men/clothing/polos/L1212-51.html?color=001",
+          "name": "Men's Classic Fit Original L.12.12 Polo",
+          "visible_price_text": "$110.00",
+          "visible_discount_price_text": "$54.99 Price after discount: $54.99 $110.00 Original price before discount: $110.00"
+        }
+      ]
+    },
+    {
+      "id": "lacoste_product_jsonld_meta",
+      "brand_hint": "Lacoste",
+      "page_type": "product",
+      "category_hint": "Polo Shirts",
+      "source_url": "https://www.lacoste.com/us/lacoste/men/clothing/polos/L1212-51.html?color=001",
+      "visible_text": "Men's Classic Fit Original L.12.12 Polo Reviews (1,180) $110.00 SELECT COLORS ON SALE +60 Colors White 001 Size guide ADD TO SHOPPING BAG",
+      "jsonld_products": [
+        {
+          "@context": "https://schema.org/",
+          "@type": "Product",
+          "name": "Men's Classic Fit Original L.12.12 Polo",
+          "description": "The Original L.12.12 is the very first polo shirt invented by Rene Lacoste in 1933. With its collar, button placket and Petit Pique, it revolutionized elegant sportswear and freedom of movement.",
+          "brand": {
+            "@type": "Brand",
+            "name": "Lacoste"
+          },
+          "url": "https://www.lacoste.com/us/lacoste/men/clothing/polos/L1212-51.html?color=001",
+          "image": "https://imagena1.lacoste.com/dw/image/v2/AAUP_PRD/on/demandware.static/-/Sites-master/default/dwf612f00e/L1212_001_20.jpg",
+          "offers": {
+            "@type": "Offer",
+            "price": 110,
+            "priceCurrency": "USD",
+            "availability": "https://schema.org/InStock"
+          }
+        }
+      ],
+      "opengraph_meta": {
+        "og:type": "product",
+        "og:title": "Men's Classic Fit Original L.12.12 Polo",
+        "og:description": "The Original L.12.12 is the very first polo shirt invented by Rene Lacoste in 1933.",
+        "og:url": "https://www.lacoste.com/us/lacoste/men/clothing/polos/L1212-51.html?color=001",
+        "og:product:price:amount": "110.0",
+        "og:product:price:currency": "USD",
+        "og:image": "https://imagena1.lacoste.com/dw/image/v2/AAUP_PRD/on/demandware.static/-/Sites-master/default/dwf612f00e/L1212_001_20.jpg",
+        "og:product:material": "Cotton (100%)",
+        "og:product:color": "White",
+        "og:product:availability": "INSTOCK"
+      },
+      "visible_cards": []
+    }
+  ]
+}

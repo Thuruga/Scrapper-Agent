@@ -1,0 +1,114 @@
+{
+  "spike": "005-sfcc-public-parser-prototype",
+  "verdict": "VALIDATED_WITH_DETAIL_PAGE_ENRICHMENT",
+  "products": [
+    {
+      "url": "https://www.hugoboss.com/us/slim-fit-cotton-polo-shirt/hbna50564688_835.html",
+      "brand": "BOSS",
+      "raw_title": "Slim-fit cotton polo shirt",
+      "raw_description": "A BOSS Menswear polo shirt in a modern slim fit. Made from breathable pure cotton. Featuring a structured flat-knit collar and soft-touch logo for a refined look.",
+      "price_full": 119.0,
+      "price_discount": null,
+      "stock_availability": null,
+      "category": "Polo Shirts",
+      "sub_category": null,
+      "composition": null,
+      "available_colors": [
+        "Light Orange"
+      ],
+      "available_sizes": [],
+      "rating": null,
+      "review_count": null,
+      "specifications": {
+        "schema_type": "ProductGroup"
+      },
+      "image_url": "https://images.hugoboss.com/is/image/boss/hbna50564688_835_350?wid=1980&qlt=80&resMode=sharp2",
+      "_source_id": "hugoboss_category_productgroup",
+      "_source_type": "category:jsonld",
+      "_quality": "bronze_ready",
+      "_missing_fields": []
+    },
+    {
+      "url": "https://www.hugoboss.com/us/slim-fit-cotton-polo-shirt/hbna50564688_835.html",
+      "brand": "BOSS",
+      "raw_title": "Slim-fit cotton polo shirt",
+      "raw_description": "A BOSS Menswear polo shirt in a modern slim fit. Made from breathable pure cotton. Featuring a structured flat-knit collar and soft-touch logo for a refined look.",
+      "price_full": 119.0,
+      "price_discount": null,
+      "stock_availability": null,
+      "category": "Polo Shirts",
+      "sub_category": null,
+      "composition": null,
+      "available_colors": [
+        "Light Orange"
+      ],
+      "available_sizes": [],
+      "rating": null,
+      "review_count": null,
+      "specifications": {
+        "schema_type": "ProductGroup"
+      },
+      "image_url": "https://images.hugoboss.com/is/image/boss/hbna50564688_835_350?wid=1980&qlt=80&resMode=sharp2",
+      "_source_id": "hugoboss_product_productgroup",
+      "_source_type": "product:jsonld",
+      "_quality": "bronze_ready",
+      "_missing_fields": []
+    },
+    {
+      "url": "https://www.lacoste.com/us/lacoste/men/clothing/polos/L1212-51.html?color=001",
+      "brand": "Lacoste",
+      "raw_title": "Men's Classic Fit Original L.12.12 Polo",
+      "raw_description": "Men's Classic Fit Original L.12.12 Polo",
+      "price_full": 110.0,
+      "price_discount": 54.99,
+      "stock_availability": null,
+      "category": "Polo Shirts",
+      "sub_category": null,
+      "composition": null,
+      "available_colors": [],
+      "available_sizes": [],
+      "rating": null,
+      "review_count": null,
+      "specifications": {},
+      "image_url": null,
+      "_source_id": "lacoste_category_card",
+      "_source_type": "category:visible_card",
+      "_quality": "needs_detail_page",
+      "_missing_fields": [
+        "image_url"
+      ]
+    },
+    {
+      "url": "https://www.lacoste.com/us/lacoste/men/clothing/polos/L1212-51.html?color=001",
+      "brand": "Lacoste",
+      "raw_title": "Men's Classic Fit Original L.12.12 Polo",
+      "raw_description": "The Original L.12.12 is the very first polo shirt invented by Rene Lacoste in 1933. With its collar, button placket and Petit Pique, it revolutionized elegant sportswear and freedom of movement.",
+      "price_full": 110.0,
+      "price_discount": null,
+      "stock_availability": true,
+      "category": "Polo Shirts",
+      "sub_category": null,
+      "composition": "Cotton (100%)",
+      "available_colors": [
+        "White"
+      ],
+      "available_sizes": [],
+      "rating": null,
+      "review_count": null,
+      "specifications": {
+        "schema_type": "Product"
+      },
+      "image_url": "https://imagena1.lacoste.com/dw/image/v2/AAUP_PRD/on/demandware.static/-/Sites-master/default/dwf612f00e/L1212_001_20.jpg",
+      "_source_id": "lacoste_product_jsonld_meta",
+      "_source_type": "product:jsonld",
+      "_quality": "bronze_ready",
+      "_missing_fields": []
+    }
+  ],
+  "stats": {
+    "total": 4,
+    "bronze_ready": 3,
+    "needs_detail_page": 1,
+    "insufficient": 0
+  }
+}

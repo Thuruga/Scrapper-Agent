@@ -1,0 +1,113 @@
+{
+  "spike": "004-sfcc-browser-public-probe",
+  "run_date": "2026-06-18",
+  "method": "Codex in-app browser, normal public page rendering",
+  "guardrails": [
+    "public storefront pages only",
+    "no API credentials",
+    "no checkout/account/cart/wishlist/availability routes",
+    "no stealth/proxy/CAPTCHA/bypass behavior",
+    "no production code integration"
+  ],
+  "targets": [
+    {
+      "brand": "Hugo Boss",
+      "platform_signal": "SFCC/Demandware",
+      "pages": {
+        "home": {
+          "requested_url": "https://www.hugoboss.com/us/",
+          "final_url": "https://www.hugoboss.com/us/home",
+          "title": "HUGO BOSS Official Online Shop | Menswear & Womenswear",
+          "blocked": false,
+          "demandware_signal_count": 313,
+          "category_link_count": 49,
+          "product_link_count": 42,
+          "sample_product_link": "https://www.hugoboss.com/us/logo-detail-polo-shirt-in-cotton-pique/hbna50556061_404.html"
+        },
+        "category": {
+          "url": "https://www.hugoboss.com/us/men-polo-shirts/",
+          "title": "HUGO BOSS | Men's Designer Polo Shirts",
+          "blocked": false,
+          "product_jsonld_count": 5,
+          "product_link_count": 94,
+          "visible_result_count_text": "ALL BRANDS (447)",
+          "sample_product": {
+            "name": "Slim-fit cotton polo shirt",
+            "brand": "BOSS",
+            "color": "Light Orange",
+            "url": "https://www.hugoboss.com/us/slim-fit-cotton-polo-shirt/hbna50564688_835.html",
+            "image": "https://images.hugoboss.com/is/image/boss/hbna50564688_835_350?wid=1980&qlt=80&resMode=sharp2",
+            "visible_price_text": "$119.00"
+          }
+        },
+        "product": {
+          "url": "https://www.hugoboss.com/us/slim-fit-cotton-polo-shirt/hbna50564688_835.html",
+          "title": "BOSS - Slim-fit cotton polo shirt - Light Orange",
+          "blocked": false,
+          "product_jsonld_count": 1,
+          "sample_product": {
+            "name": "Slim-fit cotton polo shirt",
+            "brand": "BOSS",
+            "color": "Light Orange",
+            "description": "A BOSS Menswear polo shirt in a modern slim fit. Made from breathable pure cotton.",
+            "visible_price_text": "$119.00",
+            "image": "https://images.hugoboss.com/is/image/boss/hbna50564688_835_350?wid=1980&qlt=80&resMode=sharp2"
+          }
+        }
+      },
+      "verdict": "viable_for_public_browser_parser"
+    },
+    {
+      "brand": "Lacoste",
+      "platform_signal": "SFCC/Demandware",
+      "pages": {
+        "home": {
+          "requested_url": "https://www.lacoste.com/us/",
+          "final_url": "https://www.lacoste.com/us/men.html",
+          "title": "Men's Fashion by Lacoste: Polos, Matching Sets & Sneakers for men | LACOSTE",
+          "blocked": false,
+          "demandware_signal_count": 675,
+          "category_link_count": 228,
+          "product_link_count": 29
+        },
+        "category": {
+          "url": "https://www.lacoste.com/us/lacoste/men/clothing/polos/",
+          "title": "Men's Poloshirts | Clothing - Polos | LACOSTE",
+          "blocked": false,
+          "product_jsonld_count": 0,
+          "product_link_count_after_scroll": 260,
+          "visible_result_count_text": "508 results",
+          "sample_product": {
+            "name": "Men's Classic Fit Original L.12.12 Polo",
+            "url": "https://www.lacoste.com/us/lacoste/men/clothing/polos/L1212-51.html?color=001",
+            "visible_price_text": "$110.00",
+            "visible_discount_price_text": "$54.99 on sale variants"
+          }
+        },
+        "product": {
+          "url": "https://www.lacoste.com/us/lacoste/men/clothing/polos/L1212-51.html?color=001",
+          "title": "Men's Classic Fit Original L.12.12 Polo - Polo Shirts - New In 2026 | Lacoste",
+          "blocked": false,
+          "product_jsonld_count": 1,
+          "opengraph_product_meta": {
+            "price_amount": "110.0",
+            "price_currency": "USD",
+            "material": "Cotton (100%)",
+            "color": "White",
+            "availability": "INSTOCK"
+          },
+          "sample_product": {
+            "name": "Men's Classic Fit Original L.12.12 Polo",
+            "brand": "Lacoste",
+            "price": 110,
+            "price_currency": "USD",
+            "availability": "https://schema.org/InStock",
+            "image": "https://imagena1.lacoste.com/dw/image/v2/AAUP_PRD/on/demandware.static/-/Sites-master/default/dwf612f00e/L1212_001_20.jpg"
+          }
+        }
+      },
+      "verdict": "viable_for_public_browser_parser"
+    }
+  ],
+  "overall_verdict": "VALIDATED_FOR_SFCC_PUBLIC_BROWSER"
+}

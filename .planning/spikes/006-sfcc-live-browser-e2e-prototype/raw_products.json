@@ -1,0 +1,152 @@
+[
+  {
+    "url": "https://www.hugoboss.com/us/slim-fit-cotton-polo-shirt/hbna50564688_835.html",
+    "brand": "BOSS",
+    "raw_title": "Slim-fit cotton polo shirt",
+    "raw_description": "A BOSS Menswear polo shirt in a modern slim fit. Made from breathable pure cotton. Featuring a structured flat-knit collar and soft-touch logo for a refined look.",
+    "price_full": 119,
+    "price_discount": null,
+    "stock_availability": null,
+    "category": "Polo Shirts",
+    "sub_category": null,
+    "composition": null,
+    "available_colors": [
+      "Light Orange"
+    ],
+    "available_sizes": [],
+    "rating": null,
+    "review_count": null,
+    "specifications": {
+      "source_label": "hugoboss_product_1",
+      "schema_type": "ProductGroup"
+    },
+    "image_url": "https://images.hugoboss.com/is/image/boss/hbna50564688_835_350?wid=1980&qlt=80&resMode=sharp2",
+    "_quality": "bronze_ready",
+    "_missing_fields": []
+  },
+  {
+    "url": "https://www.hugoboss.com/us/johnny-collar-polo-shirt-in-cotton-and-linen/hbna50559173_450.html",
+    "brand": "BOSS",
+    "raw_title": "Johnny-collar polo shirt in cotton and linen",
+    "raw_description": "Topped with a modern Johnny collar, this BOSS Menswear polo shirt is crafted in a summery cotton-linen blend. Regular fit. Sporty tipping.",
+    "price_full": 179,
+    "price_discount": null,
+    "stock_availability": null,
+    "category": "Polo Shirts",
+    "sub_category": null,
+    "composition": null,
+    "available_colors": [
+      "Light Blue"
+    ],
+    "available_sizes": [],
+    "rating": null,
+    "review_count": null,
+    "specifications": {
+      "source_label": "hugoboss_product_2",
+      "schema_type": "ProductGroup"
+    },
+    "image_url": "https://images.hugoboss.com/is/image/boss/hbna50559173_450_350?wid=1980&qlt=80&resMode=sharp2",
+    "_quality": "bronze_ready",
+    "_missing_fields": []
+  },
+  {
+    "url": "https://www.hugoboss.com/us/active-paddy-regular-fit-polo-shirt-in-quick-dry-stretch-pique/hbna50469102_272.html",
+    "brand": "BOSS",
+    "raw_title": "Active Paddy regular-fit polo shirt in quick-dry stretch pique",
+    "raw_description": "A BOSS Menswear polo shirt crafted for active days. Made from innovative cotton-blend stretch fabric for comfort, quick-drying performance and lasting odor control. Regular fit.",
+    "price_full": 129,
+    "price_discount": null,
+    "stock_availability": null,
+    "category": "Polo Shirts",
+    "sub_category": null,
+    "composition": null,
+    "available_colors": [
+      "Light Beige"
+    ],
+    "available_sizes": [],
+    "rating": null,
+    "review_count": null,
+    "specifications": {
+      "source_label": "hugoboss_product_3",
+      "schema_type": "ProductGroup"
+    },
+    "image_url": "https://images.hugoboss.com/is/image/boss/hbna50469102_272_350?wid=1980&qlt=80&resMode=sharp2",
+    "_quality": "bronze_ready",
+    "_missing_fields": []
+  },
+  {
+    "url": "https://www.lacoste.com/us/lacoste/men/clothing/polos/L1212-51.html?color=001",
+    "brand": "Lacoste",
+    "raw_title": "Men's Classic Fit Original L.12.12 Polo",
+    "raw_description": "The Original L.12.12 is the very first polo shirt invented by Rene Lacoste in 1933. With its collar, button placket and Petit Pique, it revolutionized elegant sportswear and freedom of movement. Made using 20 kilometres of thread knitted under two levels of tension and a crocodile logo with 2367 stitches, the Original L.12.12 is a real coming together of know-how and expertise.",
+    "price_full": 110,
+    "price_discount": null,
+    "stock_availability": true,
+    "category": "Polo Shirts",
+    "sub_category": null,
+    "composition": "Cotton (100%)",
+    "available_colors": [
+      "White"
+    ],
+    "available_sizes": [],
+    "rating": null,
+    "review_count": null,
+    "specifications": {
+      "source_label": "lacoste_product_1",
+      "schema_type": "Product"
+    },
+    "image_url": "https://imagena1.lacoste.com/dw/image/v2/AAUP_PRD/on/demandware.static/-/Sites-master/default/dwf612f00e/L1212_001_20.jpg",
+    "_quality": "bronze_ready",
+    "_missing_fields": []
+  },
+  {
+    "url": "https://www.lacoste.com/us/lacoste/men/clothing/polos/L1212-51.html?color=5HX",
+    "brand": "Lacoste",
+    "raw_title": "Men's Classic Fit Original L.12.12 Polo",
+    "raw_description": "The Original L.12.12 is the very first polo shirt invented by Rene Lacoste in 1933. With its collar, button placket and Petit Pique, it revolutionized elegant sportswear and freedom of movement. Made using 20 kilometres of thread knitted under two levels of tension and a crocodile logo with 2367 stitches, the Original L.12.12 is a real coming together of know-how and expertise.",
+    "price_full": 110,
+    "price_discount": null,
+    "stock_availability": true,
+    "category": "Polo Shirts",
+    "sub_category": null,
+    "composition": "Cotton (100%)",
+    "available_colors": [
+      "Green"
+    ],
+    "available_sizes": [],
+    "rating": null,
+    "review_count": null,
+    "specifications": {
+      "source_label": "lacoste_product_2",
+      "schema_type": "Product"
+    },
+    "image_url": "https://imagena1.lacoste.com/dw/image/v2/AAUP_PRD/on/demandware.static/-/Sites-master/default/dw52fece5a/L1212_5HX_24.jpg",
+    "_quality": "bronze_ready",
+    "_missing_fields": []
+  },
+  {
+    "url": "https://www.lacoste.com/us/lacoste/men/clothing/polos/L1212-51.html?color=GFU",
+    "brand": "Lacoste",
+    "raw_title": "Men's Classic Fit Original L.12.12 Polo",
+    "raw_description": "The Original L.12.12 is the very first polo shirt invented by Rene Lacoste in 1933. With its collar, button placket and Petit Pique, it revolutionized elegant sportswear and freedom of movement. Made using 20 kilometres of thread knitted under two levels of tension and a crocodile logo with 2367 stitches, the Original L.12.12 is a real coming together of know-how and expertise.",
+    "price_full": 110,
+    "price_discount": null,
+    "stock_availability": true,
+    "category": "Polo Shirts",
+    "sub_category": null,
+    "composition": "Cotton (100%)",
+    "available_colors": [
+      "Purple"
+    ],
+    "available_sizes": [],
+    "rating": null,
+    "review_count": null,
+    "specifications": {
+      "source_label": "lacoste_product_3",
+      "schema_type": "Product"
+    },
+    "image_url": "https://imagena1.lacoste.com/dw/image/v2/AAUP_PRD/on/demandware.static/-/Sites-master/default/dwcd6baea0/L1212_GFU_24.jpg",
+    "_quality": "bronze_ready",
+    "_missing_fields": []
+  }
+]

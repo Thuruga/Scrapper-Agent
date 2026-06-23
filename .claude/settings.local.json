@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add *)",
+      "Bash(git commit -q -m ' *)",
+      "Bash(git --no-pager log --oneline -1)",
+      "Bash(grep -c \"passes_brand_gate\" .planning/phases/22-gate-de-marca/22-01-PLAN.md)",
+      "Bash(grep -c \"test_brand_detection_unaffected_by_color\" .planning/phases/22-gate-de-marca/22-01-PLAN.md)",
+      "Bash(git commit -q -m 'docs\\(22\\): revisa plano pós plan-check \\(predicado compartilhado anti-tautologia + guarda de cor\\) *)",
+      "Skill(gsd-plan-phase)",
+      "Skill(gsd-plan-phase:*)",
+      "Skill(gsd-execute-phase)",
+      "Skill(gsd-execute-phase:*)",
+      "Skill(gsd-code-review)",
+      "Skill(gsd-code-review:*)",
+      "Bash(python -m pytest tests/test_model_discrimination.py -q)",
+      "Bash(python -m pytest tests/ -q)",
+      "PowerShell(python -m pytest -q --ignore=test_redis.py --ignore=test_redis2.py --ignore=scratch_routes_test.py 2>&1)",
+      "Skill(gsd-ui-phase)",
+      "Skill(gsd-ui-phase:*)"
+    ]
+  }
+}

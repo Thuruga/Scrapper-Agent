@@ -1,0 +1,61 @@
+[
+  {
+    "key": "hugoboss_us",
+    "name": "Hugo Boss US",
+    "expected_path": "sfcc",
+    "robots_url": "https://www.hugoboss.com/robots.txt",
+    "homepage_url": "https://www.hugoboss.com/us/",
+    "robots_status": 403,
+    "homepage_status": 403,
+    "robots_error": "HTTPError: 403",
+    "homepage_error": "HTTPError: 403",
+    "sitemaps": [],
+    "disallow_count": 0,
+    "sensitive_disallow_hits": [],
+    "platform_signals": {},
+    "product_link_hints": 0,
+    "category_link_hints": 0,
+    "classification": "blocked_from_local_runtime",
+    "recommendation": "stop: local runtime is blocked; do not add bypass logic"
+  },
+  {
+    "key": "lacoste_us",
+    "name": "Lacoste US",
+    "expected_path": "sfcc",
+    "robots_url": "https://www.lacoste.com/robots.txt",
+    "homepage_url": "https://www.lacoste.com/us/",
+    "robots_status": 403,
+    "homepage_status": 403,
+    "robots_error": "HTTPError: 403",
+    "homepage_error": "HTTPError: 403",
+    "sitemaps": [],
+    "disallow_count": 0,
+    "sensitive_disallow_hits": [],
+    "platform_signals": {},
+    "product_link_hints": 0,
+    "category_link_hints": 0,
+    "classification": "blocked_from_local_runtime",
+    "recommendation": "stop: local runtime is blocked; do not add bypass logic"
+  },
+  {
+    "key": "zara_br",
+    "name": "Zara BR",
+    "expected_path": "inditex",
+    "robots_url": "https://www.zara.com/robots.txt",
+    "homepage_url": "https://www.zara.com/br/",
+    "robots_status": 403,
+    "homepage_status": 403,
+    "robots_error": "HTTPError: 403",
+    "homepage_error": "HTTPError: 403",
+    "sitemaps": [],
+    "disallow_count": 0,
+    "sensitive_disallow_hits": [],
+    "platform_signals": {
+      "zara": 2
+    },
+    "product_link_hints": 0,
+    "category_link_hints": 0,
+    "classification": "blocked_from_local_runtime",
+    "recommendation": "stop: local runtime is blocked; do not add bypass logic"
+  }
+]

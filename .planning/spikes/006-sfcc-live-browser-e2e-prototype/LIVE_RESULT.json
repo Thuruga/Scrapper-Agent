@@ -1,0 +1,117 @@
+{
+  "spike": "006-sfcc-live-browser-e2e-prototype",
+  "run_date": "2026-06-18",
+  "method": "Codex in-app browser public pages; category discovery then PDP extraction",
+  "guardrails": [
+    "public pages only",
+    "max 3 products per brand",
+    "no checkout/account/cart/wishlist/availability endpoint",
+    "no API credentials",
+    "no bypass behavior"
+  ],
+  "brands": [
+    {
+      "brand": "Hugo Boss",
+      "category_url": "https://www.hugoboss.com/us/men-polo-shirts/",
+      "category_summary": {
+        "title": "HUGO BOSS | Men's Designer Polo Shirts",
+        "blocked": false,
+        "jsonld_product_count": 5,
+        "product_candidate_count": 20,
+        "signals": {
+          "demandware": 508,
+          "product_show": 2,
+          "search_show": 1,
+          "cgid": 5
+        }
+      },
+      "product_urls": [
+        "https://www.hugoboss.com/us/slim-fit-cotton-polo-shirt/hbna50564688_835.html",
+        "https://www.hugoboss.com/us/johnny-collar-polo-shirt-in-cotton-and-linen/hbna50559173_450.html",
+        "https://www.hugoboss.com/us/active-paddy-regular-fit-polo-shirt-in-quick-dry-stretch-pique/hbna50469102_272.html"
+      ],
+      "product_page_summaries": [
+        {
+          "label": "hugoboss_product_1",
+          "blocked": false,
+          "jsonld_product_count": 1,
+          "title": "BOSS - Slim-fit cotton polo shirt - Light Orange",
+          "visible_price_hint": "$119.00"
+        },
+        {
+          "label": "hugoboss_product_2",
+          "blocked": false,
+          "jsonld_product_count": 1,
+          "title": "BOSS - Johnny-collar polo shirt in cotton and linen - Light Blue",
+          "visible_price_hint": "$179.00"
+        },
+        {
+          "label": "hugoboss_product_3",
+          "blocked": false,
+          "jsonld_product_count": 1,
+          "title": "BOSS - Active Paddy regular-fit polo shirt in quick-dry stretch pique - Light Beige",
+          "visible_price_hint": "$129.00"
+        }
+      ],
+      "bronze_ready": 3,
+      "errors": []
+    },
+    {
+      "brand": "Lacoste",
+      "category_url": "https://www.lacoste.com/us/lacoste/men/clothing/polos/",
+      "category_summary": {
+        "title": "Men's Poloshirts | Clothing - Polos | LACOSTE",
+        "blocked": false,
+        "jsonld_product_count": 0,
+        "product_candidate_count": 20,
+        "signals": {
+          "demandware": 1729,
+          "product_show": 0,
+          "search_show": 1,
+          "cgid": 6
+        }
+      },
+      "product_urls": [
+        "https://www.lacoste.com/us/lacoste/men/clothing/polos/L1212-51.html?color=001",
+        "https://www.lacoste.com/us/lacoste/men/clothing/polos/L1212-51.html?color=5HX",
+        "https://www.lacoste.com/us/lacoste/men/clothing/polos/L1212-51.html?color=GFU"
+      ],
+      "product_page_summaries": [
+        {
+          "label": "lacoste_product_1",
+          "blocked": false,
+          "jsonld_product_count": 1,
+          "title": "Men's Classic Fit Original L.12.12 Polo - Polo Shirts - New In 2026 | Lacoste",
+          "visible_price_hint": "$110.00"
+        },
+        {
+          "label": "lacoste_product_2",
+          "blocked": false,
+          "jsonld_product_count": 1,
+          "title": "Men's Classic Fit Original L.12.12 Polo - Polo Shirts - New In 2026 | Lacoste",
+          "visible_price_hint": "$110.00"
+        },
+        {
+          "label": "lacoste_product_3",
+          "blocked": false,
+          "jsonld_product_count": 1,
+          "title": "Men's Classic Fit Original L.12.12 Polo - Polo Shirts - New In 2026 | Lacoste",
+          "visible_price_hint": "$110.00"
+        }
+      ],
+      "bronze_ready": 3,
+      "errors": []
+    }
+  ],
+  "stats": {
+    "brands": 2,
+    "normalized_products": 6,
+    "bronze_ready": 6,
+    "errors": 0,
+    "bronze_ready_by_brand": {
+      "Hugo Boss": 3,
+      "Lacoste": 3
+    }
+  },
+  "verdict": "VALIDATED_LIVE_E2E_PUBLIC_BROWSER"
+}
