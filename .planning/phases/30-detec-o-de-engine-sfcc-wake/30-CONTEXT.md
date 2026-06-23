@@ -23,7 +23,7 @@ Ensinar `detect_engine` (em `backend/api/routes_brands.py`) a **reconhecer e rot
 
 ### Detecção Wake
 - **D-05:** O marcador `fbitsstatic.net` (CDN exclusivo da Wake Commerce) **basta** para rotular `"wake"`. Hoje esse ramo retorna `"unknown"` (`routes_brands.py:51-53`); a Phase 30 vira o retorno para `"wake"`. Mantém o probe HTML **antes** do VTEX HTML (D-02 / Pitfall 1 do v2.0).
-- **D-06:** A confirmação empírica do fluxo GraphQL + `TCS-Access-Token` da Wake **NÃO** entra aqui — é o spike gating (Wave 0) da Phase 32. Detecção apenas rotula a plataforma; não prova que o engine funciona.
+- **D-06 [informational]:** A confirmação empírica do fluxo GraphQL + `TCS-Access-Token` da Wake **NÃO** entra aqui — é o spike gating (Wave 0) da Phase 32. Detecção apenas rotula a plataforma; não prova que o engine funciona. *(Scope-fence / deferral, not an implementable decision — vide `<deferred>`.)*
 
 ### Ordem das probes & falsos positivos (SC-4)
 - **D-07:** O probe SFCC (browser) é a **última etapa** da cadeia: só dispara depois que Shopify (collections.json) → VTEX (category/tree) → HTML (Wake/VTEX/Shopify) **todas** falharem, imediatamente antes de retornar `"unknown"`. Cadastro de marca é evento raro (não hot path), então o custo de subir um browser uma vez por site realmente-unknown é aceitável.
