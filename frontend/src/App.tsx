@@ -32,6 +32,8 @@ import {
   Check,
   Power,
   History,
+  Images,
+  Square,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -46,6 +48,7 @@ import {
 } from 'recharts';
 import { ApiClient } from './api/client';
 import { useSearchStore, withDisplayOrder } from './stores/searchStore';
+import { useBannerStore, type BannerCandidate } from './stores/bannerStore';
 import { useShallow } from 'zustand/react/shallow';
 import './App.css';
 
@@ -849,6 +852,214 @@ const HistoryList = ({ type, onReopen, refreshKey }: { type: 'search' | 'cross';
           </div>
         )}
       </div>
+    </div>
+  );
+};
+
+// --- BannersPage (Phase 34) ---
+
+const ProtectedBannerImage = ({ runId, banner }: { runId: string, banner: BannerCandidate }) => {
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    let disposed = false;
+    let objectUrl: string | null = null;
+    ApiClient.getBannerAssetBlob(runId, banner.banner_id).then(blob => {
+      if (disposed) return;
+      objectUrl = window.URL.createObjectURL(blob);
+      setSrc(objectUrl);
+    }).catch(() => setSrc(null));
+    return () => {
+      disposed = true;
+      if (objectUrl) window.URL.revokeObjectURL(objectUrl);
+    };
+  }, [runId, banner.banner_id]);
+  return src
+    ? <img src={src} alt={banner.alt_text || `${banner.brand_name} — banner ${banner.slide_order}`} />
+    : <div className="banner-image-loading"><RefreshCw className="animate-spin" size={22} /><span>Carregando imagem…</span></div>;
+};
+
+const BannersPage = ({ brands }: { brands: any[] }) => {
+  const activeBrands = brands.filter(brand => brand.is_active !== false);
+  const {
+    selectedBrands, activeJobId, run, selectedBannerIds, history, historyLoading,
+    setSelectedBrands, initializeBrands, start, stop, toggleBanner, selectAllBanners,
+    clearBanners, approve, loadHistory, reopenHistory, deleteHistory,
+  } = useBannerStore(useShallow(state => ({
+    selectedBrands: state.selectedBrands,
+    activeJobId: state.activeJobId,
+    run: state.run,
+    selectedBannerIds: state.selectedBannerIds,
+    history: state.history,
+    historyLoading: state.historyLoading,
+    setSelectedBrands: state.setSelectedBrands,
+    initializeBrands: state.initializeBrands,
+    start: state.start,
+    stop: state.stop,
+    toggleBanner: state.toggleBanner,
+    selectAllBanners: state.selectAllBanners,
+    clearBanners: state.clearBanners,
+    approve: state.approve,
+    loadHistory: state.loadHistory,
+    reopenHistory: state.reopenHistory,
+    deleteHistory: state.deleteHistory,
+  })));
+  const [historyCollapsed, setHistoryCollapsed] = useState(true);
+
+  useEffect(() => {
+    initializeBrands(activeBrands.map(brand => brand.brand_key));
+  // `brands` is the stable input; `activeBrands` is intentionally derived each render.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brands, initializeBrands]);
+  useEffect(() => { void loadHistory(); }, [loadHistory]);
+
+  const running = run?.status === 'RUNNING';
+  const reviewable = run?.status === 'REVIEW';
+  const progressRows = run ? Object.values(run.brand_progress) : [];
+  const processed = progressRows.filter(item => !['PENDING', 'RUNNING'].includes(item.status)).length;
+  const percent = progressRows.length ? Math.round((processed / progressRows.length) * 100) : 0;
+
+  const toggleBrand = (key: string) => setSelectedBrands(
+    selectedBrands.includes(key) ? selectedBrands.filter(item => item !== key) : [...selectedBrands, key]
+  );
+  const statusLabel: Record<string, string> = {
+    PENDING: 'Aguardando', RUNNING: 'Extraindo', COMPLETED: 'Concluída',
+    FAILED: 'Falhou', CANCELLED: 'Cancelada',
+  };
+  const formatDate = (iso: string) => new Date(iso).toLocaleString('pt-BR', {
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
+  const handleApprove = () => {
+    if (!selectedBannerIds.length) return;
+    if (confirm(`Aprovar ${selectedBannerIds.length} banners? Os itens desmarcados serão removidos e esta aprovação não poderá ser alterada.`)) {
+      void approve();
+    }
+  };
+  const openProtected = (blob: Promise<Blob>) => {
+    void ApiClient.openProtectedBlob(blob).catch(error => toast.error(`Erro ao abrir arquivo: ${error.message}`));
+  };
+  const openAsset = (banner: BannerCandidate) => {
+    if (!activeJobId) return;
+    openProtected(ApiClient.getBannerAssetBlob(activeJobId, banner.banner_id));
+  };
+  const openScreenshot = (brandKey: string) => {
+    if (!activeJobId) return;
+    openProtected(ApiClient.getBannerScreenshotBlob(activeJobId, brandKey));
+  };
+
+  return (
+    <div className="page-content banners-page">
+      <GlassCard title="Extração de banners" subtitle="Selecione as marcas e extraia todos os banners desktop do carrossel principal.">
+        <div className="brand-filter-panel">
+          <div className="brand-filter-header">
+            <div>
+              <h3 className="brand-filter-title">Marcas ativas</h3>
+              <p className="brand-filter-caption">{selectedBrands.length} de {activeBrands.length} marcas selecionadas</p>
+            </div>
+            <div className="brand-filter-actions">
+              <button type="button" className="btn btn-sm btn-outline" disabled={running} onClick={() => setSelectedBrands(activeBrands.map(brand => brand.brand_key))}>Selecionar todas</button>
+              <button type="button" className="btn btn-sm btn-outline" disabled={running} onClick={() => setSelectedBrands([])}>Desmarcar todas</button>
+            </div>
+          </div>
+          {activeBrands.length === 0 ? <div className="empty-state">Nenhuma marca ativa disponível</div> : (
+            <div className="search-brand-grid brand-selector-grid banner-brand-grid">
+              {activeBrands.map(brand => (
+                <button type="button" key={brand.brand_key} disabled={running}
+                  className={`brand-chip ${selectedBrands.includes(brand.brand_key) ? 'active' : ''}`}
+                  aria-pressed={selectedBrands.includes(brand.brand_key)} onClick={() => toggleBrand(brand.brand_key)}>
+                  <div className="brand-chip-icon"><img src={brand.logo_url || `https://www.google.com/s2/favicons?domain=${brand.domain}&sz=64`} alt="" /></div>
+                  <span>{brand.brand_name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="banner-primary-action">
+            {running ? (
+              <button type="button" className="btn btn-stop" onClick={() => void stop()}><Square size={17} fill="currentColor" /> Parar extração</button>
+            ) : (
+              <button type="button" className="btn btn-primary" disabled={!selectedBrands.length} onClick={() => void start()}><Images size={18} /> Extrair banners</button>
+            )}
+          </div>
+        </div>
+      </GlassCard>
+
+      {run && (
+        <GlassCard title={running ? 'Extração em andamento' : 'Resumo da extração'}>
+          <div className="banner-progress-heading"><span>{processed} de {progressRows.length} marcas processadas</span><strong>{percent}%</strong></div>
+          <div className="progress-bar-large" role="progressbar" aria-label="Progresso da extração" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}>
+            <div className="progress-fill-large" style={{ width: `${percent}%` }} />
+          </div>
+          <div className="banner-progress-list">
+            {progressRows.map(item => (
+              <div className="banner-progress-row" key={item.brand_key}>
+                <span>{item.brand_name}</span>
+                <span className={`banner-status status-${item.status.toLowerCase()}`}>{statusLabel[item.status] || item.status}</span>
+                <span>{item.banner_count} imagem(ns)</span>
+                {Boolean(item.screenshot_asset) && <button type="button" className="btn-link" onClick={() => openScreenshot(item.brand_key)}>Ver primeira tela</button>}
+                {item.error && <small title={item.error}>{item.error}</small>}
+              </div>
+            ))}
+          </div>
+          {run.status === 'CANCELLED' && <div className="status-banner info"><Pause size={18} /><span>Extração interrompida. Resultados parciais não serão salvos no histórico.</span></div>}
+          {run.status === 'PARTIAL' && <div className="status-banner error"><AlertTriangle size={18} /><span>Algumas marcas falharam. Os resultados ficam apenas nesta sessão e não entram no histórico.</span></div>}
+          {run.status === 'FAILED' && <div className="status-banner error"><XCircle size={18} /><span>{run.error || 'Não foi possível concluir a extração.'}</span></div>}
+        </GlassCard>
+      )}
+
+      {run && run.banners.length > 0 && activeJobId && (
+        <GlassCard title={reviewable ? 'Revisar banners' : run.status === 'COMPLETED' ? 'Banners aprovados' : 'Resultados desta sessão'}>
+          <div className="banner-review-toolbar">
+            <strong>{selectedBannerIds.length} de {run.banners.length} selecionados</strong>
+            {reviewable && <>
+              <button type="button" className="btn btn-sm btn-outline" onClick={selectAllBanners}>Selecionar todos</button>
+              <button type="button" className="btn btn-sm btn-outline" onClick={clearBanners}>Desmarcar todos</button>
+              <button type="button" className="btn btn-primary" disabled={!selectedBannerIds.length} onClick={handleApprove}>Aprovar {selectedBannerIds.length} banners</button>
+            </>}
+            {run.status === 'COMPLETED' && <div className="banner-report-actions">
+              {(['json', 'csv', 'html'] as const).map(format => <button type="button" className="btn btn-sm btn-outline" key={format} onClick={() => openProtected(ApiClient.getBannerReportBlob(run.run_id, format))}>{format.toUpperCase()}</button>)}
+            </div>}
+          </div>
+          {reviewable && !selectedBannerIds.length && <p className="banner-selection-warning">Selecione ao menos um banner para aprovar.</p>}
+          <div className="banner-gallery">
+            {run.banners.map(banner => {
+              const selected = selectedBannerIds.includes(banner.banner_id);
+              return (
+                <article key={banner.banner_id} className={`banner-card ${selected ? 'selected' : 'unselected'} ${reviewable ? 'reviewable' : ''}`}
+                  role={reviewable ? 'checkbox' : undefined} aria-checked={reviewable ? selected : undefined} tabIndex={reviewable ? 0 : undefined}
+                  onClick={() => reviewable && toggleBanner(banner.banner_id)}
+                  onKeyDown={event => { if (reviewable && (event.key === ' ' || event.key === 'Enter')) { event.preventDefault(); toggleBanner(banner.banner_id); } }}>
+                  {reviewable && <span className="banner-card-check">{selected && <Check size={16} />}</span>}
+                  <div className="banner-preview"><ProtectedBannerImage runId={run.run_id} banner={banner} /></div>
+                  <div className="banner-card-body">
+                    <strong>{banner.brand_name}</strong><span>{banner.friendly_filename}</span>
+                    <small>{banner.natural_width || banner.rendered_width || '—'}×{banner.natural_height || banner.rendered_height || '—'} px · {banner.asset.extension.toUpperCase()} · slide {banner.slide_order}</small>
+                    <button type="button" className="btn-link" onClick={event => { event.stopPropagation(); openAsset(banner); }}><ExternalLink size={14} /> Abrir original</button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </GlassCard>
+      )}
+
+      <section className="banner-history-panel">
+        <button type="button" className="banner-history-toggle" aria-expanded={!historyCollapsed} onClick={() => setHistoryCollapsed(value => !value)}>
+          <History size={17} /><strong>Histórico de banners</strong><span className="monitor-badge">{history.length}</span>
+          {historyCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+        </button>
+        {!historyCollapsed && <div className="banner-history-list">
+          {historyLoading ? <div className="empty-state"><RefreshCw className="animate-spin" size={20} /> Carregando histórico…</div> : history.length === 0 ? (
+            <div className="empty-state"><strong>Nenhuma extração aprovada ainda</strong><p>As extrações concluídas e aprovadas aparecerão aqui por 30 dias.</p></div>
+          ) : history.map(item => (
+            <button type="button" className="banner-history-row" key={item.run_id} onClick={() => void reopenHistory(item.run_id)}>
+              <span><strong>{formatDate(item.approved_at)}</strong><small>{item.banner_count} banners · {item.brand_count} marcas</small></span>
+              <span className="banner-status status-completed">Concluída</span>
+              <span role="button" tabIndex={0} className="btn-icon text-error" aria-label="Excluir extração do histórico"
+                onClick={event => { event.stopPropagation(); if (confirm('Excluir esta extração do histórico? Os arquivos sem outras referências também serão removidos.')) void deleteHistory(item.run_id); }}
+                onKeyDown={event => { if (event.key === 'Enter') { event.stopPropagation(); if (confirm('Excluir esta extração do histórico?')) void deleteHistory(item.run_id); } }}><Trash2 size={16} /></span>
+            </button>
+          ))}
+        </div>}
+      </section>
     </div>
   );
 };
@@ -2131,6 +2342,7 @@ function App() {
       case 'cross': return <CrossMarketplacePage preloadedJobId={preloadedJobId} onClearPreloadedJob={() => setPreloadedJobId(null)} onReopen={(jobId) => handleReopen(jobId, 'cross')} />;
       case 'monitored_categories': return <MonitoredCategoriesPage brands={brands} />;
       case 'category': return <CategoryPage brands={brands} />;
+      case 'banners': return <BannersPage brands={brands} />;
       case 'settings': return <SettingsPage brands={brands} onRefresh={refreshBrands} />;
       default: return <div className="p-8">Selecione uma aba...</div>;
     }
@@ -2183,6 +2395,12 @@ function App() {
             active={activeTab === 'category'}
             onClick={() => navigateTab('category')}
           />
+          <SidebarItem
+            icon={Images}
+            label="Banners"
+            active={activeTab === 'banners'}
+            onClick={() => navigateTab('banners')}
+          />
           <div className="sidebar-spacer" />
           <SidebarItem
             icon={PlusIcon}
@@ -2205,6 +2423,7 @@ function App() {
                   activeTab === 'cross' ? 'Busca por SKU' :
                     activeTab === 'monitored_categories' ? 'Monitor de Categorias' :
                       activeTab === 'category' ? 'Varredura por Categoria' :
+                        activeTab === 'banners' ? 'Banners' :
                         'Adicionar Marca'
             }
             </h1>
