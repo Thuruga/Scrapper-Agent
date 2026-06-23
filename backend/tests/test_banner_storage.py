@@ -82,7 +82,7 @@ def test_reports_match_approved_run_and_escape_html(tmp_path):
     assert set(paths) == {"json", "csv", "html"}
     html_text = paths["html"].read_text(encoding="utf-8")
     assert "<script>" not in html_text
-    assert "01-sale-aramis.webp" in paths["csv"].read_text(encoding="utf-8-sig")
+    assert "-aramis-01.webp" in paths["csv"].read_text(encoding="utf-8-sig")
 
 
 def test_delete_history_garbage_collects_last_reference(tmp_path):

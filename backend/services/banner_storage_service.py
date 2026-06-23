@@ -11,6 +11,7 @@ import unicodedata
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterable, Optional
+from zoneinfo import ZoneInfo
 
 from core.banner_models import (
     BannerHistorySummary,
@@ -40,11 +41,24 @@ def _slug(value: str, fallback: str) -> str:
     return clean[:60] or fallback
 
 
-def friendly_banner_filename(order: int, description: str, brand: str, extension: str) -> str:
+def friendly_banner_filename(
+    order: int,
+    description: str,
+    brand: str,
+    extension: str,
+    captured_at: datetime | str | None = None,
+) -> str:
     ext = extension.lower().lstrip(".")
     if ext not in set(EXTENSION_BY_MIME.values()):
         raise ValueError("unsupported banner extension")
-    return f"{order:02d}-{_slug(description, 'banner')}-{_slug(brand, 'marca')}.{ext}"
+    del description  # Kept in the signature for compatibility with existing callers.
+    if isinstance(captured_at, str):
+        captured_at = datetime.fromisoformat(captured_at)
+    instant = captured_at or datetime.now(ZoneInfo("America/Sao_Paulo"))
+    if instant.tzinfo is None:
+        instant = instant.replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+    local_instant = instant.astimezone(ZoneInfo("America/Sao_Paulo"))
+    return f"{local_instant:%m-%Y}-{_slug(brand, 'marca')}-{order:02d}.{ext}"
 
 
 class BannerStorageService:

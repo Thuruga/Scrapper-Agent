@@ -3,7 +3,11 @@ from pathlib import Path
 
 import pytest
 
-from services.banner_extraction_service import BannerExtractionService, is_safe_public_http_url, normalize_image_content_type
+from services.banner_extraction_service import (
+    BannerExtractionService,
+    is_safe_public_http_url,
+    normalize_image_content_type,
+)
 from services.banner_storage_service import BannerStorageService
 
 
@@ -19,21 +23,36 @@ def test_public_url_policy_rejects_local_and_non_http():
 
 
 def test_octet_stream_uses_safe_url_extension_or_image_signature():
-    assert normalize_image_content_type("application/octet-stream", "https://cdn.example/banner.webp?x=1", b"x") == "image/webp"
-    assert normalize_image_content_type("", "https://cdn.example/image", b"\x89PNG\r\n\x1a\nrest") == "image/png"
+    assert (
+        normalize_image_content_type(
+            "application/octet-stream", "https://cdn.example/banner.webp?x=1", b"x"
+        )
+        == "image/webp"
+    )
+    assert (
+        normalize_image_content_type(
+            "", "https://cdn.example/image", b"\x89PNG\r\n\x1a\nrest"
+        )
+        == "image/png"
+    )
     with pytest.raises(ValueError):
-        normalize_image_content_type("application/octet-stream", "https://cdn.example/file.bin", b"not-an-image")
+        normalize_image_content_type(
+            "application/octet-stream", "https://cdn.example/file.bin", b"not-an-image"
+        )
 
 
 def test_cancelled_before_collection_does_no_browser_or_file_work(tmp_path):
     service = BannerExtractionService(BannerStorageService(tmp_path))
-    event = asyncio.Event(); event.set()
+    event = asyncio.Event()
+    event.set()
     with pytest.raises(InterruptedError):
         service.collect_page(None, "aramis", "Aramis", event)
     assert list((tmp_path / "assets").iterdir()) == []
 
 
-def test_fixture_discovers_images_after_video_and_excludes_lower_false_positive(tmp_path):
+def test_fixture_discovers_images_after_video_and_excludes_lower_false_positive(
+    tmp_path,
+):
     sync_api = pytest.importorskip("playwright.sync_api")
     storage = BannerStorageService(tmp_path)
     fetched = []
@@ -60,8 +79,10 @@ def test_fixture_discovers_images_after_video_and_excludes_lower_false_positive(
         "https://example.com/third.webp",
     ]
     assert result.banners[0].rendered_url.endswith("first-1366.webp")
-    assert result.banners[0].friendly_filename == "01-sale-inverno-aramis.webp"
-    assert [v.source_url for v in result.videos] == ["https://example.com/interstitial.mp4"]
+    assert result.banners[0].friendly_filename.endswith("-aramis-01.webp")
+    assert [v.source_url for v in result.videos] == [
+        "https://example.com/interstitial.mp4"
+    ]
     assert all("product.webp" not in url for url in fetched)
     assert storage.resolve_asset(result.screenshot_asset).exists()
 
@@ -73,7 +94,8 @@ def test_video_without_declared_slide_count_does_not_stop_next_image(tmp_path):
         "",
     )
     service = BannerExtractionService(
-        BannerStorageService(tmp_path), max_slides=4,
+        BannerStorageService(tmp_path),
+        max_slides=4,
         asset_fetcher=lambda _context, url, _referer: (url.encode(), "image/webp"),
     )
     try:

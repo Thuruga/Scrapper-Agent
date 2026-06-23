@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 import pytest
 from pydantic import ValidationError
 
@@ -10,7 +12,8 @@ def test_stored_asset_requires_sha256():
         StoredBannerAsset(sha256="../escape", extension="webp", content_type="image/webp", byte_count=1)
 
 
-def test_friendly_filename_is_order_description_brand():
-    assert friendly_banner_filename(1, "Sale Inverno", "Áramis", "webp") == "01-sale-inverno-aramis.webp"
+def test_friendly_filename_format():
+    captured_at = datetime(2026, 6, 23, 12, 0, tzinfo=timezone.utc)
+    filename = friendly_banner_filename(1, "Sale Inverno", "Áramis", "webp", captured_at)
+    assert filename == "06-2026-aramis-01.webp"
     assert "/" not in friendly_banner_filename(2, "../../x", "foo\\bar", "png")
-
