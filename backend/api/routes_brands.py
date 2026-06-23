@@ -64,8 +64,27 @@ async def detect_engine(domain: str) -> str:
     except Exception as e:
         logger.debug("Detecção via análise do HTML da home falhou para %s: %s", domain, e)
 
-    # Step 6 (D-01, D-03): todas as probes falharam ou foram inconclusivas →
-    # plataforma desconhecida. NÃO assume VTEX (evita mascaramento silencioso).
+    # Step 6 (D-01, D-02, D-03, D-07): SFCC browser probe — last resort.
+    # Renderiza a home via Playwright para expor assets demandware que HTTP direto
+    # não entrega (403 em Lacoste/HugoBoss). Só dispara depois que Shopify, VTEX
+    # e as probes HTML falharam (D-07 — last-resort ordering).
+    # Marcadores exclusivos: demandware.static e demandware.edgesuite.net (D-02).
+    # A substring ampla "demandware" NÃO é usada para evitar falsos positivos (SC-4).
+    # Import lazy (dentro do try) para que uma instalação sem Playwright não quebre
+    # o módulo no startup (D-03 — reusa BrowserManager existente, sem nova infra).
+    try:
+        from core.browser_manager import BrowserManager
+        rendered_html = await BrowserManager.fetch_html(f"https://{domain}")
+        rendered_lower = rendered_html.lower()
+        if "demandware.static" in rendered_lower or "demandware.edgesuite.net" in rendered_lower:
+            logger.info("detect_engine: SFCC detectado para %s (demandware marker)", domain)
+            return "sfcc"
+    except Exception as e:
+        # D-04: probe failure é normal (timeout, Playwright desabilitado, 403 sem markers) —
+        # degrada silenciosamente para "unknown" sem crash.
+        logger.debug("Detecção SFCC via browser falhou para %s: %s", domain, e)
+
+    # Step 7: plataforma desconhecida. NÃO assume VTEX (evita mascaramento silencioso).
     return "unknown"
 
 
