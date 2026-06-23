@@ -101,6 +101,82 @@ export class ApiClient {
     });
   }
 
+  // ------------------------------------------------------------------
+  // Desktop banners (Phase 34)
+  // ------------------------------------------------------------------
+  static startBannerJob(brands: string[]) {
+    return this.request<any>('/banners/jobs', {
+      method: 'POST',
+      body: JSON.stringify({ brands }),
+    });
+  }
+
+  static getBannerJob(jobId: string) {
+    return this.request<any>(`/banners/jobs/${encodeURIComponent(jobId)}`);
+  }
+
+  static stopBannerJob(jobId: string) {
+    return this.request(`/banners/jobs/${encodeURIComponent(jobId)}/stop`, { method: 'POST' });
+  }
+
+  static approveBannerJob(jobId: string, bannerIds: string[]) {
+    return this.request<any>(`/banners/jobs/${encodeURIComponent(jobId)}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ banner_ids: bannerIds }),
+    });
+  }
+
+  static getBannerHistory() {
+    return this.request<any[]>('/banners/history');
+  }
+
+  static getBannerHistoryDetail(jobId: string) {
+    return this.request<any>(`/banners/history/${encodeURIComponent(jobId)}`);
+  }
+
+  static deleteBannerHistory(jobId: string) {
+    return this.request(`/banners/history/${encodeURIComponent(jobId)}`, { method: 'DELETE' });
+  }
+
+  private static async protectedBlob(endpoint: string): Promise<Blob> {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      headers: { 'X-API-Key': API_KEY },
+    });
+    if (!response.ok) {
+      let detail = `API Error: ${response.status}`;
+      try { detail = (await response.json())?.detail || detail; } catch { /* non-JSON body */ }
+      throw new Error(detail);
+    }
+    return response.blob();
+  }
+
+  static getBannerAssetBlob(jobId: string, bannerId: string) {
+    return this.protectedBlob(`/banners/assets/${encodeURIComponent(jobId)}/${encodeURIComponent(bannerId)}`);
+  }
+
+  static getBannerScreenshotBlob(jobId: string, brandKey: string) {
+    return this.protectedBlob(`/banners/screenshots/${encodeURIComponent(jobId)}/${encodeURIComponent(brandKey)}`);
+  }
+
+  static getBannerReportBlob(jobId: string, format: 'json' | 'csv' | 'html') {
+    return this.protectedBlob(`/banners/runs/${encodeURIComponent(jobId)}/reports/${format}`);
+  }
+
+  static async openProtectedBlob(blobPromise: Promise<Blob>) {
+    const target = window.open('about:blank', '_blank');
+    if (target) target.opener = null;
+    try {
+      const blob = await blobPromise;
+      const url = window.URL.createObjectURL(blob);
+      if (target) target.location.href = url;
+      else window.location.href = url;
+      setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
+    } catch (error) {
+      target?.close();
+      throw error;
+    }
+  }
+
   // Helper compartilhado de export → download de blob (IN-02): POST autenticado,
   // tratamento de erro, extração de filename do content-disposition e download via <a>.
   private static async downloadExport(
