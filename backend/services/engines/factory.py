@@ -41,7 +41,18 @@ class EngineFactory:
 
         if engine_type == "shopify":
             return ShopifyEngine(brand_key)
-            
+
+        # D-09: SFCC/Wake são detectados na Phase 30 e persistidos ATIVOS, mas suas engines
+        # de extração só chegam nas Phases 31/32. Sem este guard, cairiam no VTEXEngine abaixo
+        # e rodariam a engine errada (0 produtos / erro silencioso) a cada busca. Falha clara.
+        # D-10: o mesmo guard cobre "sfcc" e "wake". NotImplementedError é subclasse de Exception,
+        # então é capturado pelo `except Exception` de _search_one e vira BrandSearchResult.error
+        # sem derrubar o asyncio.gather das demais marcas.
+        if engine_type in ("sfcc", "wake"):
+            raise NotImplementedError(
+                f"Engine '{engine_type}' para '{brand_key}' ainda não disponível (Phase 31/32 pendente)."
+            )
+
         return VTEXEngine(brand_key)
 
     async def search_all_brands(
