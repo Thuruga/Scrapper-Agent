@@ -45,10 +45,14 @@ Phases 19-29 pertencem a milestones CONCLUÍDOS (v1.10-v2.0). As phases ativas d
   2. Ao chamar `detect_engine` para o domínio da Richards (Wake), o retorno é `"wake"` — não `"unknown"` (que era o comportamento de fallback do v2.0 via `fbitsstatic.net`).
   3. Ao cadastrar uma marca via `POST /brands/` com engine `auto`, uma marca SFCC ou Wake é persistida com o engine detectado e **permanece ativa** (não é auto-desativada pela regra D-04 de engine desconhecido).
   4. Domínios que não são SFCC, Wake, VTEX nem Shopify continuam retornando `"unknown"` e sendo auto-desativados — a detecção nova não introduz falsos positivos.
+**Plans**: 3 plans
+**Wave 1**
 
-**Plans**: 3 plans
 - [ ] 30-01-PLAN.md — detect_engine: flip Wake branch to "wake" + last-resort SFCC browser probe (demandware markers)
 - [ ] 30-02-PLAN.md — EngineFactory.get_engine guard: raise NotImplementedError for sfcc/wake (no silent VTEX fallback)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 30-03-PLAN.md — test_engine_detection.py: regression base + SFCC/Wake/anti-false-positive + SC-3 stays-active
 
 ### Phase 31: Engine SFCC (Browser Público) — Lacoste & HugoBoss
@@ -137,5 +141,5 @@ Phases ativas executam em ordem numérica: 30 → 31 → 32 → 33 → 34 → 35
 | 31. Engine SFCC (Browser Público) | v3.0 | 0/? | Not started | - |
 | 32. Engine Wake Commerce — Richards | v3.0 | 0/? | Not started | - |
 | 33. Frete via Checkout nos Sites VTEX | v3.0 | 0/? | Not started | - |
-| 34. Extração de Banners Desktop | v3.0 | 0/? | Not started | - |
+| 34. Extração de Banners Desktop | v3.0 | 1/4 | In Progress|  |
 | 35. Publicação de Banners no SharePoint | v3.0 | 0/? | Not started | - |

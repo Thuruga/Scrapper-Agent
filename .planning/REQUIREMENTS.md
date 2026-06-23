@@ -21,9 +21,9 @@ Requisitos comprometidos para este milestone. Cada um mapeia para uma phase no R
 ### Banners Desktop — Extração
 
 - [ ] **BANNER-01**: Operador consegue executar uma coleta desktop (`1366×768`) em todas as marcas ativas cadastradas e obter todos os slides de imagem do carrossel principal da primeira tela.
-- [ ] **BANNER-02**: Para cada banner extraído, o sistema preserva o arquivo original e registra marca, URL de origem, link de destino, texto alternativo, dimensões, tipo de mídia, data da coleta e hash SHA-256.
+- [x] **BANNER-02**: Para cada banner extraído, o sistema preserva o arquivo original e registra marca, URL de origem, link de destino, texto alternativo, dimensões, tipo de mídia, data da coleta e hash SHA-256.
 - [ ] **BANNER-03**: O sistema navega o carrossel para descobrir slides ocultos ou carregados sob demanda e contabiliza slides em vídeo sem classificá-los ou baixá-los como imagens.
-- [ ] **BANNER-04**: Cada execução gera JSON, CSV, galeria visual e screenshot por site, isolando e reportando a falha de uma marca sem interromper as demais.
+- [x] **BANNER-04**: Cada execução gera JSON, CSV, galeria visual e screenshot por site, isolando e reportando a falha de uma marca sem interromper as demais.
 
 ### Banners Desktop — SharePoint
 
@@ -76,9 +76,9 @@ Explicitamente excluído deste milestone, com motivo.
 | COMP-04 | Phase 32 | Pending |
 | FRET-05 | Phase 33 | Pending |
 | BANNER-01 | Phase 34 | Pending |
-| BANNER-02 | Phase 34 | Pending |
+| BANNER-02 | Phase 34 | Complete |
 | BANNER-03 | Phase 34 | Pending |
-| BANNER-04 | Phase 34 | Pending |
+| BANNER-04 | Phase 34 | Complete |
 | BANNER-05 | Phase 35 | Pending |
 | BANNER-06 | Phase 35 | Pending |
 
