@@ -56,6 +56,7 @@ export interface BannerHistoryItem {
 interface BannerStoreState {
   selectedBrands: string[]
   selectionInitialized: boolean
+  starting: boolean
   activeJobId: string | null
   run: BannerRun | null
   selectedBannerIds: string[]
@@ -91,6 +92,7 @@ function selectionForRun(state: BannerStoreState, run: BannerRun) {
 export const useBannerStore = create<BannerStoreState>()((set, get) => ({
   selectedBrands: [],
   selectionInitialized: false,
+  starting: false,
   activeJobId: null,
   run: null,
   selectedBannerIds: [],
@@ -107,20 +109,24 @@ export const useBannerStore = create<BannerStoreState>()((set, get) => ({
   },
 
   start: async () => {
+    if (get().starting) return
     const brands = get().selectedBrands
     if (!brands.length) return
     const generation = ++pollGeneration
+    set({ starting: true })
     try {
       const response = await ApiClient.startBannerJob(brands)
       const run = response.run as BannerRun
       set({
         activeJobId: response.job_id,
+        starting: false,
         run,
         selectedBannerIds: [],
         seenBannerIds: [],
       })
       if (generation === pollGeneration) void get().refresh(response.job_id)
     } catch (error) {
+      set({ starting: false })
       toast.error(`Erro ao iniciar extração: ${(error as Error).message}`)
     }
   },

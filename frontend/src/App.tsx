@@ -860,6 +860,7 @@ const HistoryList = ({ type, onReopen, refreshKey }: { type: 'search' | 'cross';
 
 const ProtectedBannerImage = ({ runId, banner }: { runId: string, banner: BannerCandidate }) => {
   const [src, setSrc] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
     let disposed = false;
     let objectUrl: string | null = null;
@@ -867,12 +868,13 @@ const ProtectedBannerImage = ({ runId, banner }: { runId: string, banner: Banner
       if (disposed) return;
       objectUrl = window.URL.createObjectURL(blob);
       setSrc(objectUrl);
-    }).catch(() => setSrc(null));
+    }).catch(() => setFailed(true));
     return () => {
       disposed = true;
       if (objectUrl) window.URL.revokeObjectURL(objectUrl);
     };
   }, [runId, banner.banner_id]);
+  if (failed) return <div className="banner-image-loading"><XCircle size={22} /><span>Imagem indisponível</span></div>;
   return src
     ? <img src={src} alt={banner.alt_text || `${banner.brand_name} — banner ${banner.slide_order}`} />
     : <div className="banner-image-loading"><RefreshCw className="animate-spin" size={22} /><span>Carregando imagem…</span></div>;
@@ -882,11 +884,12 @@ const BannersPage = ({ brands }: { brands: any[] }) => {
   const virtualMarketplaces = new Set(['mercado_livre', 'netshoes', 'amazon']);
   const activeBrands = brands.filter(brand => brand.is_active !== false && !virtualMarketplaces.has(brand.brand_key));
   const {
-    selectedBrands, activeJobId, run, selectedBannerIds, history, historyLoading,
+    selectedBrands, starting, activeJobId, run, selectedBannerIds, history, historyLoading,
     setSelectedBrands, initializeBrands, start, stop, toggleBanner, selectAllBanners,
     clearBanners, approve, loadHistory, reopenHistory, deleteHistory,
   } = useBannerStore(useShallow(state => ({
     selectedBrands: state.selectedBrands,
+    starting: state.starting,
     activeJobId: state.activeJobId,
     run: state.run,
     selectedBannerIds: state.selectedBannerIds,
@@ -914,6 +917,7 @@ const BannersPage = ({ brands }: { brands: any[] }) => {
   useEffect(() => { void loadHistory(); }, [loadHistory]);
 
   const running = run?.status === 'RUNNING';
+  const busy = starting || running;
   const reviewable = run?.status === 'REVIEW';
   const progressRows = run ? Object.values(run.brand_progress) : [];
   const processed = progressRows.filter(item => !['PENDING', 'RUNNING'].includes(item.status)).length;
@@ -957,14 +961,14 @@ const BannersPage = ({ brands }: { brands: any[] }) => {
               <p className="brand-filter-caption">{selectedBrands.length} de {activeBrands.length} marcas selecionadas</p>
             </div>
             <div className="brand-filter-actions">
-              <button type="button" className="btn btn-sm btn-outline" disabled={running} onClick={() => setSelectedBrands(activeBrands.map(brand => brand.brand_key))}>Selecionar todas</button>
-              <button type="button" className="btn btn-sm btn-outline" disabled={running} onClick={() => setSelectedBrands([])}>Desmarcar todas</button>
+              <button type="button" className="btn btn-sm btn-outline" disabled={busy} onClick={() => setSelectedBrands(activeBrands.map(brand => brand.brand_key))}>Selecionar todas</button>
+              <button type="button" className="btn btn-sm btn-outline" disabled={busy} onClick={() => setSelectedBrands([])}>Desmarcar todas</button>
             </div>
           </div>
           {activeBrands.length === 0 ? <div className="empty-state">Nenhuma marca ativa disponível</div> : (
             <div className="search-brand-grid brand-selector-grid banner-brand-grid">
               {activeBrands.map(brand => (
-                <button type="button" key={brand.brand_key} disabled={running}
+                <button type="button" key={brand.brand_key} disabled={busy}
                   className={`brand-chip ${selectedBrands.includes(brand.brand_key) ? 'active' : ''}`}
                   aria-pressed={selectedBrands.includes(brand.brand_key)} onClick={() => toggleBrand(brand.brand_key)}>
                   <div className="brand-chip-icon"><img src={brand.logo_url || `https://www.google.com/s2/favicons?domain=${brand.domain}&sz=64`} alt="" /></div>
@@ -976,6 +980,8 @@ const BannersPage = ({ brands }: { brands: any[] }) => {
           <div className="banner-primary-action">
             {running ? (
               <button type="button" className="btn btn-stop" onClick={() => void stop()}><Square size={17} fill="currentColor" /> Parar extração</button>
+            ) : starting ? (
+              <button type="button" className="btn btn-primary" disabled><RefreshCw className="animate-spin" size={18} /> Iniciando…</button>
             ) : (
               <button type="button" className="btn btn-primary" disabled={!selectedBrands.length} onClick={() => void start()}><Images size={18} /> Extrair banners</button>
             )}
@@ -1051,13 +1057,14 @@ const BannersPage = ({ brands }: { brands: any[] }) => {
           {historyLoading ? <div className="empty-state"><RefreshCw className="animate-spin" size={20} /> Carregando histórico…</div> : history.length === 0 ? (
             <div className="empty-state"><strong>Nenhuma extração aprovada ainda</strong><p>As extrações concluídas e aprovadas aparecerão aqui por 30 dias.</p></div>
           ) : history.map(item => (
-            <button type="button" className="banner-history-row" key={item.run_id} onClick={() => void reopenHistory(item.run_id)}>
+            <div role="button" tabIndex={0} className="banner-history-row" key={item.run_id} onClick={() => void reopenHistory(item.run_id)}
+              onKeyDown={event => { if (event.key === 'Enter') void reopenHistory(item.run_id); }}>
               <span><strong>{formatDate(item.approved_at)}</strong><small>{item.banner_count} banners · {item.brand_count} marcas</small></span>
               <span className="banner-status status-completed">Concluída</span>
               <span role="button" tabIndex={0} className="btn-icon text-error" aria-label="Excluir extração do histórico"
                 onClick={event => { event.stopPropagation(); if (confirm('Excluir esta extração do histórico? Os arquivos sem outras referências também serão removidos.')) void deleteHistory(item.run_id); }}
                 onKeyDown={event => { if (event.key === 'Enter') { event.stopPropagation(); if (confirm('Excluir esta extração do histórico?')) void deleteHistory(item.run_id); } }}><Trash2 size={16} /></span>
-            </button>
+            </div>
           ))}
         </div>}
       </section>
