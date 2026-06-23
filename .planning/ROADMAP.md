@@ -141,5 +141,5 @@ Phases ativas executam em ordem numérica: 30 → 31 → 32 → 33 → 34 → 35
 | 31. Engine SFCC (Browser Público) | v3.0 | 0/? | Not started | - |
 | 32. Engine Wake Commerce — Richards | v3.0 | 0/? | Not started | - |
 | 33. Frete via Checkout nos Sites VTEX | v3.0 | 0/? | Not started | - |
-| 34. Extração de Banners Desktop | v3.0 | 1/4 | In Progress|  |
+| 34. Extração de Banners Desktop | v3.0 | 2/4 | In Progress|  |
 | 35. Publicação de Banners no SharePoint | v3.0 | 0/? | Not started | - |
