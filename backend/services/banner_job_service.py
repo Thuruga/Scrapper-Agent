@@ -77,6 +77,24 @@ class BannerJobService:
             raise KeyError(run_id)
         try:
             return await asyncio.to_thread(self._run_sync, run_id, cancel_event, loop)
+        except Exception as exc:
+            run = self.storage.get_run(run_id)
+            if not run:
+                raise
+            run.status = BannerRunStatus.FAILED
+            run.error = f"{type(exc).__name__}: {exc}"
+            for progress in run.brand_progress.values():
+                if progress.status in {BrandBannerStatus.PENDING, BrandBannerStatus.RUNNING}:
+                    progress.status = BrandBannerStatus.FAILED
+                    progress.error = run.error
+            self.storage.save_run(run)
+            self.reports.generate(run)
+            await manager.send_message({
+                "type": "banner_progress", "job_id": run_id,
+                "event": {"kind": "terminal", "status": run.status.value},
+                "run": run.model_dump(mode="json"),
+            }, run_id)
+            return run
         finally:
             JOB_CANCEL_FLAGS.pop(run_id, None)
 

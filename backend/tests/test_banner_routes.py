@@ -142,3 +142,18 @@ def test_create_job_rejects_unknown_or_empty_brand(tmp_path):
             pass
         else:
             raise AssertionError("invalid brand selection should fail")
+
+
+def test_browser_start_failure_reaches_failed_terminal_state(tmp_path):
+    @contextmanager
+    def broken_browser():
+        raise RuntimeError("chromium unavailable")
+        yield
+
+    storage = BannerStorageService(tmp_path)
+    service = BannerJobService(storage, FakeCollector(storage), FakeBrands(), broken_browser)
+    run = service.create_job(["a"])
+    result = asyncio.run(service.run_job(run.run_id))
+    assert result.status == BannerRunStatus.FAILED
+    assert result.brand_progress["a"].status == BrandBannerStatus.FAILED
+    assert run.run_id not in JOB_CANCEL_FLAGS

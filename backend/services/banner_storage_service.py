@@ -180,12 +180,7 @@ class BannerStorageService:
             if not run or run.status != BannerRunStatus.COMPLETED:
                 return False
             (self.runs_dir / f"{run_id}.json").unlink(missing_ok=True)
-            report_dir = self.reports_dir / run_id
-            if report_dir.is_dir():
-                for child in report_dir.iterdir():
-                    if child.is_file():
-                        child.unlink()
-                report_dir.rmdir()
+            self._delete_reports(run_id)
             self.collect_orphan_assets()
             return True
 
@@ -194,15 +189,27 @@ class BannerStorageService:
         removed = 0
         with self._lock:
             for run in self.list_runs():
-                if run.status != BannerRunStatus.COMPLETED:
-                    continue
                 timestamp = datetime.fromisoformat(run.approved_at or run.updated_at)
-                if now - timestamp > timedelta(days=retention_days):
+                expired_history = run.status == BannerRunStatus.COMPLETED and now - timestamp > timedelta(days=retention_days)
+                expired_session_draft = run.status in {
+                    BannerRunStatus.PARTIAL, BannerRunStatus.CANCELLED, BannerRunStatus.FAILED,
+                } and now - timestamp > timedelta(days=1)
+                if expired_history or expired_session_draft:
                     (self.runs_dir / f"{run.run_id}.json").unlink(missing_ok=True)
+                    self._delete_reports(run.run_id)
                     removed += 1
             if removed:
                 self.collect_orphan_assets()
         return removed
+
+    def _delete_reports(self, run_id: str) -> None:
+        report_dir = self.reports_dir / run_id
+        if not report_dir.is_dir():
+            return
+        for child in report_dir.iterdir():
+            if child.is_file():
+                child.unlink()
+        report_dir.rmdir()
 
     def collect_orphan_assets(self) -> int:
         referenced = set()
@@ -240,4 +247,3 @@ class BannerStorageService:
 
 
 banner_storage_service = BannerStorageService()
-

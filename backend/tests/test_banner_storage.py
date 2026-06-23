@@ -96,3 +96,16 @@ def test_delete_history_garbage_collects_last_reference(tmp_path):
     assert storage.delete_history(run.run_id)
     assert not (storage.assets_dir / f"{banner.asset.sha256}.{banner.asset.extension}").exists()
 
+
+def test_cleanup_removes_expired_reports_and_session_only_drafts(tmp_path):
+    storage = BannerStorageService(tmp_path)
+    banner = _candidate(storage)
+    old = (datetime.now(timezone.utc) - timedelta(days=31)).isoformat()
+    run = BannerRun(
+        run_id="run_expired01", selected_brands=["aramis"], status=BannerRunStatus.COMPLETED,
+        banners=[banner], approved_at=old, updated_at=old,
+    )
+    storage.save_run(run)
+    BannerReportService(storage).generate(run)
+    assert storage.cleanup_old_records(now=datetime.now(timezone.utc)) == 1
+    assert not (storage.reports_dir / run.run_id).exists()
