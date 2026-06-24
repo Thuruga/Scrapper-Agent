@@ -4,7 +4,6 @@ import {
   LayoutDashboard,
   Search,
   Layers,
-  Plus as PlusIcon,
   Zap,
   Clock,
   Package,
@@ -1835,10 +1834,6 @@ const CrossMarketplacePage = ({ preloadedJobId, onClearPreloadedJob, onReopen }:
 };
 
 const SettingsPage = ({ brands, onRefresh }: { brands: any[], onRefresh: () => void }) => {
-  const [newBrand, setNewBrand] = useState({ brand_key: '', brand_name: '', domain: '', logo_url: '', engine: 'vtex' });
-  const [loading, setLoading] = useState(true);
-  const [status, setStatus] = useState<{ type: 'success' | 'error' | 'info', message: string } | null>(null);
-
   const handleDeleteBrand = async (key: string) => {
     if (!confirm(`Tem certeza que deseja excluir a marca ${key}?`)) return;
     try {
@@ -1854,75 +1849,15 @@ const SettingsPage = ({ brands, onRefresh }: { brands: any[], onRefresh: () => v
       await ApiClient.setBrandActive(brand.brand_key, !brand.is_active);
       onRefresh();
     } catch (err: any) {
-      setStatus({ type: 'error', message: `Erro ao ${brand.is_active ? 'desativar' : 'ativar'} marca: ${err.message}` });
+      toast.error(`Erro ao ${brand.is_active ? 'desativar' : 'ativar'} marca: ${err.message}`);
     }
   };
 
   const VIRTUAL = ['mercado_livre', 'netshoes', 'amazon'];
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      await ApiClient.saveBrand(newBrand);
-      setNewBrand({ brand_key: '', brand_name: '', domain: '', logo_url: '', engine: 'vtex' });
-      onRefresh();
-      setStatus({ type: 'success', message: 'Marca cadastrada com sucesso!' });
-    } catch (err: any) {
-      setStatus({ type: 'error', message: err.message });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-
   return (
     <div className="page-content">
-      <div className="grid-2">
-        <GlassCard title="Cadastrar Nova Marca">
-          {status && <StatusBanner type={status.type} message={status.message} onClear={() => setStatus(null)} />}
-          <form onSubmit={handleSubmit} className="form-stack">
-            <div className="form-group">
-              <label className="label">ID Interno (Slug)</label>
-              <input
-                type="text"
-                className="input"
-                placeholder="ex: brooksfield"
-                value={newBrand.brand_key}
-                onChange={e => setNewBrand({ ...newBrand, brand_key: e.target.value })}
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label className="label">Nome da Marca</label>
-              <input
-                type="text"
-                className="input"
-                placeholder="ex: Brooksfield Menswear"
-                value={newBrand.brand_name}
-                onChange={e => setNewBrand({ ...newBrand, brand_name: e.target.value })}
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label className="label">Domínio (sem https)</label>
-              <input
-                type="text"
-                className="input"
-                placeholder="ex: www.brooksfield.com.br"
-                value={newBrand.domain}
-                onChange={e => setNewBrand({ ...newBrand, domain: e.target.value })}
-                required
-              />
-            </div>
-            <button className="btn btn-primary w-full" disabled={loading}>
-              {loading ? <RefreshCw className="animate-spin" size={18} /> : <Plus size={18} />}
-              Cadastrar Marca
-            </button>
-          </form>
-        </GlassCard>
-
-        <GlassCard title="Marcas Cadastradas">
+        <GlassCard title="Gerenciar Marcas">
           <div className="brand-list">
             {brands.map(b => {
               const canToggle = !VIRTUAL.includes(b.brand_key);
@@ -1972,7 +1907,6 @@ const SettingsPage = ({ brands, onRefresh }: { brands: any[], onRefresh: () => v
             })}
           </div>
         </GlassCard>
-      </div>
     </div>
   );
 };
@@ -2411,7 +2345,7 @@ function App() {
           />
           <div className="sidebar-spacer" />
           <SidebarItem
-            icon={PlusIcon}
+            icon={Package}
             label="Marcas"
             active={activeTab === 'settings'}
             onClick={() => navigateTab('settings')}
@@ -2432,7 +2366,7 @@ function App() {
                     activeTab === 'monitored_categories' ? 'Monitor de Categorias' :
                       activeTab === 'category' ? 'Varredura por Categoria' :
                         activeTab === 'banners' ? 'Banners' :
-                        'Adicionar Marca'
+                        'Gerenciar Marcas'
             }
             </h1>
           </div>
