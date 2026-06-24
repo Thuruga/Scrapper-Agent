@@ -33,13 +33,20 @@ from urllib.parse import quote_plus
 from core.browser_manager import BrowserManager
 from core.models import BrandSearchResult, SearchProductResult
 from services.engines.base_engine import BaseEngine
-from services.engines.sfcc_parser import parse_pdp, parse_search_results
+from services.engines.sfcc_parser import (
+    extract_nav_categories,
+    parse_pdp,
+    parse_search_results,
+)
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Module-level constants (D-08 / CRQ-3)
 # ---------------------------------------------------------------------------
+
+CATALOG_GROUP_LABEL: str = "Coleções / Categorias"
+"""Frontend group label for SFCC categories — mirrors ShopifyEngine.get_catalog."""
 
 DEFAULT_MAX_RESULTS: int = 10
 """Default number of PDPs to enrich per search.  Each PDP = one browser
@@ -328,23 +335,82 @@ class SFCCEngine(BaseEngine):
         return self.validate_single(parsed)
 
     # ------------------------------------------------------------------
-    # BaseEngine contract — category discovery (D-06 stub; real impl Plan 03)
+    # BaseEngine contract — category discovery (D-05 / D-06)
     # ------------------------------------------------------------------
 
     async def discover_categories(self) -> List[Dict[str, Any]]:
         """
-        Return [] graceful stub (D-06).
+        Extract navigation category links from the rendered SFCC home/menu.
 
-        Real implementation (home page render → nav link extraction) lands in
-        Wave 2 / Plan 03.  Returning [] here satisfies D-04 (full BaseEngine
-        contract) without crashing if the nav is absent or blocked.
+        Strategy (CRQ-2):
+          1. Resolve brand domain via lazy brand_service import.
+          2. Fetch the home page with ``wait_selector="nav"`` and
+             ``extra_sleep=2.0`` to allow JS-driven menu expansion.
+          3. Delegate all parsing to ``extract_nav_categories`` (pure function).
+          4. On ANY exception, log a warning and return ``[]`` — this is the
+             D-06 graceful stub, NOT a failure.
+
+        Returns an empty list when:
+          - The brand is not registered (no domain to fetch).
+          - BrowserManager raises (anti-bot block, timeout, network error).
+          - The rendered page contains no ``<nav>`` / ``role="navigation"``.
+          - ``extract_nav_categories`` returns an empty list (no matching links).
         """
-        return []
+        from services.brand_service import brand_service  # lazy — avoid circular import
+
+        brand = brand_service.get_brand(self.brand_key)
+
+        domain: str = ""
+        if brand:
+            domain = (
+                getattr(brand, "domain", None)
+                or (brand.get("domain", "") if isinstance(brand, dict) else "")
+            )
+
+        # BR domain fallback (mirrors search() — allows smoke-testing before onboarding)
+        if not domain:
+            domain = f"{self.brand_key}.com.br"
+            logger.info(
+                "[SFCC] discover_categories: no registered domain for brand_key=%s; using fallback domain=%s",
+                self.brand_key,
+                domain,
+            )
+
+        home_url = f"https://www.{domain}"
+
+        try:
+            html = await BrowserManager.fetch_html(
+                home_url,
+                wait_selector="nav",  # wait for JS-driven menu to render (Open Question #3)
+                extra_sleep=2.0,
+            )
+            return extract_nav_categories(html, domain)
+        except Exception as exc:
+            # D-06 graceful stub: category failure never crashes engine, never blocks search
+            logger.warning(
+                "[SFCC] discover_categories failed for brand=%s url=%s: %s",
+                self.brand_key,
+                home_url,
+                exc,
+            )
+            return []
 
     async def get_catalog(self) -> List[Dict[str, Any]]:
         """
-        Return [] graceful stub (D-06).
+        Return navigation categories wrapped in the frontend group shape.
 
-        Mirrors discover_categories() stub.  Real implementation in Plan 03.
+        Mirrors ``ShopifyEngine.get_catalog``:
+          ``[{"group": CATALOG_GROUP_LABEL, "items": [{"label": ..., "path": ...}]}]``
+
+        Always returns a list with exactly one group dict.  When
+        ``discover_categories()`` returns ``[]`` (D-06 stub fallback), the
+        group is present but ``items`` is empty — the frontend renders an
+        empty category tree gracefully.
         """
-        return []
+        flat = await self.discover_categories()
+        return [
+            {
+                "group": CATALOG_GROUP_LABEL,
+                "items": [{"label": c["name"], "path": c["path"]} for c in flat],
+            }
+        ]

@@ -449,3 +449,76 @@ class TestSFCCCategoryDiscovery:
             result = asyncio.run(engine.discover_categories())
 
         assert result == []
+
+    # -- discover_categories real impl (Task 2 — RED until Wave 2) ---------------
+
+    def test_discover_categories_populated_nav_returns_dicts(self):
+        """D-05: discover_categories() returns category dicts from rendered nav HTML."""
+        from services.engines.sfcc_engine import SFCCEngine
+
+        with patch(
+            _BROWSER_FETCH_TARGET,
+            new=AsyncMock(return_value=_NAV_HTML),
+        ):
+            engine = SFCCEngine("lacoste")
+            result = asyncio.run(engine.discover_categories())
+
+        assert isinstance(result, list)
+        assert len(result) >= 1
+        for item in result:
+            assert "name" in item
+            assert "path" in item
+            assert "id" in item
+
+    def test_discover_categories_exception_returns_empty(self):
+        """D-06: discover_categories() returns [] (no crash) when BrowserManager raises."""
+        from services.engines.sfcc_engine import SFCCEngine
+
+        with patch(
+            _BROWSER_FETCH_TARGET,
+            new=AsyncMock(side_effect=RuntimeError("anti-bot block")),
+        ):
+            engine = SFCCEngine("lacoste")
+            result = asyncio.run(engine.discover_categories())
+
+        assert result == []
+
+    # -- get_catalog group-shape (Task 2 — RED until Wave 2) --------------------
+
+    def test_get_catalog_returns_group_shape(self):
+        """get_catalog() wraps discover_categories into [{group, items:[{label,path}]}]."""
+        from services.engines.sfcc_engine import SFCCEngine, CATALOG_GROUP_LABEL
+
+        with patch(
+            _BROWSER_FETCH_TARGET,
+            new=AsyncMock(return_value=_NAV_HTML),
+        ):
+            engine = SFCCEngine("lacoste")
+            catalog = asyncio.run(engine.get_catalog())
+
+        assert isinstance(catalog, list)
+        assert len(catalog) == 1
+        group = catalog[0]
+        assert group["group"] == CATALOG_GROUP_LABEL
+        assert isinstance(group["items"], list)
+        assert len(group["items"]) >= 1
+        for item in group["items"]:
+            assert "label" in item
+            assert "path" in item
+
+    def test_get_catalog_empty_nav_returns_single_empty_group(self):
+        """get_catalog() with empty nav returns [{group: CATALOG_GROUP_LABEL, items: []}]."""
+        from services.engines.sfcc_engine import SFCCEngine, CATALOG_GROUP_LABEL
+
+        empty_nav_html = "<html><head></head><body><p>No nav here</p></body></html>"
+        with patch(
+            _BROWSER_FETCH_TARGET,
+            new=AsyncMock(return_value=empty_nav_html),
+        ):
+            engine = SFCCEngine("lacoste")
+            catalog = asyncio.run(engine.get_catalog())
+
+        assert isinstance(catalog, list)
+        assert len(catalog) == 1
+        assert catalog[0]["group"] == CATALOG_GROUP_LABEL
+        assert catalog[0]["items"] == []
