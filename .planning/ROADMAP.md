@@ -45,7 +45,8 @@ Phases 19-29 pertencem a milestones CONCLUÍDOS (v1.10-v2.0). As phases ativas d
   2. Ao chamar `detect_engine` para o domínio da Richards (Wake), o retorno é `"wake"` — não `"unknown"` (que era o comportamento de fallback do v2.0 via `fbitsstatic.net`).
   3. Ao cadastrar uma marca via `POST /brands/` com engine `auto`, uma marca SFCC ou Wake é persistida com o engine detectado e **permanece ativa** (não é auto-desativada pela regra D-04 de engine desconhecido).
   4. Domínios que não são SFCC, Wake, VTEX nem Shopify continuam retornando `"unknown"` e sendo auto-desativados — a detecção nova não introduz falsos positivos.
-**Plans**: 3 plans
+
+**Plans**: 3 plans
 **Wave 1**
 
 - [x] 30-01-PLAN.md — detect_engine: flip Wake branch to "wake" + last-resort SFCC browser probe (demandware markers)
@@ -67,7 +68,19 @@ Phases 19-29 pertencem a milestones CONCLUÍDOS (v1.10-v2.0). As phases ativas d
   3. O preço extraído de cada produto SFCC é exibido na unidade correta (reais) nos resultados da busca, consistente com os demais engines.
   4. `calculate_shipping` do `SFCCEngine` não tenta calcular frete (escopo público sem checkout): retorna ausência de frete de forma explícita, sem erro e sem badge de "Frete Grátis" indevido.
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+**Wave 0**
+
+- [ ] 31-01-PLAN.md — sfcc_parser.py (BR price `parse_price_br` + JSON-LD/OG extraction) + test_sfcc_engine.py scaffold; Backstage-standards prerequisite gate
+
+**Wave 1** *(blocked on Wave 0)*
+
+- [ ] 31-02-PLAN.md — SFCCEngine search core (native search render → PDP enrichment, Semaphore(3), calculate_shipping→None) + factory.py guard split (SC-1..SC-4)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 31-03-PLAN.md — discover_categories()/get_catalog() reais com fallback de stub gracioso (D-05/D-06)
 
 ### Phase 32: Engine Wake Commerce — Richards
 
@@ -138,7 +151,7 @@ Phases ativas executam em ordem numérica: 30 → 31 → 32 → 33 → 34 → 35
 | 24. Exportação Excel | v1.12 | - | Complete | shipped |
 | 25-29. v2.0 (Concorrentes & Confiabilidade) | v2.0 | - | Complete | shipped |
 | 30. Detecção de Engine SFCC & Wake | v3.0 | 3/3 | Complete    | 2026-06-23 |
-| 31. Engine SFCC (Browser Público) | v3.0 | 0/? | Not started | - |
+| 31. Engine SFCC (Browser Público) | v3.0 | 0/3 | Planned     | - |
 | 32. Engine Wake Commerce — Richards | v3.0 | 0/? | Not started | - |
 | 33. Frete via Checkout nos Sites VTEX | v3.0 | 0/? | Not started | - |
 | 34. Extração de Banners Desktop | v3.0 | 4/4 | Complete   | 2026-06-23 |
