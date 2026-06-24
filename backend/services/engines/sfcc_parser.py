@@ -314,6 +314,87 @@ def parse_pdp(html: str, source_url: str) -> Optional[Dict[str, Any]]:
 
 
 # ---------------------------------------------------------------------------
+# Nav category extraction — D-05, T-31-07
+# ---------------------------------------------------------------------------
+
+# Noise terms for nav link labels and paths — mirrors ShopifyEngine.discover_categories
+_NAV_NOISE_TERMS: set = {
+    "account", "login", "register", "cart", "checkout", "wishlist",
+    "help", "ajuda", "faq", "sitemap",
+    # PT-BR equivalents
+    "conta", "entrar", "cadastro", "sacola", "cesta", "favoritos",
+    "politica", "política", "termos", "contato", "sobre", "blog",
+    "sustentabilidade", "responsabilidade", "imprensa", "press",
+    "stores", "lojas", "store-locator", "encontrar-loja",
+    "sale", "outlet", "gift-card", "giftcard",
+}
+
+
+def extract_nav_categories(html: str, base_domain: str) -> List[Dict[str, Any]]:  # noqa: ARG001 — base_domain reserved for absolute-URL resolution in future callers
+    """
+    Extract navigation category links from rendered SFCC home/menu HTML.
+
+    Locates the first ``<nav>`` element or element with ``role="navigation"``.
+    For each ``<a href>`` under that element:
+      - Keeps only same-domain relative hrefs (``href.startswith("/")``)
+      - Filters labels shorter than 3 characters
+      - Filters noise terms (account/login/cart/help/politica/conta …) from both
+        label and path (T-31-07: label extracted via ``.get_text(strip=True)`` only)
+      - Deduplicates by path (first-seen wins, order preserved)
+
+    Returns a list of ``{"name": label, "path": href, "id": href}`` dicts.
+    Returns ``[]`` when no nav element is found.
+
+    This function is pure (no network, no BrowserManager) so it can be tested
+    without any browser mocking overhead.
+
+    Security: T-31-07 — ``.get_text(strip=True)`` extracts label text only
+    (no markup executed); only ``startswith("/")`` hrefs are kept (external and
+    ``javascript:`` hrefs are silently dropped).
+    """
+    soup = BeautifulSoup(html, "html.parser")
+
+    # Locate nav container — try <nav> first, then role=navigation fallback
+    nav = soup.find("nav") or soup.find(attrs={"role": "navigation"})
+    if not nav:
+        return []
+
+    seen: set = set()
+    result: List[Dict[str, Any]] = []
+
+    for a_tag in nav.find_all("a", href=True):
+        href: str = a_tag["href"]
+
+        # T-31-07: only same-domain relative paths (drops external + javascript: + mailto:)
+        if not href.startswith("/"):
+            continue
+
+        # T-31-07: label via get_text only — no markup execution
+        label: str = a_tag.get_text(strip=True)
+
+        # Filter: too-short labels (single icons, hidden spans, etc.)
+        if len(label) <= 2:
+            continue
+
+        # Noise filter: check label words and path segments against noise set
+        label_lower = label.lower()
+        path_segments = set(href.lower().strip("/").split("/"))
+        if any(term in label_lower for term in _NAV_NOISE_TERMS):
+            continue
+        if path_segments & _NAV_NOISE_TERMS:
+            continue
+
+        # Dedup by path (preserve first-seen order)
+        if href in seen:
+            continue
+        seen.add(href)
+
+        result.append({"name": label, "path": href, "id": href})
+
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Search results URL extraction
 # ---------------------------------------------------------------------------
 
