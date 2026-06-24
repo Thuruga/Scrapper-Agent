@@ -26,7 +26,7 @@ O milestone também incorpora a frente de banners, validada por um protótipo ex
 Phases 19-29 pertencem a milestones CONCLUÍDOS (v1.10-v2.0). As phases ativas do v3.0 são **30-35**.
 
 - [x] **Phase 30: Detecção de Engine SFCC & Wake** - `detect_engine` reconhece e rotula `sfcc` e `wake` (em vez de `unknown`), liberando o cadastro dessas marcas com o engine correto (COMP-05) (completed 2026-06-23)
-- [ ] **Phase 31: Engine SFCC (Browser Público) — Lacoste & HugoBoss** - Onboarding e busca das marcas SFCC via extração pública browser-rendered (JSON-LD / OpenGraph): catálogo + preço apenas (COMP-03)
+- [x] **Phase 31: Engine SFCC (Browser Público) — Lacoste & HugoBoss** - Onboarding e busca das marcas SFCC via extração pública browser-rendered (JSON-LD / OpenGraph): catálogo + preço apenas (COMP-03) (completed 2026-06-24)
 - [ ] **Phase 32: Engine Wake Commerce — Richards** - Spike de confirmação do GraphQL + `TCS-Access-Token` e, se validado, engine Wake completo para onboarding e busca da Richards (COMP-04)
 - [ ] **Phase 33: Frete via Checkout nos Sites VTEX** - Cálculo de preço e prazo de frete via checkout simulation nos sites de marca VTEX, com contrato de unidade (centavos→reais) documentado e detecção de frete grátis (FRET-05)
 - [x] **Phase 34: Extração de Banners Desktop** - Motor reutilizável percorre as marcas ativas, coleta todos os slides de imagem do carrossel principal e produz arquivos originais, metadados e relatório visual auditável (BANNER-01, BANNER-02, BANNER-03, BANNER-04) (completed 2026-06-23)
@@ -80,7 +80,7 @@ Phases 19-29 pertencem a milestones CONCLUÍDOS (v1.10-v2.0). As phases ativas d
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 31-03-PLAN.md — discover_categories()/get_catalog() reais com fallback de stub gracioso (D-05/D-06)
+- [x] 31-03-PLAN.md — discover_categories()/get_catalog() reais com fallback de stub gracioso (D-05/D-06)
 
 ### Phase 32: Engine Wake Commerce — Richards
 
@@ -151,7 +151,7 @@ Phases ativas executam em ordem numérica: 30 → 31 → 32 → 33 → 34 → 35
 | 24. Exportação Excel | v1.12 | - | Complete | shipped |
 | 25-29. v2.0 (Concorrentes & Confiabilidade) | v2.0 | - | Complete | shipped |
 | 30. Detecção de Engine SFCC & Wake | v3.0 | 3/3 | Complete    | 2026-06-23 |
-| 31. Engine SFCC (Browser Público) | v3.0 | 2/3 | In Progress|  |
+| 31. Engine SFCC (Browser Público) | v3.0 | 3/3 | Complete   | 2026-06-24 |
 | 32. Engine Wake Commerce — Richards | v3.0 | 0/? | Not started | - |
 | 33. Frete via Checkout nos Sites VTEX | v3.0 | 0/? | Not started | - |
 | 34. Extração de Banners Desktop | v3.0 | 4/4 | Complete   | 2026-06-23 |
