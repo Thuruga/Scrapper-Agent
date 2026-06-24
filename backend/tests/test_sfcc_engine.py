@@ -318,14 +318,123 @@ class TestSFCCEngineSearch:
 
 
 # ---------------------------------------------------------------------------
+# HTML fixtures for category discovery tests
+# ---------------------------------------------------------------------------
+
+# Nav HTML fixture: two category anchors in a <nav> element
+_NAV_HTML = textwrap.dedent("""\
+    <!DOCTYPE html>
+    <html>
+    <head><title>Lacoste</title></head>
+    <body>
+      <nav>
+        <a href="/masculino/polo">Polo Masculina</a>
+        <a href="/masculino/camisetas">Camisetas</a>
+        <a href="/login">Entrar</a>
+        <a href="https://external.com/offers">Ofertas Externas</a>
+        <a href="/polo">Polo Masculina</a>
+      </nav>
+      <main><p>Conteúdo da página</p></main>
+    </body>
+    </html>
+""")
+
+# Nav HTML via role=navigation attribute (alternative pattern)
+_ROLE_NAV_HTML = textwrap.dedent("""\
+    <!DOCTYPE html>
+    <html>
+    <head><title>HugoBoss</title></head>
+    <body>
+      <div role="navigation">
+        <a href="/colecoes/ternos">Ternos</a>
+        <a href="/colecoes/camisas">Camisas</a>
+        <a href="/account">Minha Conta</a>
+      </div>
+    </body>
+    </html>
+""")
+
+# ---------------------------------------------------------------------------
 # TestSFCCCategoryDiscovery — RED until Wave 2
 # ---------------------------------------------------------------------------
 
 class TestSFCCCategoryDiscovery:
-    """Tests for SFCCEngine.discover_categories() graceful stub.
+    """Tests for extract_nav_categories (sfcc_parser) and SFCCEngine.discover_categories.
 
-    These tests are RED until sfcc_engine.py is implemented in Wave 1/2.
+    Tasks 1 and 2 of Plan 03 (Wave 2).
     """
+
+    # -- extract_nav_categories (Task 1) ----------------------------------------
+
+    def test_extract_nav_categories_no_nav_returns_empty(self):
+        """extract_nav_categories returns [] when no <nav> or role=navigation is present."""
+        from services.engines.sfcc_parser import extract_nav_categories
+        html = "<html><body><div>no nav here</div></body></html>"
+        result = extract_nav_categories(html, "lacoste.com.br")
+        assert result == []
+
+    def test_extract_nav_categories_returns_dicts(self):
+        """extract_nav_categories returns list of {name, path, id} dicts for nav anchors."""
+        from services.engines.sfcc_parser import extract_nav_categories
+        result = extract_nav_categories(_NAV_HTML, "lacoste.com.br")
+        assert isinstance(result, list)
+        assert len(result) >= 1
+        for item in result:
+            assert "name" in item
+            assert "path" in item
+            assert "id" in item
+
+    def test_extract_nav_categories_deduplicates_by_path(self):
+        """extract_nav_categories deduplicates anchors with the same href by path."""
+        from services.engines.sfcc_parser import extract_nav_categories
+        # _NAV_HTML contains /polo twice (as /masculino/polo and /polo — different paths)
+        # and also /masculino/polo appears once; test dedup with explicit duplicate HTML
+        html = textwrap.dedent("""\
+            <html><body><nav>
+              <a href="/masculino/polo">Polo</a>
+              <a href="/masculino/polo">Polo (duplicate)</a>
+              <a href="/masculino/camisetas">Camisetas</a>
+            </nav></body></html>
+        """)
+        result = extract_nav_categories(html, "lacoste.com.br")
+        paths = [c["path"] for c in result]
+        assert len(paths) == len(set(paths)), "Paths must be unique (deduplication required)"
+
+    def test_extract_nav_categories_filters_noise_labels(self):
+        """extract_nav_categories filters out login/account/cart/help noise labels."""
+        from services.engines.sfcc_parser import extract_nav_categories
+        result = extract_nav_categories(_NAV_HTML, "lacoste.com.br")
+        paths = [c["path"] for c in result]
+        assert "/login" not in paths, "login path should be filtered as noise"
+
+    def test_extract_nav_categories_filters_external_hrefs(self):
+        """extract_nav_categories keeps only same-domain relative hrefs (startswith '/')."""
+        from services.engines.sfcc_parser import extract_nav_categories
+        result = extract_nav_categories(_NAV_HTML, "lacoste.com.br")
+        paths = [c["path"] for c in result]
+        for path in paths:
+            assert path.startswith("/"), f"All paths must be relative, got: {path}"
+
+    def test_extract_nav_categories_role_navigation(self):
+        """extract_nav_categories works on elements with role=navigation (not just <nav>)."""
+        from services.engines.sfcc_parser import extract_nav_categories
+        result = extract_nav_categories(_ROLE_NAV_HTML, "hugoboss.com.br")
+        assert isinstance(result, list)
+        assert len(result) >= 1
+        # /colecoes/ternos and /colecoes/camisas should be returned; /account filtered
+        paths = [c["path"] for c in result]
+        assert "/colecoes/ternos" in paths or "/colecoes/camisas" in paths
+
+    def test_extract_nav_categories_is_pure(self):
+        """extract_nav_categories is importable as a pure function (no browser dep)."""
+        # This will ImportError if extract_nav_categories doesn't exist
+        import importlib
+        mod = importlib.import_module("services.engines.sfcc_parser")
+        fn = getattr(mod, "extract_nav_categories", None)
+        assert fn is not None, "extract_nav_categories must be defined in sfcc_parser"
+        assert callable(fn)
+
+    # -- discover_categories stub (D-06, Wave 1 — already GREEN) ----------------
 
     def test_discover_categories_stub(self):
         """D-06: discover_categories() returns [] when nav is absent (no crash)."""
