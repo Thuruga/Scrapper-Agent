@@ -34,7 +34,7 @@ See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/sc
 Phase: 34
 Plan: Not started
 Status: Plan 01 complete — ready for Plan 02
-Last activity: 2026-06-23
+Last activity: 2026-06-24 - Completed quick task 260624-d65: reframe brands screen as Gerenciar Marcas (remove create form, keep delete/disable)
 
 ## Performance Metrics
 
@@ -133,6 +133,7 @@ Last activity: 2026-06-23
 | 260615-dkc | No caso, todos devem mostrar o nome da lojista | 2026-06-15 | 717beb9 | [260615-dkc-no-caso-todos-devem-mostrar-o-nome-da-lo](./quick/260615-dkc-no-caso-todos-devem-mostrar-o-nome-da-lo/) |
 | 260616-eib | na busca do SKU, a selecao dos produtos a exportar para o excel so deve aparecer quando o user clicar primeiro em exportar para o excel | 2026-06-16 | 945844a | [260616-eib-na-busca-do-sku-a-selecao-dos-produtos-a](./quick/260616-eib-na-busca-do-sku-a-selecao-dos-produtos-a/) |
 | 260623-lho | Mudar padrão do nome dos banners para mês ano marca | 2026-06-23 | 95b068e | [260623-lho-mudar-padr-o-do-nome-dos-banners-para-m-](./quick/260623-lho-mudar-padr-o-do-nome-dos-banners-para-m-/) |
+| 260624-d65 | Na tela de adicionar marcas, retire cadastrar nova marca e deixe como gerenciar marcas. Com as ações de apagar e desativar. | 2026-06-24 | 43dd369 | [260624-d65-na-tela-de-adicionar-marcas-retire-cadas](./quick/260624-d65-na-tela-de-adicionar-marcas-retire-cadas/) |
 
 ## Deferred Items
 
