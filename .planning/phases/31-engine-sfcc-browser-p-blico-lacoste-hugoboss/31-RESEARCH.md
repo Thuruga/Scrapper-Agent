@@ -680,22 +680,22 @@ The `test_quality_gates.py` pattern shows how to test `validate_single` / `valid
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **BR search URL pattern**
    - What we know: US Lacoste uses `/us/lacoste/men/clothing/polos/` (category); US HugoBoss uses `/us/men-polo-shirts/` (category). Neither spike tested a search query URL.
    - What's unclear: The exact search URL for `lacoste.com.br` and `hugoboss.com.br` — could be `/search?q=polo`, `/busca?q=polo`, `/on/demandware.store/.../Search-Show?q=polo`, or a JavaScript-only search with no URL change.
-   - Recommendation: Wave 0 smoke test should manually navigate to both BR stores and observe the search URL when using the native search box. Record the URL pattern as a constant in `sfcc_engine.py`.
+   - **RESOLVED:** Built as a module-level constant `SEARCH_URL_PATTERN` in `sfcc_engine.py` (Plan 31-02 Task 1). A live smoke test during Wave 1 verification confirms or corrects the URL; the constant is updated if the initial guess is wrong. No planning blocker.
 
 2. **JSON-LD `offers.price` serialization on BR stores**
    - What we know: Schema.org spec recommends plain numeric value. US stores exposed `"price": 119.00`.
    - What's unclear: Whether the BR SFCC storefront serializes price as `1234.56` (plain float) or `"1.234,56"` (localized string) in JSON-LD.
-   - Recommendation: Layer the parser: try `float(offer["price"])` first (works for both formats if it's a number); if `ValueError`, apply `parse_price_br()`. Log which path was used per product for monitoring.
+   - **RESOLVED:** Layered parser in `sfcc_parser.py` (Plan 31-01): try `float(offer["price"])` first; if `ValueError` or result is zero, fall back to `parse_price_br()` on the rendered text. Both branches produce a valid Python float; the fallback covers the localized-string case.
 
 3. **Category discovery: nav selector for BR stores**
    - What we know: SFCC renders navigation in a `<nav>` element or element with `role="navigation"`. The exact CSS structure varies by storefront theme.
    - What's unclear: Whether Lacoste BR and HugoBoss BR use a standard `<nav>` element or a custom structure; whether the menu expands on page load or requires a click/hover event.
-   - Recommendation: Treat as a Wave N research task (after search is working). Initial implementation should use a forgiving selector with broad fallback; if 0 categories are discovered, the graceful stub (return `[]`) applies.
+   - **RESOLVED:** `discover_categories()` uses a forgiving selector (`nav` or `[role="navigation"]`) with `extra_sleep=2.0` for JS-driven menus, and returns `[]` on any exception (D-06 graceful stub per Plan 31-03). If 0 items are returned, the stub is acceptable — catalog delivery becomes a follow-up phase per D-06.
 
 ---
 

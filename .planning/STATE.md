@@ -4,7 +4,7 @@ milestone: v3.0
 milestone_name: Expansão Multi-Plataforma de Concorrentes & Frete VTEX
 status: completed
 stopped_at: Phase 31 context gathered
-last_updated: "2026-06-24T13:10:14.077Z"
+last_updated: "2026-06-24T14:03:18.266Z"
 last_activity: "2026-06-24 - Completed quick task 260624-d65: reframe brands screen as Gerenciar Marcas (remove create form, keep delete/disable)"
 progress:
   total_phases: 6
