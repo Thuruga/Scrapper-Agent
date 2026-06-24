@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Expansão Multi-Plataforma de Concorrentes & Frete VTEX
 status: executing
-stopped_at: Phase 31 context gathered
-last_updated: "2026-06-24T14:15:57.873Z"
-last_activity: 2026-06-24 -- Phase 31 execution started
+stopped_at: Phase 32 context gathered
+last_updated: "2026-06-24T18:06:50.305Z"
+last_activity: 2026-06-24 -- Phase 31 complete
 progress:
   total_phases: 6
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 10
-  completed_plans: 7
-  percent: 33
+  completed_plans: 10
+  percent: 50
 ---
 
 # Project State: Intelligence Scraper
@@ -21,7 +21,7 @@ progress:
 See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/scrapper/.planning/PROJECT.md) (updated 2026-06-23)
 
 **Core value:** Extração automatizada e resiliente de dados de mercado com mínima intervenção humana e alta fidelidade de dados.
-**Current focus:** Phase 31 — engine-sfcc-browser-p-blico-lacoste-hugoboss
+**Current focus:** Phase 32 — engine-wake-commerce-richards (next)
 
 ## Current Milestone: v3.0 Expansão Multi-Plataforma de Concorrentes & Frete VTEX
 
@@ -31,10 +31,11 @@ See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/sc
 
 ## Current Position
 
-Phase: 31 (engine-sfcc-browser-p-blico-lacoste-hugoboss) — EXECUTING
-Plan: 1 of 3
-Status: Executing Phase 31
-Last activity: 2026-06-24 -- Phase 31 execution started
+Phase: 31 (engine-sfcc-browser-p-blico-lacoste-hugoboss) — COMPLETE ✅
+  Waves: 3/3 merged. 225/225 tests passing. REVIEW.md + VERIFICATION.md written.
+  CRITICAL open item: double-www bug in SFCC URL construction — fix before first live run.
+Next: Phase 32 (engine-wake-commerce-richards) — spike-gated GO/NO-GO on GraphQL token
+Last activity: 2026-06-24 -- Phase 31 complete
 
 ## Performance Metrics
 
@@ -123,6 +124,7 @@ Last activity: 2026-06-24 -- Phase 31 execution started
 
 - [v3.0/COMP-04] Wake/Richards: fluxo GraphQL + `TCS-Access-Token` é HIGH confidence documentalmente (wakecommerce.readme.io) mas NÃO testado empiricamente. Phase 32 deve iniciar pelo spike de confirmação (Wave 0) com decisão GO/NO-GO antes do engine completo.
 - [v3.0/COMP-03] Lacoste/HugoBoss (SFCC): HTTP direto é 403; extração validada apenas pela via pública browser-rendered (JSON-LD/OpenGraph). Escopo limitado a catálogo + preço — sem frete/checkout/estoque por CEP.
+- [31-REVIEW/HIGH] SFCC double-www: `DynamicBrand.clean_domain` não remove prefixo `www.` — `"www.lacoste.com.br"` construído como `"https://www.www.lacoste.com.br/..."`. Corrigir com `re.sub(r"^www\.", "", domain)` em `sfcc_engine.py:149` e `:379` antes do primeiro live run. Testes passam (browser mockado) mas produção quebraria com 404.
 - FRET-06 (Shopify): permanece adiado — smoke test necessário antes de comprometer (sessão/cookie no AJAX Cart pode requerer Playwright). Fora do escopo do v3.0.
 - [v3.0/BANNER-05] SharePoint: site/biblioteca de destino, credenciais e permissões ainda não foram fornecidos. Phase 35 deve começar por um gate de conectividade e acesso antes do publicador completo.
 
@@ -148,10 +150,12 @@ Last activity: 2026-06-24 -- Phase 31 execution started
 
 ## Session Continuity
 
-Last session: 2026-06-24T13:10:14.065Z
-Stopped at: Phase 31 context gathered
-Resume file: .planning/phases/31-engine-sfcc-browser-p-blico-lacoste-hugoboss/31-CONTEXT.md
+Last session: 2026-06-24T18:06:50.298Z
+Stopped at: Phase 32 context gathered
+Resume file: .planning/phases/32-engine-wake-commerce-richards/32-CONTEXT.md
 
 ## Operator Next Steps
 
-- Planejar a primeira phase do v3.0 com `/gsd-plan-phase 30`
+- Fix SFCC double-www bug (`sfcc_engine.py:149` and `:379`) before first live Lacoste/HugoBoss run
+- Phase 32: `/gsd-plan-phase 32` (Wake Commerce engine — spike-gated)
+- Phase 33: `/gsd-plan-phase 33` (Frete VTEX via checkout — orthogonal to engines, can run in parallel)
