@@ -94,7 +94,19 @@ Phases 19-29 pertencem a milestones CONCLUÍDOS (v1.10-v2.0). As phases ativas d
   3. O `WakeEngine` está registrado na `EngineFactory` e é selecionado automaticamente para marcas com `engine="wake"`, enviando o `TCS-Access-Token` por loja em cada requisição GraphQL.
   4. O `TCS-Access-Token` da Richards é configurado por loja (não hardcoded global) e a ausência/erro de token produz uma falha clara e diagnosticável, não 0 produtos silenciosos.
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+**Wave 0** *(GATE — spike de confirmação GO/NO-GO; gateia Wave 1+)*
+
+- [ ] 32-01-PLAN.md — spike 007-wake-graphql-token-confirmation: experiment.py + REPORT.md com veredito GO/NO-GO (token GraphQL+TCS-Access-Token; Richards/Shop2gether) (SC-1)
+
+**Wave 1** *(blocked on Wave 0 — só executa se REPORT.md = GO; em NO-GO o WakeEngine é deferido por D-03)*
+
+- [ ] 32-02-PLAN.md — WakeEngine: campo wake_access_token (models.py) + engine (busca GraphQL + token por loja + stubs) + wiring na EngineFactory (SC-2/SC-3/SC-4)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 32-03-PLAN.md — test_wake_engine.py (SC-2/SC-3/SC-4/D-06/D-08) + remoção do guard obsoleto test_factory_wake_still_raises + regressão da suite completa
 
 ### Phase 33: Frete via Checkout nos Sites VTEX
 
