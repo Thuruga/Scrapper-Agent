@@ -72,7 +72,7 @@ Phases 19-29 pertencem a milestones CONCLUÍDOS (v1.10-v2.0). As phases ativas d
 
 **Wave 0**
 
-- [ ] 31-01-PLAN.md — sfcc_parser.py (BR price `parse_price_br` + JSON-LD/OG extraction) + test_sfcc_engine.py scaffold; Backstage-standards prerequisite gate
+- [x] 31-01-PLAN.md — sfcc_parser.py (BR price `parse_price_br` + JSON-LD/OG extraction) + test_sfcc_engine.py scaffold; Backstage-standards prerequisite gate
 
 **Wave 1** *(blocked on Wave 0)*
 
@@ -151,7 +151,7 @@ Phases ativas executam em ordem numérica: 30 → 31 → 32 → 33 → 34 → 35
 | 24. Exportação Excel | v1.12 | - | Complete | shipped |
 | 25-29. v2.0 (Concorrentes & Confiabilidade) | v2.0 | - | Complete | shipped |
 | 30. Detecção de Engine SFCC & Wake | v3.0 | 3/3 | Complete    | 2026-06-23 |
-| 31. Engine SFCC (Browser Público) | v3.0 | 0/3 | Planned     | - |
+| 31. Engine SFCC (Browser Público) | v3.0 | 1/3 | In Progress|  |
 | 32. Engine Wake Commerce — Richards | v3.0 | 0/? | Not started | - |
 | 33. Frete via Checkout nos Sites VTEX | v3.0 | 0/? | Not started | - |
 | 34. Extração de Banners Desktop | v3.0 | 4/4 | Complete   | 2026-06-23 |
