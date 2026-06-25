@@ -1,19 +1,20 @@
 """
 Testes de caracterizacao de VtexApiClient (parse_product_dict + _fetch_shipping).
 
-Travam o comportamento ANTES do refactor de Workstream 2 (decomposicao da
-god-class VtexApiClient — em especial a extracao de um builder PURO a partir de
-parse_product_dict, e a extracao do transporte/shipping). Hoje so as funcoes
-puras de vtex_parsing tem teste; o metodo de montagem parse_product_dict e a
-simulacao de frete nao tinham cobertura.
+Travam o comportamento do _fetch_shipping reescrito em Wave 2 (33-02):
+  - SKU pareado com seller resolvido (nao hardcoded "1") — D-01
+  - Exatamente 1 retry em falha de transporte; sem retry em 200 vazio — D-15
+  - Tres estados explícitos: available / unavailable_for_cep / temporary_failure — D-13/D-14
+  - shipping_options populado; primary shipping/shipping_price/is_free_shipping derivados — FRET-05
+  - Exceção por produto absorvida para nao cancelar asyncio.gather siblings — D-13
 
 Estrategia (deterministico, zero rede):
   - parse_product_dict: fixture VtexProduct valido; as DUAS dependencias de I/O
     (get_single_review e _get_color_family) sao mockadas; o resto (extract_colors,
     extract_sizes, montagem do RawProductBronze) roda de verdade.
   - _fetch_shipping: self.session substituido por um fake async (post -> resposta
-    async-context-manager), exercitando a selecao do SLA mais barato, o /100, o
-    parse do prazo e os status Gratis/Disponivel/Indisponivel.
+    async-context-manager). _FakeSession suporta sequencia de respostas/raises.
+  - Sleep de retry patchado via monkeypatch para testes deterministicos.
   - metodos async dirigidos via asyncio.run (projeto sem pytest-asyncio configurado).
 """
 import asyncio
@@ -123,9 +124,48 @@ class TestParseProductDictCharacterization:
 
 
 # ---------------------------------------------------------------------------
+# Helpers para SLAs com deliveryChannel correto (obrigatório em filter_and_sort_slas)
+# ---------------------------------------------------------------------------
+
+def _delivery_sla(name: str, price_cents: int, estimate: str) -> dict:
+    """Constrói um SLA de entrega domiciliar mínimo para testes."""
+    return {
+        "name": name,
+        "id": name.lower(),
+        "deliveryChannel": "delivery",
+        "price": price_cents,
+        "shippingEstimate": estimate,
+    }
+
+
+def _pickup_sla(name: str, price_cents: int, estimate: str) -> dict:
+    """Constrói um SLA de pickup (deve ser filtrado)."""
+    return {
+        "name": name,
+        "id": name.lower(),
+        "deliveryChannel": "pickup-in-point",
+        "price": price_cents,
+        "shippingEstimate": estimate,
+    }
+
+
+def _make_prod():
+    """Cria um namespace de produto com os campos que _fetch_shipping popula."""
+    return types.SimpleNamespace(
+        shipping=None,
+        shipping_options=[],
+        shipping_price=None,
+        is_free_shipping=False,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Fakes para _fetch_shipping (substituem aiohttp.ClientSession)
 # ---------------------------------------------------------------------------
+
 class _FakeResp:
+    """Resposta fake que suporta uso como async context manager."""
+
     def __init__(self, status, json_data):
         self.status = status
         self._json = json_data
@@ -141,54 +181,263 @@ class _FakeResp:
 
 
 class _FakeSession:
+    """Sessão fake com suporte a sequência de respostas e/ou raises.
+
+    Se `responses` for uma lista, cada chamada a `post()` consome o próximo
+    elemento. Elementos que são exceções são levantados; demais são retornados.
+    Se a lista acabar, levanta IndexError (teste mal configurado).
+    """
+
     def __init__(self, resp):
-        self._resp = resp
+        if isinstance(resp, list):
+            self._sequence = list(resp)
+            self._single = None
+        else:
+            self._single = resp
+            self._sequence = None
 
     def post(self, url, json=None, timeout=None):
-        return self._resp
+        if self._sequence is not None:
+            item = self._sequence.pop(0)
+            if isinstance(item, BaseException):
+                raise item
+            return item
+        return self._single
 
 
 def _client_with_response(status, json_data):
+    """Constrói um VtexApiClient com sessão fake de resposta única."""
     client = VtexApiClient(brand_name="Aramis")
     client.session = _FakeSession(_FakeResp(status, json_data))
     return client
 
 
+def _client_with_sequence(items):
+    """Constrói um VtexApiClient com sessão fake de sequência de respostas/raises."""
+    client = VtexApiClient(brand_name="Aramis")
+    client.session = _FakeSession(items)
+    return client
+
+
+# Atalho para chamar _fetch_shipping com argumentos padronizados
+_DOMAIN = "www.aramis.com.br"
+_ZIPCODE = "01001000"
+_SKU = "sku1"
+_SELLER = "2"  # seller não-"1" para validar que o caller usa o resolvido
+
+
+def _run_fetch(client, prod=None, sku=_SKU, seller=_SELLER):
+    if prod is None:
+        prod = _make_prod()
+    asyncio.run(client._fetch_shipping(sku, seller, _ZIPCODE, _DOMAIN, prod))
+    return prod
+
+
+# ---------------------------------------------------------------------------
+# Testes de caracterização — baseline (3 pré-existentes, atualizados para Wave 2)
+# ---------------------------------------------------------------------------
+
 class TestFetchShippingCharacterization:
     def test_picks_cheapest_sla_and_parses_estimate(self):
+        """Baseline 1: SLA mais barato selecionado como primary; deliveryChannel exigido."""
         body = {
             "logisticsInfo": [
                 {
                     "slas": [
-                        {"name": "Expressa", "price": 3990, "shippingEstimate": "2bd"},
-                        {"name": "Normal", "price": 1990, "shippingEstimate": "5bd"},
+                        _delivery_sla("Expressa", 3990, "2bd"),
+                        _delivery_sla("Normal", 1990, "5bd"),
                     ]
                 }
             ]
         }
         client = _client_with_response(200, body)
-        prod = types.SimpleNamespace(shipping=None)
-        asyncio.run(client._fetch_shipping("sku1", "01001000", "www.aramis.com.br", prod))
+        prod = _run_fetch(client)
 
         assert prod.shipping is not None
-        assert prod.shipping.price == pytest.approx(19.90)  # 1990 / 100
+        assert prod.shipping.price == pytest.approx(19.90)  # 1990 / 100 (mais barato)
         assert prod.shipping.status == "Disponível"
         assert prod.shipping.estimated_delivery_days == 5
         assert prod.shipping.raw_text == "Normal - 5bd"
+        # Wave 2: shipping_options deve conter ambas as opções
+        assert len(prod.shipping_options) == 2
+        prices = [o.price for o in prod.shipping_options]
+        assert prices == pytest.approx([19.90, 39.90])  # ordenadas por preço
 
     def test_free_shipping_status(self):
-        body = {"logisticsInfo": [{"slas": [{"name": "Gratis", "price": 0, "shippingEstimate": "3bd"}]}]}
+        """Baseline 2: SLA grátis → status 'Grátis' e is_free_shipping=True."""
+        body = {
+            "logisticsInfo": [
+                {"slas": [_delivery_sla("Gratis", 0, "3bd")]}
+            ]
+        }
         client = _client_with_response(200, body)
-        prod = types.SimpleNamespace(shipping=None)
-        asyncio.run(client._fetch_shipping("sku1", "01001000", "www.aramis.com.br", prod))
+        prod = _run_fetch(client)
 
         assert prod.shipping.price == 0.0
         assert prod.shipping.status == "Grátis"
         assert prod.shipping.estimated_delivery_days == 3
+        assert prod.is_free_shipping is True
+        assert prod.shipping_price == pytest.approx(0.0)
 
-    def test_no_logistics_info_is_unavailable(self):
+    def test_no_logistics_info_yields_unavailable_for_cep(self):
+        """Baseline 3: logisticsInfo vazia → 'Entrega indisponível para este CEP' (D-14).
+
+        NOTA: o status mudou de 'Indisponível' (legado) para o texto explícito D-14
+        pois um 200 com zero opções é um resultado de negócio, não falha técnica.
+        """
         client = _client_with_response(200, {"logisticsInfo": []})
-        prod = types.SimpleNamespace(shipping=None)
-        asyncio.run(client._fetch_shipping("sku1", "01001000", "www.aramis.com.br", prod))
+        prod = _run_fetch(client)
 
-        assert prod.shipping.status == "Indisponível"
+        assert "indisponível" in prod.shipping.status.lower()
+        assert prod.shipping_options == []
+
+    # ---------------------------------------------------------------------------
+    # Novos casos: Wave 2 (retry, estados, SKU+seller, isolamento de siblings)
+    # ---------------------------------------------------------------------------
+
+    def test_payload_carries_resolved_seller_not_hardcoded_1(self):
+        """D-01: seller enviado no payload é o resolvido, não '1' hardcoded."""
+        captured = {}
+
+        class _CapturingSession:
+            def post(self, url, json=None, timeout=None):
+                captured["payload"] = json
+                # Retorna resposta válida para não entrar em retry
+                return _FakeResp(200, {
+                    "logisticsInfo": [
+                        {"slas": [_delivery_sla("Normal", 1990, "5bd")]}
+                    ]
+                })
+
+        client = VtexApiClient(brand_name="Aramis")
+        client.session = _CapturingSession()
+        prod = _make_prod()
+        asyncio.run(client._fetch_shipping(_SKU, "42", _ZIPCODE, _DOMAIN, prod))
+
+        assert captured["payload"] is not None
+        items = captured["payload"]["items"]
+        assert len(items) == 1
+        assert items[0]["id"] == _SKU
+        assert items[0]["seller"] == "42"  # seller resolvido, não "1"
+
+    def test_timeout_then_success_makes_exactly_2_calls(self, monkeypatch):
+        """D-15: timeout → retry → sucesso = exatamente 2 chamadas, sem estado de erro."""
+        monkeypatch.setattr(
+            "services.vtex_api_scraper.VtexApiClient._SHIPPING_RETRY_SLEEP", 0
+        )
+        call_count = [0]
+        success_body = {
+            "logisticsInfo": [
+                {"slas": [_delivery_sla("Normal", 1990, "5bd")]}
+            ]
+        }
+
+        import asyncio as _asyncio
+
+        class _CountingSession:
+            def post(self, url, json=None, timeout=None):
+                call_count[0] += 1
+                if call_count[0] == 1:
+                    raise _asyncio.TimeoutError()
+                return _FakeResp(200, success_body)
+
+        client = VtexApiClient(brand_name="Aramis")
+        client.session = _CountingSession()
+        prod = _make_prod()
+        asyncio.run(client._fetch_shipping(_SKU, _SELLER, _ZIPCODE, _DOMAIN, prod))
+
+        assert call_count[0] == 2, f"Esperado exatamente 2 chamadas, fez {call_count[0]}"
+        assert prod.shipping is not None
+        assert "indisponível" not in prod.shipping.status.lower(), (
+            f"Não deveria ser estado de erro, mas foi: {prod.shipping.status}"
+        )
+        assert prod.shipping.price == pytest.approx(19.90)
+
+    def test_timeout_twice_yields_temporary_failure(self, monkeypatch):
+        """D-13: 2 timeouts → produto mantido com 'Frete temporariamente indisponível'."""
+        monkeypatch.setattr(
+            "services.vtex_api_scraper.VtexApiClient._SHIPPING_RETRY_SLEEP", 0
+        )
+        import asyncio as _asyncio
+
+        class _AlwaysTimeoutSession:
+            def post(self, url, json=None, timeout=None):
+                raise _asyncio.TimeoutError()
+
+        client = VtexApiClient(brand_name="Aramis")
+        client.session = _AlwaysTimeoutSession()
+        prod = _make_prod()
+        asyncio.run(client._fetch_shipping(_SKU, _SELLER, _ZIPCODE, _DOMAIN, prod))
+
+        assert prod.shipping is not None
+        assert "temporariamente" in prod.shipping.status.lower(), (
+            f"Status inesperado: {prod.shipping.status}"
+        )
+
+    def test_200_pickup_only_yields_unavailable_for_cep_with_exactly_1_call(self):
+        """D-14 + pitfall 5: 200 com apenas pickup → unavailable_for_cep; sem retry."""
+        call_count = [0]
+
+        class _CountingSession:
+            def post(self, url, json=None, timeout=None):
+                call_count[0] += 1
+                return _FakeResp(200, {
+                    "logisticsInfo": [
+                        {"slas": [_pickup_sla("Retirada", 0, "1bd")]}
+                    ]
+                })
+
+        client = VtexApiClient(brand_name="Aramis")
+        client.session = _CountingSession()
+        prod = _make_prod()
+        asyncio.run(client._fetch_shipping(_SKU, _SELLER, _ZIPCODE, _DOMAIN, prod))
+
+        assert call_count[0] == 1, f"Não deve fazer retry em 200 vazio; fez {call_count[0]} chamadas"
+        assert prod.shipping is not None
+        assert "indisponível" in prod.shipping.status.lower()
+        assert prod.shipping_options == []
+
+    def test_sibling_isolation_one_raises_others_survive(self, monkeypatch):
+        """D-13: exceção em um produto não cancela os siblings no asyncio.gather."""
+        monkeypatch.setattr(
+            "services.vtex_api_scraper.VtexApiClient._SHIPPING_RETRY_SLEEP", 0
+        )
+
+        success_body = {
+            "logisticsInfo": [
+                {"slas": [_delivery_sla("Normal", 1990, "5bd")]}
+            ]
+        }
+
+        async def _run_siblings():
+            import asyncio as _asyncio
+
+            # prod_a: vai levantar exceção na session
+            client_a = VtexApiClient(brand_name="Aramis")
+
+            class _RaisingSession:
+                def post(self, url, json=None, timeout=None):
+                    raise RuntimeError("store offline")
+
+            client_a.session = _RaisingSession()
+            prod_a = _make_prod()
+
+            # prod_b: vai responder com sucesso
+            client_b = _client_with_response(200, success_body)
+            prod_b = _make_prod()
+
+            # Simula o gather — cada cliente tem seu próprio semaphore (como seria em produção
+            # onde um único VtexApiClient orquestra vários produtos via gather)
+            await _asyncio.gather(
+                client_a._fetch_shipping(_SKU, _SELLER, _ZIPCODE, _DOMAIN, prod_a),
+                client_b._fetch_shipping(_SKU, _SELLER, _ZIPCODE, _DOMAIN, prod_b),
+            )
+            return prod_a, prod_b
+
+        prod_a, prod_b = asyncio.run(_run_siblings())
+
+        # prod_a deve continuar existindo (não propagou exceção) com estado de falha
+        assert prod_a.shipping is not None
+        # prod_b não deve ter sido afetado
+        assert prod_b.shipping is not None
+        assert prod_b.shipping.price == pytest.approx(19.90)

@@ -15,6 +15,7 @@ from services.review_service import get_single_review, get_bulk_reviews
 from services.brand_service import brand_service
 from services.category_resolver import resolve_query_to_vtex_category_path
 from services import vtex_parsing
+from services.vtex_shipping import filter_and_sort_slas, classify_result, select_candidate
 from core.base_scraper import BaseScraper
 from core.identity import IdentityManager
 from core.browser_manager import browser_manager
@@ -428,46 +429,122 @@ class VtexApiClient(BaseScraper):
         return None
 
 
-    async def _fetch_shipping(self, sku_id: str, zipcode: str, domain: str, prod_result: Any):
-        """Busca o valor do frete para um SKU via API de simulação do Checkout VTEX."""
+    # Delay entre tentativas de frete — definido aqui para ser patchável nos testes.
+    _SHIPPING_RETRY_SLEEP: float = 0.3
+
+    async def _fetch_shipping(
+        self,
+        sku_id: str,
+        seller_id: str,
+        zipcode: str,
+        domain: str,
+        prod_result: Any,
+    ) -> None:
+        """Busca o frete via simulação de checkout VTEX com retry limitado e estados explícitos.
+
+        Contrato de estados (D-13, D-14, D-15):
+          - available            → shipping_options populado; primary shipping definido.
+          - unavailable_for_cep  → 200 válido sem SLA de entrega; 1 chamada, sem retry.
+          - temporary_failure    → erro de transporte/HTTP retryável após 2 tentativas.
+
+        Segurança (T-33-01): URL construída somente do `domain` persistido — nunca de input do caller.
+        Privacidade (T-33-02): CEP e payload nunca logados em info/error.
+        Concorrência (T-33-03): retry permanece dentro de `self.semaphore`.
+        """
         url = f"https://{domain}/api/checkout/pub/orderForms/simulation"
         payload = {
-            "items": [{"id": sku_id, "quantity": 1, "seller": "1"}],
+            "items": [{"id": sku_id, "quantity": 1, "seller": seller_id}],
             "postalCode": zipcode,
-            "country": "BRA"
+            "country": "BRA",
         }
+
+        _RETRYABLE_HTTP = {408, 429}
+        transport_error = False
+
         try:
             async with self.semaphore:
-                async with self.session.post(url, json=payload, timeout=5) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        logisticsInfo = data.get("logisticsInfo", [])
-                        if logisticsInfo:
-                            slas = logisticsInfo[0].get("slas", [])
-                            if slas:
-                                cheapest = min(slas, key=lambda x: x.get("price", 0))
-                                price = cheapest.get("price", 0) / 100
-                                delivery_days = None
-                                try:
-                                    estimate = cheapest.get("shippingEstimate", "")
-                                    m = re.search(r'\d+', estimate)
-                                    if m:
-                                        delivery_days = int(m.group())
-                                except Exception as e:
-                                    logger.debug("Falha ao parsear prazo de entrega: %s", e)
-                                
-                                status = "Grátis" if price == 0 else "Disponível"
+                for attempt in range(2):  # 2 total attempts: 1 call + 1 retry (D-15)
+                    try:
+                        async with self.session.post(url, json=payload, timeout=5) as resp:
+                            if resp.status == 200:
+                                data = await resp.json()
+                                logistics = data.get("logisticsInfo", [])
+                                all_slas = logistics[0].get("slas", []) if logistics else []
+                                options = filter_and_sort_slas(all_slas)
+                                state = classify_result(options, transport_error=False)
+
+                                if state == "available":
+                                    # Populate all valid delivery options
+                                    shipping_options = []
+                                    for opt in options:
+                                        shipping_options.append(ShippingInfo(
+                                            price=opt["price_reais"],
+                                            status="Grátis" if opt["is_free_shipping"] else "Disponível",
+                                            estimated_delivery_days=opt.get("estimate_value"),
+                                            raw_text=f"{opt.get('name', '')} - {opt.get('shippingEstimate', '')}",
+                                            service_name=opt.get("name"),
+                                            service_id=opt.get("id"),
+                                            estimate_display=opt.get("estimate_display"),
+                                            estimate_unit=opt.get("estimate_unit"),
+                                            is_free_shipping=opt["is_free_shipping"],
+                                        ))
+
+                                    prod_result.shipping_options = shipping_options
+                                    # Primary = cheapest (first after sort)
+                                    primary = shipping_options[0]
+                                    prod_result.shipping = primary
+                                    prod_result.shipping_price = primary.price
+                                    prod_result.is_free_shipping = primary.is_free_shipping
+                                    return
+
+                                # 200 with no valid home-delivery SLA — business result, NOT retried (D-15, pitfall 5)
                                 prod_result.shipping = ShippingInfo(
-                                    price=price,
-                                    status=status,
-                                    estimated_delivery_days=delivery_days,
-                                    raw_text=f"{cheapest.get('name', '')} - {estimate}"
+                                    status="Entrega indisponível para este CEP",
+                                    raw_text="Sem modalidade de entrega para o CEP informado",
                                 )
                                 return
-                    prod_result.shipping = ShippingInfo(status="Indisponível", raw_text="Não foi possível simular")
-        except Exception as e:
-            logger.debug(f"Erro ao simular frete para {sku_id}: {e}")
-            prod_result.shipping = ShippingInfo(status="Indisponível", raw_text="Erro na simulação")
+
+                            # Retryable HTTP statuses or 5xx
+                            if resp.status in _RETRYABLE_HTTP or resp.status >= 500:
+                                transport_error = True
+                                logger.warning(
+                                    "[%s] Simulação de frete retornou HTTP %s (tentativa %d/2)",
+                                    domain, resp.status, attempt + 1,
+                                )
+                                if attempt < 1:
+                                    await asyncio.sleep(self._SHIPPING_RETRY_SLEEP)
+                                    continue
+                                # Second failure — fall through to temporary_failure below
+                            else:
+                                # Non-retryable 4xx — treat as transport error without retry
+                                transport_error = True
+                                logger.warning(
+                                    "[%s] Simulação de frete retornou HTTP %s não-retryável",
+                                    domain, resp.status,
+                                )
+                                break
+
+                    except Exception as exc:
+                        transport_error = True
+                        logger.warning(
+                            "[%s] Erro de transporte na simulação de frete (tentativa %d/2): %s",
+                            domain, attempt + 1, type(exc).__name__,
+                        )
+                        if attempt < 1:
+                            await asyncio.sleep(self._SHIPPING_RETRY_SLEEP)
+                            continue
+                        # Second failure — fall through
+
+        except Exception as exc:
+            # Absorbe erros do bloco do semaphore para não cancelar asyncio.gather siblings (D-13)
+            logger.warning("[%s] Falha inesperada na simulação de frete: %s", domain, type(exc).__name__)
+            transport_error = True
+
+        # Chegou aqui: temporary_failure após esgotamento das tentativas
+        prod_result.shipping = ShippingInfo(
+            status="Frete temporariamente indisponível",
+            raw_text="Não foi possível simular o frete neste momento",
+        )
 
     async def scrape_category_paged(
         self,
@@ -761,7 +838,15 @@ class VtexApiClient(BaseScraper):
 
                         # Converte para o modelo de busca
                         items = p.get("items", [])
-                        sku_id = items[0].get("itemId") if items else None
+
+                        # Seleciona (sku_id, seller_id) do primeiro item com oferta disponível (D-01)
+                        candidate = select_candidate(items)
+                        if candidate:
+                            sku_id, seller_id = candidate
+                        else:
+                            sku_id = items[0].get("itemId") if items else None
+                            seller_id = "1"  # fallback para catálogos first-party legados
+
                         price_full = 0.0
                         price_discount = None
                         available = False
@@ -807,7 +892,9 @@ class VtexApiClient(BaseScraper):
                         )
 
                         if include_shipping and zipcode and sku_id:
-                            shipping_tasks.append(self._fetch_shipping(sku_id, zipcode, domain, prod_result))
+                            shipping_tasks.append(
+                                self._fetch_shipping(sku_id, seller_id, zipcode, domain, prod_result)
+                            )
 
                         products.append(prod_result)
 
