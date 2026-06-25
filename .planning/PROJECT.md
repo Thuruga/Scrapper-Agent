@@ -29,7 +29,6 @@ Extração automatizada e resiliente de dados de mercado com mínima intervenç�
 <!-- REQ-IDs canônicos e escopo detalhado vivem em .planning/REQUIREMENTS.md; o roadmap mapeia cada um a uma phase. -->
 
 - [ ] **COMP-03**: Operador onboarda e busca produtos das marcas SFCC **Lacoste** e **HugoBoss** (catálogo + preço) via extração pública browser-rendered. (cumpre COMP-FUT-02)
-- [ ] **COMP-04**: Operador onboarda e busca produtos da **Richards** (Wake Commerce) via GraphQL com `TCS-Access-Token` por loja. (cumpre COMP-FUT-01; bloqueado por spike de confirmação)
 - [ ] **COMP-05**: `detect_engine` reconhece e rotula `sfcc` e `wake`, permitindo cadastrar essas marcas com o engine correto.
 - [ ] **FRET-05**: Preço e prazo de frete via checkout nos sites de marca VTEX (carregado do v2.0).
 - [ ] **BANNER-01**: Operador executa a coleta desktop nas marcas ativas e obtém todos os slides de imagem do carrossel principal da primeira tela.
@@ -38,6 +37,10 @@ Extração automatizada e resiliente de dados de mercado com mínima intervenç�
 - [ ] **BANNER-04**: Cada execução gera saídas auditáveis e isola falhas por site.
 - [ ] **BANNER-05**: Destino e credenciais do SharePoint são configuráveis sem segredos hardcoded.
 - [ ] **BANNER-06**: Banners e metadados são publicados no SharePoint de forma idempotente, com resultado por arquivo.
+
+### Validated (v3.0)
+
+- ✓ **COMP-04**: Operador onboarda e busca produtos da **Richards** (Wake Commerce) via GraphQL com `TCS-Access-Token` por loja; spike de confirmação retornou GO contra a Richards (5 produtos reais via GraphQL + token auto-extraído), `WakeEngine` plugado na `EngineFactory`. (Phase 32)
 
 ### Validated (v2.0)
 
@@ -158,4 +161,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-23 — Banners desktop e publicação no SharePoint adicionados ao milestone v3.0 (Phases 34-35).*
+*Last updated: 2026-06-25 — Phase 32 completa: COMP-04 validado (spike GO contra a Richards, `WakeEngine` plugado na `EngineFactory`).*
