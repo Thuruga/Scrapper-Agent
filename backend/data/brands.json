@@ -8,6 +8,7 @@
     "vtex_account": null,
     "engine": "vtex",
     "logo_url": null,
+    "wake_access_token": null,
     "mappings": [],
     "is_active": true
   },
@@ -20,6 +21,7 @@
     "vtex_account": null,
     "engine": "vtex",
     "logo_url": null,
+    "wake_access_token": null,
     "mappings": [],
     "is_active": true
   },
@@ -32,6 +34,7 @@
     "vtex_account": "foxton",
     "engine": "vtex",
     "logo_url": null,
+    "wake_access_token": null,
     "mappings": [],
     "is_active": true
   },
@@ -44,6 +47,7 @@
     "vtex_account": null,
     "engine": "shopify",
     "logo_url": "https://www.ricardoalmeida.com.br/cdn/shop/files/logo_ricardo_almeida_preto_1_180x.png",
+    "wake_access_token": null,
     "mappings": [],
     "is_active": true
   },
@@ -56,6 +60,7 @@
     "vtex_account": null,
     "engine": "shopify",
     "logo_url": "",
+    "wake_access_token": null,
     "mappings": [
       {
         "canonical_slug": "calcas",
@@ -84,6 +89,7 @@
     "vtex_account": null,
     "engine": "vtex",
     "logo_url": "",
+    "wake_access_token": null,
     "mappings": [],
     "is_active": true
   },
@@ -96,6 +102,7 @@
     "vtex_account": null,
     "engine": "vtex",
     "logo_url": "",
+    "wake_access_token": null,
     "mappings": [],
     "is_active": true
   },
@@ -108,6 +115,7 @@
     "vtex_account": null,
     "engine": "vtex",
     "logo_url": null,
+    "wake_access_token": null,
     "mappings": [],
     "is_active": true
   },
@@ -120,6 +128,7 @@
     "vtex_account": null,
     "engine": "vtex",
     "logo_url": null,
+    "wake_access_token": null,
     "mappings": [
       {
         "canonical_slug": "camisas",
@@ -168,6 +177,7 @@
     "vtex_account": null,
     "engine": "vtex",
     "logo_url": null,
+    "wake_access_token": null,
     "mappings": [
       {
         "canonical_slug": "camisas",
@@ -216,6 +226,7 @@
     "vtex_account": null,
     "engine": "vtex",
     "logo_url": null,
+    "wake_access_token": null,
     "mappings": [
       {
         "canonical_slug": "camisas",
@@ -264,6 +275,7 @@
     "vtex_account": null,
     "engine": "vtex",
     "logo_url": null,
+    "wake_access_token": null,
     "mappings": [
       {
         "canonical_slug": "camisas",
@@ -302,6 +314,7 @@
     "vtex_account": null,
     "engine": "vtex",
     "logo_url": null,
+    "wake_access_token": null,
     "mappings": [
       {
         "canonical_slug": "polos",
@@ -334,6 +347,45 @@
         "label": "ROUPAS INFANTIS MASCULINAS"
       }
     ],
+    "is_active": true
+  },
+  "richards": {
+    "brand_key": "richards",
+    "brand_name": "Richards",
+    "domain": "www.richards.com.br",
+    "review_provider": "none",
+    "review_store_id": null,
+    "vtex_account": null,
+    "engine": "wake",
+    "logo_url": null,
+    "wake_access_token": null,
+    "mappings": [],
+    "is_active": true
+  },
+  "lacoste": {
+    "brand_key": "lacoste",
+    "brand_name": "Lacoste",
+    "domain": "lacoste.com.br",
+    "review_provider": "none",
+    "review_store_id": null,
+    "vtex_account": null,
+    "engine": "sfcc",
+    "logo_url": null,
+    "wake_access_token": null,
+    "mappings": [],
+    "is_active": false
+  },
+  "hugoboss": {
+    "brand_key": "hugoboss",
+    "brand_name": "Hugo Boss",
+    "domain": "www.hugoboss.com.br",
+    "review_provider": "none",
+    "review_store_id": null,
+    "vtex_account": null,
+    "engine": "vtex",
+    "logo_url": null,
+    "wake_access_token": null,
+    "mappings": [],
     "is_active": true
   }
 }
