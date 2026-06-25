@@ -278,6 +278,29 @@ class TestSFCCEngineSearch:
         for product in result.products:
             assert product.image_url, f"Product {product.url} missing image_url"
 
+    def test_search_url_no_double_www_when_domain_has_www(self):
+        """Phase 31 REVIEW (double-www): a brand stored with a www.-prefixed domain
+        must still produce a single-www search URL, never https://www.www.…/."""
+        from unittest.mock import MagicMock
+        from services.engines.sfcc_engine import SFCCEngine
+
+        brand = MagicMock()
+        brand.domain = "www.lacoste.com.br"
+        brand.brand_name = "Lacoste"
+
+        fetch_mock = AsyncMock(side_effect=[_SEARCH_HTML, _PDP_HTML])
+        with patch(_BROWSER_FETCH_TARGET, new=fetch_mock):
+            with patch(
+                "services.brand_service.brand_service.get_brand",
+                return_value=brand,
+            ):
+                engine = SFCCEngine("lacoste")
+                asyncio.run(engine.search("polo", max_results=3))
+
+        search_url = fetch_mock.call_args_list[0].args[0]
+        assert "www.www." not in search_url, f"double-www in URL: {search_url}"
+        assert search_url.startswith("https://www.lacoste.com.br/search"), search_url
+
     def test_calculate_shipping_returns_none(self):
         """SC-4 / D-09: calculate_shipping returns None (no false Frete Grátis badge)."""
         from services.engines.sfcc_engine import SFCCEngine

@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import quote_plus
 
@@ -62,6 +63,20 @@ Chromium per call; 3 concurrent sessions is a conservative RAM-safe limit."""
 SEARCH_URL_TEMPLATE: str = "https://www.{domain}/search?q={query}"
 """SFCC BR search URL pattern.  Pitfall 5 notes this is unverified for the
 BR stores; built as a constant/helper so the live smoke can correct it."""
+
+_WWW_PREFIX_RE = re.compile(r"^www\.", re.IGNORECASE)
+
+
+def _strip_www(domain: str) -> str:
+    """Strip a leading ``www.`` from a stored domain.
+
+    The SFCC URL builders (search/home) prepend ``www.`` themselves, so a
+    domain stored as ``www.lacoste.com.br`` would otherwise yield a broken
+    ``https://www.www.lacoste.com.br/...`` (404).  Normalizing to the bare
+    apex here makes the engine tolerant of either stored form
+    (Phase 31 REVIEW HIGH — double-www).
+    """
+    return _WWW_PREFIX_RE.sub("", domain.strip())
 
 
 # ---------------------------------------------------------------------------
@@ -143,6 +158,10 @@ class SFCCEngine(BaseEngine):
                 self.brand_key,
                 domain,
             )
+
+        # Phase 31 REVIEW (double-www): the template below prepends www., so
+        # normalize a stored www.-prefixed domain to the bare apex first.
+        domain = _strip_www(domain)
 
         # T-31-03: URL-encode the query; navigation stays on the same domain.
         encoded_query = quote_plus(query.strip())
@@ -376,6 +395,7 @@ class SFCCEngine(BaseEngine):
                 domain,
             )
 
+        domain = _strip_www(domain)  # double-www guard (Phase 31 REVIEW)
         home_url = f"https://www.{domain}"
 
         try:
