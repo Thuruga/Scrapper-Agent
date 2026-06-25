@@ -1,0 +1,6 @@
+# Browser profile (cookies/session) — never commit
+chrome-profile/
+
+# Raw page captures are large and reproducible via the scripts; the trimmed,
+# version-controlled fixture lives in backend/tests/fixtures/lacoste_search_polo.html
+*.html

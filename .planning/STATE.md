@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Expansão Multi-Plataforma de Concorrentes & Frete VTEX
-status: Ready to plan
-stopped_at: Phase 32 Plan 03 complete — WakeEngine test suite, 235 tests passing
-last_updated: "2026-06-25T01:05:11.905Z"
+status: Ready to plan remaining v3.0 phases
+stopped_at: Phase 36 complete — Lacoste NO-GO, Zara promoted to future dedicated phase
+last_updated: "2026-06-25T02:17:10Z"
 last_activity: 2026-06-25
 progress:
-  total_phases: 6
-  completed_phases: 4
-  total_plans: 13
-  completed_plans: 13
-  percent: 67
+  total_phases: 7
+  completed_phases: 5
+  total_plans: 16
+  completed_plans: 16
+  percent: 71
 ---
 
 # Project State: Intelligence Scraper
@@ -21,7 +21,7 @@ progress:
 See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/scrapper/.planning/PROJECT.md) (updated 2026-06-23)
 
 **Core value:** Extração automatizada e resiliente de dados de mercado com mínima intervenção humana e alta fidelidade de dados.
-**Current focus:** Phase 32 — engine-wake-commerce-richards
+**Current focus:** Phase 33 or Phase 35 — remaining v3.0 planning work
 
 ## Current Milestone: v3.0 Expansão Multi-Plataforma de Concorrentes & Frete VTEX
 
@@ -31,12 +31,12 @@ See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/sc
 
 ## Current Position
 
-Phase: 33
-Plan: Not started
-  Plan 01 (spike): GO — fluxo GraphQL+TCS-Access-Token validado contra Richards (5 produtos, A1-A6 confirmados)
-  Plan 02 (engine): WakeEngine implementado — wake_access_token em models.py, wake_engine.py (354 linhas), factory.py wired
-  Plan 03 (testes): COMPLETE — test_wake_engine.py criado (11 testes, 5 classes), suite completa 235 testes verde
-Next: Phase 33 (Frete VTEX) or Phase 35 (SharePoint gate)
+Phase: 36
+Plan: Complete
+  Plan 01 (gate): COMPLETE — spike 008 returned Lacoste NO-GO; REPORT.md written
+  Plan 02 (fetcher): SKIPPED — conditional GO not met; no backend fetcher implemented
+  Plan 03 (activation): SKIPPED — no fetcher; Lacoste remains inactive
+Next: Phase 33 (`/gsd-plan-phase 33`) or Phase 35 (`/gsd-plan-phase 35`) remain available as orthogonal backlog.
 Last activity: 2026-06-25
 
 ## Performance Metrics
@@ -85,10 +85,13 @@ Last activity: 2026-06-25
 ### Roadmap Evolution
 
 - Phase 36 adicionada (2026-06-25): Onboarding das Marcas Concorrentes Restantes — Lacoste (anti-bot SFCC) com gate de viabilidade GO/NO-GO + reavaliação Zara/Inditex. Endereça o gap da Lacoste (COMP-03) e COMP-FUT-03. Hugo Boss (VTEX) e Richards (Wake) já entregues e ativos neste ciclo.
+- Phase 36 concluída (2026-06-25): Lacoste NO-GO dentro do envelope público stealth permitido; 36-02/36-03 pulados por gate; Zara promovida para fase futura dedicada.
 
 ### Decisions
 
 - [onboarding-live/2026-06-25]: Cadastro ao vivo das marcas concorrentes restantes (persistido em backend/data/brands.json, commit adb9635). Richards → engine `wake`, `www.richards.com.br`, **ativa**, busca OK (3 produtos). **Hugo Boss → engine `vtex` (NÃO `sfcc` — correção empírica da suposição COMP-03/Phase 31), `www.hugoboss.com.br`, ativa, busca OK (3 produtos)**. Lacoste → engine `sfcc`, **inativa** (bloqueio anti-bot, ver Blockers). Engines de Richards/Lacoste atribuídos por evidência (spike 007 + marcadores HTML + assinatura 403), pois `detect_engine` retorna `unknown` sob anti-bot na Richards. `hugoboss.com.br` sem www NÃO resolve — usar `www.hugoboss.com.br`.
+- [36-01/NO-GO]: Spike 008 testou Lacoste home/search (`polo`, `camisa`) com baseline Playwright e `playwright-stealth`; todos retornaram HTTP 403, 296B, `Access Denied`/Akamai. Decisão: manter `lacoste.is_active=false`, não implementar fetcher degradado, não executar 36-02/36-03.
+- [36-01/Zara]: Recheck Zara carregou home e search públicos com stealth (HTTP 200, HTML grande). Não foi criado engine; COMP-FUT-03 deve virar fase futura dedicada para validar produto+preço e implementação.
 - [32-03/SC-2/SC-3/SC-4]: test_wake_engine.py criado com 11 testes herméticos (5 classes); mock seam SessionManager.get_session; guard test_factory_wake_still_raises já removido em 32-02; suite completa 235 testes verde.
 - [32-02/SC-3]: EngineFactory.get_engine para engine='wake' agora retorna WakeEngine (import lazy) — NotImplementedError removido do branch wake em factory.py.
 - [32-02/D-06]: Campo wake_access_token: Optional[str] = None adicionado em DynamicBrandCreate apos logo_url; herdado por DynamicBrand; marcas existentes sem o campo continuam validas.
@@ -98,12 +101,12 @@ Last activity: 2026-06-25
 - [30-01/D-05]: Wake branch returns 'wake' — fbitsstatic.net probe now labels Richards correctly; D-04 auto-deactivation no longer fires for Wake brands.
 - [30-01/D-02+D-07]: SFCC browser probe uses exclusive demandware.static/demandware.edgesuite.net markers and is last-resort (after Shopify, VTEX, HTML probes); SC-4 guaranteed.
 - [30-01/D-03]: BrowserManager imported lazily inside try block in detect_engine; Playwright-absent startup does not break module load.
-- [v3.0 roadmap]: 6 phases, 30-35. COMP-05→Phase 30 (detecção SFCC/Wake), COMP-03→Phase 31 (engine SFCC), COMP-04→Phase 32 (engine Wake, spike-gated), FRET-05→Phase 33 (frete VTEX), BANNER-01..04→Phase 34 (extração desktop), BANNER-05..06→Phase 35 (SharePoint). Cobertura 10/10.
+- [v3.0 roadmap]: 7 phases, 30-36. COMP-05→Phase 30 (detecção SFCC/Wake), COMP-03→Phase 31/36 (engine SFCC + Lacoste anti-bot gate), COMP-04→Phase 32 (engine Wake, spike-gated), FRET-05→Phase 33 (frete VTEX), BANNER-01..04→Phase 34 (extração desktop), BANNER-05..06→Phase 35 (SharePoint). Cobertura 10/10 comprometidos + COMP-FUT-03 reavaliado.
 - [v3.0 ordering]: Phase 30 (detecção) é pré-requisito compartilhado das Phases 31 e 32 — sem rotular `sfcc`/`wake`, as marcas seriam auto-desativadas no cadastro (regra D-04). Phases 33 (frete VTEX) e 34 (extração de banners) são ortogonais e podem rodar em paralelo; Phase 35 depende da 34.
 - [v3.0 COMP-04]: O build do engine Wake é gated por um spike de confirmação (Wave 0 da Phase 32) do fluxo GraphQL + `TCS-Access-Token` contra a Richards/Shop2gether — Wake é HIGH confidence documentalmente mas NÃO foi testado empiricamente. GO/NO-GO registrado antes do engine completo.
 - [v3.0 COMP-03]: Caminho SFCC é público via browser (JSON-LD/OpenGraph), validado por spikes 003-006 — HTTP direto é 403. Escopo: catálogo + preço APENAS. SEM frete/checkout, estoque por CEP, OCAPI/SCAPI ou bypass de anti-bot.
 - [v3.0 FRET-05]: Frete VTEX continua via `VtexApiClient` interno — NÃO rotear pelo hook `calculate_shipping` (decisão arquitetural herdada do v2.0 para evitar regressão).
-- [v3.0 scope]: Zara/Inditex IOP (COMP-FUT-03) permanece deferido (sem caminho público validado). Auth segue API key compartilhada (PROFILE-FUT-01 adiado); FRET-06 (Shopify shipping) segue Future.
+- [v3.0 scope]: Zara/Inditex IOP (COMP-FUT-03) permanece fora do milestone, mas Phase 36 encontrou páginas públicas carregáveis; promover para fase futura dedicada. Auth segue API key compartilhada (PROFILE-FUT-01 adiado); FRET-06 (Shopify shipping) segue Future.
 - [v3.0 banners]: BANNER-FUT-01 foi promovido para BANNER-01..06. Phase 34 entrega extração desktop (todos os slides de imagem do hero, arquivos originais, metadados e relatório); Phase 35 entrega publicação idempotente no SharePoint com gate de acesso/permissões.
 - [v3.0 banners scope]: Viewport desktop `1366×768` apenas. Mobile, download de vídeos e agendamento recorrente ficam fora do milestone; vídeos intercalados são contabilizados para que a navegação não pare antes de banners posteriores.
 - [v3.0 banners spike]: Protótipo `testes/extrair_banners.py` validado em 13/13 sites ativos: 37 imagens extraídas, 3 slides em vídeo identificados e zero falhas de download na rodada de 2026-06-23.
@@ -141,7 +144,7 @@ Last activity: 2026-06-25
 
 - [v3.0/COMP-04] Wake/Richards: fluxo GraphQL + `TCS-Access-Token` é HIGH confidence documentalmente (wakecommerce.readme.io) mas NÃO testado empiricamente. Phase 32 deve iniciar pelo spike de confirmação (Wave 0) com decisão GO/NO-GO antes do engine completo.
 - [v3.0/COMP-03 — atualizado 2026-06-25] **Hugo Boss BR é VTEX, não SFCC** (suposição da Phase 31 corrigida ao vivo): `www.hugoboss.com.br` expõe `vtexassets.com`; onboardada como `vtex`, ativa, busca OK. Apenas a **Lacoste** permanece SFCC entre as concorrentes do v3.0.
-- [v3.0/COMP-03 — Lacoste BLOQUEADA 2026-06-25] Lacoste (`sfcc`) cadastrada **inativa**: HTTP direto = 403 e **o Playwright headless também recebe "Access Denied" (296B)** na home E na busca. A extração via browser público (premissa dos spikes 003-006) NÃO passa com o `BrowserManager` atual. Habilitar requer estratégia anti-bot (browser stealth / proxy residencial / fingerprint real) — fora do escopo v3.0 atual; endereçada na nova phase de marcas restantes.
+- [v3.0/COMP-03 — Lacoste REVISADO 2026-06-25 (spike 009)] Lacoste (`sfcc`) permanece **inativa em produção**, mas o NO-GO da Phase 36 foi **REVERTIDO**: o anti-bot Akamai é por **reputação de IP** (não fingerprint — stealth não muda nada). De um **IP limpo (4G)** a busca retorna **32 produtos reais server-side**. O NO-GO original vinha de DUAS causas: (1) IP corporativo da Aramis bloqueado; (2) URL de busca errada. Host canônico: `www.lacoste.com/br/` (o `lacoste.com.br` redireciona à home e perde o `?q=`); endpoint `…/search?q=`. **Engine SFCC já CORRIGIDA e testada offline** contra o HTML real capturado: `parse_search_tiles` (extrai do tile), `brand.search_url_template`, hook `brand.proxy_url`→`BrowserManager` (259 testes verdes). Trava ÚNICA p/ ativar — sobretudo no **Azure (IP datacenter, bloqueado mais forte)**: **egress de IP limpo** (proxy residencial/móvel barato OU dispositivo dedicado em link residencial). Sem verba no momento → mantida dormente; setar `proxy_url` + validar D-06 ao vivo antes de `is_active=true`. Evidência: `.planning/spikes/009-lacoste-headed-mobile/FINDINGS.md`.
 - [31-REVIEW/HIGH — RESOLVIDO 2026-06-25] SFCC double-www: corrigido em `sfcc_engine.py` (helper `_strip_www` remove prefixo `www.` antes dos builders de search/home URL + teste de regressão `test_search_url_no_double_www_when_domain_has_www`). Commit 83dfdba. O bloqueio remanescente da Lacoste é anti-bot, não mais o double-www.
 - FRET-06 (Shopify): permanece adiado — smoke test necessário antes de comprometer (sessão/cookie no AJAX Cart pode requerer Playwright). Fora do escopo do v3.0.
 - [v3.0/BANNER-05] SharePoint: site/biblioteca de destino, credenciais e permissões ainda não foram fornecidos. Phase 35 deve começar por um gate de conectividade e acesso antes do publicador completo.
@@ -162,20 +165,21 @@ Last activity: 2026-06-25
 | Identidade de Produto | IDENT-01 (sinal além do EAN) | Deferred (research) | v1.11 init |
 | Exportação | EXPORT-HIST-01 (export do histórico) | Deferred | v1.12 init |
 | Exportação | EXPORT-UNIFY-01 (unificar com export por marca) | Deferred | v1.12 init |
-| Concorrentes | COMP-FUT-03 (Zara/Inditex IOP) | Deferred | v2.0 init |
+| Concorrentes | COMP-FUT-03 (Zara/Inditex IOP) | Promote to future dedicated phase | Phase 36 recheck |
 | Acesso | PROFILE-FUT-01 (perfis por equipe) | Deferred | v2.0 init |
 | Frete | FRET-06 (Shopify checkout shipping) | Deferred (viabilidade) | v2.0 init |
 
 ## Session Continuity
 
-Last session: 2026-06-25T00:55:00Z
-Stopped at: Phase 32 Plan 03 complete — WakeEngine test suite, 235 tests passing
-Resume file: .planning/phases/32-engine-wake-commerce-richards/32-03-SUMMARY.md
+Last session: 2026-06-25T02:17:10Z
+Stopped at: Phase 36 complete — Lacoste NO-GO, Zara promoted to future dedicated phase
+Resume file: .planning/phases/36-onboarding-das-marcas-concorrentes-restantes-lacoste-anti-bo/36-01-SUMMARY.md
 
 ## Operator Next Steps
 
 - SFCC double-www: CORRIGIDO (commit 83dfdba) — não é mais bloqueador.
-- Marcas concorrentes restantes cadastradas ao vivo: Richards (wake) ✅ e Hugo Boss (vtex) ✅ ativas; Lacoste (sfcc) inativa por anti-bot. Nova phase criada para Lacoste/Zara (marcas restantes).
+- Phase 36: COMPLETE. Follow-up (spike 009, 2026-06-25): NO-GO revertido — engine SFCC da Lacoste corrigida e testada offline; Lacoste segue `is_active=false`, ativação depende só de egress de IP limpo (Azure=datacenter bloqueia). Bug de UI `Marcas inválidas` (seletor de busca oferecia marca inativa → 400) corrigido em `frontend/src/App.tsx`.
+- Zara/Inditex: create a future dedicated phase from COMP-FUT-03 if/when this becomes priority.
 - Phase 33: `/gsd-plan-phase 33` (Frete VTEX via checkout — ortogonal aos engines)
 - Phase 35: `/gsd-plan-phase 35` (gate de acesso ao SharePoint)
 - (opcional) Hugo Boss: rodar de/para de categorias VTEX (onboard_vtex_brands-style) para habilitar scans por categoria além da busca por SKU.
