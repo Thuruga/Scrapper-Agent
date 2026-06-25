@@ -232,21 +232,8 @@ class TestSFCCFactory:
             engine = EngineFactory.get_engine("lacoste")
         assert isinstance(engine, SFCCEngine)
 
-    def test_factory_wake_still_raises(self):
-        """factory.py guard for 'wake' is preserved (Pitfall 4 — not a delete)."""
-        from services.engines.factory import EngineFactory
-        from unittest.mock import MagicMock
-
-        # Simulate a brand with engine="wake"
-        mock_brand = MagicMock()
-        mock_brand.engine = "wake"
-
-        with patch(
-            "services.engines.factory.brand_service.get_brand",
-            return_value=mock_brand,
-        ):
-            with pytest.raises(NotImplementedError):
-                EngineFactory.get_engine("richards")
+# test_factory_wake_still_raises removed in Phase 32 plan 02 — WakeEngine is now live.
+# The test test_factory_returns_wake_engine in test_wake_engine.py (plan 32-03) replaces it.
 
 
 # ---------------------------------------------------------------------------

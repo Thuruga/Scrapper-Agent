@@ -49,15 +49,12 @@ class EngineFactory:
             from services.engines.sfcc_engine import SFCCEngine  # noqa: PLC0415
             return SFCCEngine(brand_key)
 
-        # D-10 (Phase 32 — Wake pending): the "wake" guard is preserved as its own branch so
-        # a Wake brand does NOT silently fall through to VTEXEngine below (Pitfall 4).
-        # NotImplementedError is a subclass of Exception, so it is caught by the
-        # `except Exception` in _search_one and becomes BrandSearchResult.error without
-        # derailing the asyncio.gather of the other brands.
+        # D-09 (Phase 32 — Wake now live): WakeEngine replaces the former NotImplementedError
+        # guard for engine_type="wake".  Import is lazy (inside get_engine) to preserve
+        # circular-import safety — same pattern as SFCCEngine above (L48-50).
         if engine_type == "wake":
-            raise NotImplementedError(
-                f"Engine 'wake' para '{brand_key}' ainda não disponível (Phase 32 pendente)."
-            )
+            from services.engines.wake_engine import WakeEngine  # noqa: PLC0415
+            return WakeEngine(brand_key)
 
         return VTEXEngine(brand_key)
 
