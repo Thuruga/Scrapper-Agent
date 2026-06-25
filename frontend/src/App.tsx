@@ -1136,7 +1136,8 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
   };
 
   const selectAllBrands = () => {
-    setSearch({ selectedBrands: brands.map(b => b.brand_key) });
+    // Só marcas ativas são alvos válidos de /search (inativas → 400). Espelha BannersPage.
+    setSearch({ selectedBrands: brands.filter(b => b.is_active !== false).map(b => b.brand_key) });
   };
 
   const clearBrands = () => {
@@ -1277,7 +1278,7 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
           </div>
 
           <div className="search-brand-grid brand-selector-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' }}>
-            {brands.map(b => (
+            {brands.filter(b => b.is_active !== false).map(b => (
               <button
                 type="button"
                 key={b.brand_key}
