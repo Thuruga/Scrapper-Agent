@@ -22,6 +22,8 @@ from typing import Optional
 # .planning/spikes/007-wake-graphql-token-confirmation/ -> 3 niveis acima = raiz
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 sys.path.insert(0, ROOT)
+# Os modulos do projeto (core/, services/) ficam em backend/
+sys.path.insert(0, os.path.join(ROOT, "backend"))
 os.chdir(ROOT)
 
 from core.session_manager import SessionManager  # noqa: E402
