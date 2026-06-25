@@ -10,13 +10,13 @@ Requisitos comprometidos para este milestone. Cada um mapeia para uma phase no R
 
 ### Concorrentes — Novas Plataformas
 
-- [ ] **COMP-03**: Operador consegue onboardar e buscar produtos das marcas SFCC **Lacoste** e **HugoBoss** (catálogo + preço) via extração pública browser-rendered (JSON-LD / OpenGraph). _(cumpre COMP-FUT-02)_
+- [ ] **COMP-03**: Operador consegue onboardar e buscar produtos das marcas SFCC **Lacoste** e **HugoBoss** (catálogo + preço) via extração pública browser-rendered (JSON-LD / OpenGraph). _(cumpre COMP-FUT-02; status 2026-06-25: Hugo Boss entregue como VTEX, Lacoste segue bloqueada/inativa após Phase 36 NO-GO no envelope público stealth permitido)_
 - [x] **COMP-04**: Operador consegue onboardar e buscar produtos da **Richards** (Wake Commerce) via API GraphQL com header `TCS-Access-Token` por loja. _(cumpre COMP-FUT-01; gated por um spike de confirmação do fluxo GraphQL + token antes de construir o engine)_
 - [x] **COMP-05**: Ao cadastrar uma marca SFCC ou Wake, o sistema detecta e rotula o engine correto (`detect_engine` retorna `sfcc` / `wake` em vez de `unknown`), permitindo o cadastro com o engine certo em vez de desativar a marca.
 
 ### Frete (Checkout) — carregado do v2.0
 
-- [ ] **FRET-05**: O sistema calcula preço e prazo de frete via checkout para os sites de marca VTEX (que hoje retornam vazio em `calculate_shipping`), com unidade correta (centavos→reais) e detecção de frete grátis.
+- [x] **FRET-05**: O sistema calcula preço e prazo de frete via checkout para os sites de marca VTEX (que hoje retornam vazio em `calculate_shipping`), com unidade correta (centavos→reais) e detecção de frete grátis.
 
 ### Banners Desktop — Extração
 
@@ -36,7 +36,7 @@ Reconhecidos, porém adiados — não entram no roadmap deste milestone.
 
 ### Concorrentes em plataformas não suportadas (precisam de engine novo)
 
-- [ ] **COMP-FUT-03**: Engine para **Zara** (Inditex IOP, proprietário — sem API padrão de catálogo). Sem caminho público validado; exige spike de pesquisa de viabilidade antes de comprometer.
+- [ ] **COMP-FUT-03**: Engine para **Zara** (Inditex IOP, proprietário — sem API padrão de catálogo). Phase 36 recheck carregou home/search públicos sem bloqueio; promover para fase futura dedicada para validar extração de produto+preço e só então comprometer engine.
 
 ### Perfis de acesso (adiado da reunião 17/06)
 
@@ -60,8 +60,8 @@ Explicitamente excluído deste milestone, com motivo.
 |---------|--------|
 | Frete / checkout / estoque por CEP para marcas SFCC | O caminho SFCC validado por spike é só catálogo+preço via browser público; checkout/frete exigiria OCAPI/SCAPI (credenciais) — fora de escopo. |
 | OCAPI / SCAPI (APIs autenticadas SFCC) | Exigem credenciais comerciais não disponíveis; a extração SFCC fica na via pública browser-rendered. |
-| Bypass de anti-bot / proxy / stealth / CAPTCHA / WAF | Extração SFCC e Wake permanece na superfície pública; sem evasão de bloqueio. |
-| Engine **Zara / Inditex IOP** | Plataforma proprietária sem caminho público validado; permanece deferida (COMP-FUT-03). |
+| Escalada anti-bot / proxy pago / CAPTCHA / WAF | Phase 36 testou apenas o envelope público stealth aprovado; qualquer escalada além disso exige aprovação explícita posterior. |
+| Engine **Zara / Inditex IOP** | Plataforma proprietária; Phase 36 viu páginas públicas carregarem, mas produto+preço e engine exigem fase futura dedicada (COMP-FUT-03). |
 | Reforma de autenticação / perfis de acesso por usuário | Disruptivo (hoje é API key compartilhada); permanece Future (PROFILE-FUT-01). |
 | Banners mobile | O milestone cobre somente viewport desktop; imagens responsivas/mobile exigem coleta e validação próprias. |
 | Download de slides em vídeo | Vídeos são contabilizados para completar o carrossel, mas a entrega comprometida é somente de imagens. |
@@ -72,9 +72,9 @@ Explicitamente excluído deste milestone, com motivo.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | COMP-05 | Phase 30 | Complete |
-| COMP-03 | Phase 31 | Pending |
+| COMP-03 | Phase 31 + Phase 36 | Partial / blocked for Lacoste (NO-GO) |
 | COMP-04 | Phase 32 | Complete |
-| FRET-05 | Phase 33 | Pending |
+| FRET-05 | Phase 33 | Complete |
 | BANNER-01 | Phase 34 | Complete |
 | BANNER-02 | Phase 34 | Complete |
 | BANNER-03 | Phase 34 | Complete |
@@ -85,10 +85,10 @@ Explicitamente excluído deste milestone, com motivo.
 **Coverage:**
 
 - v3.0 requirements: 10 total
-- Mapped to phases: 10 (COMP-05→30, COMP-03→31, COMP-04→32, FRET-05→33, BANNER-01..04→34, BANNER-05..06→35)
+- Mapped to phases: 10 (COMP-05→30, COMP-03→31+36, COMP-04→32, FRET-05→33, BANNER-01..04→34, BANNER-05..06→35)
 - Unmapped: 0 ✓
-- Deferred (Future): COMP-FUT-03, PROFILE-FUT-01, FRET-06, EXPORT-HIST-01, EXPORT-UNIFY-01, IDENT-01
+- Deferred (Future): COMP-FUT-03 (promover para fase Zara/Inditex dedicada), PROFILE-FUT-01, FRET-06, EXPORT-HIST-01, EXPORT-UNIFY-01, IDENT-01
 
 ---
 *Requirements defined: 2026-06-23 for milestone v3.0*
-*Last updated: 2026-06-23 — Banners desktop incorporados ao v3.0; BANNER-01..04→Phase 34 e BANNER-05..06→Phase 35; cobertura 10/10.*
+*Last updated: 2026-06-25 — Phase 36 concluiu Lacoste NO-GO no envelope público stealth permitido; Zara recheck promove COMP-FUT-03 para fase futura dedicada.*
