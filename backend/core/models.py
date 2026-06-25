@@ -23,6 +23,28 @@ class ShippingInfo(BaseModel):
         default=None,
         description="Texto original extraído (ex: 'Grátis', 'Receba amanhã')",
     )
+    # Identidade da modalidade (Phase 33 — additive, safe defaults para registros antigos)
+    service_name: str | None = Field(
+        default=None,
+        description="Nome da modalidade de entrega (ex: 'Expresso', 'Normal')",
+    )
+    service_id: str | None = Field(
+        default=None,
+        description="ID interno da SLA VTEX (campo 'id' do SLA)",
+    )
+    # Metadados do prazo parseados por vtex_shipping.parse_estimate
+    estimate_display: str | None = Field(
+        default=None,
+        description="Texto PT do prazo (ex: 'Até 5 dias úteis', 'Até 12 horas')",
+    )
+    estimate_unit: str | None = Field(
+        default=None,
+        description="Unidade VTEX do prazo: 'bd', 'd', 'h' ou 'm'",
+    )
+    is_free_shipping: bool = Field(
+        default=False,
+        description="True quando price == 0.0 (grátis); False caso contrário",
+    )
 
 
 class RawProductBronze(BaseModel):
@@ -112,6 +134,11 @@ class SearchProductResult(BaseModel):
     available_sizes: List[str] = Field(default_factory=list)
     seller: Optional[str] = None
     shipping: ShippingInfo | None = None
+    shipping_options: List[ShippingInfo] = Field(
+        default_factory=list,
+        description="Todas as modalidades de entrega domiciliar válidas, "
+                    "ordenadas por preço asc depois prazo asc (Phase 33 VTEX).",
+    )
 
     is_free_shipping: bool = False
     shipping_price: Optional[float] = None
