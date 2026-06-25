@@ -223,6 +223,7 @@ class DynamicBrandCreate(BaseModel):
     vtex_account: Optional[str] = None  # ex: "foxton" (se diferente do domínio)
     engine: Optional[str] = "vtex"  # ex: "vtex", "shopify"
     logo_url: Optional[str] = None  # ex: "https://.../logo.png"
+    wake_access_token: Optional[str] = None  # override manual do token público de storefront Wake (D-06)
 
 
 class DynamicBrand(DynamicBrandCreate):
