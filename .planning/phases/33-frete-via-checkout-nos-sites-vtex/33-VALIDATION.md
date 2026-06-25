@@ -50,7 +50,7 @@ created: 2026-06-24
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
 | 33-01-01 | 01 | 1 | FRET-05 | T-33-04 | Pickup filtered; cents and estimate units parsed deterministically | unit | `python -m pytest backend/tests/test_vtex_shipping.py -q` | ❌ task creates | ⬜ pending |
-| 33-01-02 | 01 | 1 | FRET-05 | Additive model preserves zero-vs-null and legacy fields | unit | `python -m pytest backend/tests/test_vtex_shipping.py backend/tests/test_relevance_gates.py -q` | partial | ⬜ pending |
+| 33-01-02 | 01 | 1 | FRET-05 | — | Additive model preserves zero-vs-null and legacy fields | unit | `python -m pytest backend/tests/test_vtex_shipping.py backend/tests/test_vtex_api_client.py -q` | partial | ⬜ pending |
 | 33-02-01 | 02 | 2 | FRET-05 | Persisted domain only; SKU and seller paired; one bounded retry | integration | `python -m pytest backend/tests/test_vtex_api_client.py -q` | ✅ | ⬜ pending |
 | 33-02-02 | 02 | 2 | FRET-05 | Default CEP endpoint exposes no secret and search serializes options | API contract | `python -m pytest backend/tests/test_search_shipping_contract.py -q` | ❌ task creates | ⬜ pending |
 | 33-03-01 | 03 | 3 | FRET-05 | Default config never overwrites edited CEP; invalid CEP blocks request | static/behavior | `npm run lint --prefix frontend && npm run build --prefix frontend` | ✅ infrastructure | ⬜ pending |

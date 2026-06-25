@@ -121,8 +121,16 @@ Phases 19-29 pertencem a milestones CONCLUÍDOS (v1.10-v2.0). As phases ativas d
   3. O contrato de unidade (centavos→reais, divisão por 100) está documentado no caminho de frete VTEX e coberto por ao menos um teste de range que detecta regressão de unidade (ex.: valor acima de R$ 1.000 sem frete grátis é suspeito).
 
 **Plans**: 3 plans
+**Wave 1**
+
 - [ ] 33-01-PLAN.md — Parser puro de frete (vtex_shipping.py) + evolução aditiva dos modelos (shipping_options) + testes test-first
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 33-02-PLAN.md — Rewire de _fetch_shipping (SKU+seller, retry único, estados explícitos, shipping_options) + endpoint read-only de CEP padrão + testes de contrato
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 33-03-PLAN.md — Frontend: loader de config, init único de CEP, bloqueio de CEP inválido, render de todas as modalidades (Truck/CheckCircle2) com fallback legado
 
 ### Phase 34: Extração de Banners Desktop
