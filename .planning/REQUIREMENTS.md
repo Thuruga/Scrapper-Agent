@@ -11,7 +11,7 @@ Requisitos comprometidos para este milestone. Cada um mapeia para uma phase no R
 ### Concorrentes — Novas Plataformas
 
 - [ ] **COMP-03**: Operador consegue onboardar e buscar produtos das marcas SFCC **Lacoste** e **HugoBoss** (catálogo + preço) via extração pública browser-rendered (JSON-LD / OpenGraph). _(cumpre COMP-FUT-02)_
-- [ ] **COMP-04**: Operador consegue onboardar e buscar produtos da **Richards** (Wake Commerce) via API GraphQL com header `TCS-Access-Token` por loja. _(cumpre COMP-FUT-01; gated por um spike de confirmação do fluxo GraphQL + token antes de construir o engine)_
+- [x] **COMP-04**: Operador consegue onboardar e buscar produtos da **Richards** (Wake Commerce) via API GraphQL com header `TCS-Access-Token` por loja. _(cumpre COMP-FUT-01; gated por um spike de confirmação do fluxo GraphQL + token antes de construir o engine)_
 - [x] **COMP-05**: Ao cadastrar uma marca SFCC ou Wake, o sistema detecta e rotula o engine correto (`detect_engine` retorna `sfcc` / `wake` em vez de `unknown`), permitindo o cadastro com o engine certo em vez de desativar a marca.
 
 ### Frete (Checkout) — carregado do v2.0
@@ -73,7 +73,7 @@ Explicitamente excluído deste milestone, com motivo.
 |-------------|-------|--------|
 | COMP-05 | Phase 30 | Complete |
 | COMP-03 | Phase 31 | Pending |
-| COMP-04 | Phase 32 | Pending |
+| COMP-04 | Phase 32 | Complete |
 | FRET-05 | Phase 33 | Pending |
 | BANNER-01 | Phase 34 | Complete |
 | BANNER-02 | Phase 34 | Complete |

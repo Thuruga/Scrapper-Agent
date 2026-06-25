@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Expansão Multi-Plataforma de Concorrentes & Frete VTEX
-status: Executing Phase 32
-stopped_at: Phase 32 Plan 03 complete — WakeEngine test suite created (235 tests passing)
-last_updated: "2026-06-25T00:55:00Z"
-last_activity: 2026-06-25 -- Phase 32 Plan 03 executed (WakeEngine hermetic tests)
+status: Ready to plan
+stopped_at: Phase 32 Plan 03 complete — WakeEngine test suite, 235 tests passing
+last_updated: "2026-06-25T01:05:11.905Z"
+last_activity: 2026-06-25
 progress:
   total_phases: 6
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 13
-  completed_plans: 12
-  percent: 57
+  completed_plans: 13
+  percent: 67
 ---
 
 # Project State: Intelligence Scraper
@@ -31,13 +31,13 @@ See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/sc
 
 ## Current Position
 
-Phase: 32 (engine-wake-commerce-richards) — EXECUTING
-Plan: 3 of 3 (complete) — Phase 32 COMPLETE
+Phase: 33
+Plan: Not started
   Plan 01 (spike): GO — fluxo GraphQL+TCS-Access-Token validado contra Richards (5 produtos, A1-A6 confirmados)
   Plan 02 (engine): WakeEngine implementado — wake_access_token em models.py, wake_engine.py (354 linhas), factory.py wired
   Plan 03 (testes): COMPLETE — test_wake_engine.py criado (11 testes, 5 classes), suite completa 235 testes verde
 Next: Phase 33 (Frete VTEX) or Phase 35 (SharePoint gate)
-Last activity: 2026-06-25 -- Phase 32 Plan 03 complete (WakeEngine test suite: 235 tests passing)
+Last activity: 2026-06-25
 
 ## Performance Metrics
 
@@ -78,6 +78,7 @@ Last activity: 2026-06-25 -- Phase 32 Plan 03 complete (WakeEngine test suite: 2
 | Phase 32-engine-wake-commerce-richards P01 | ~10m | 2 tasks | 2 files |
 | Phase 32-engine-wake-commerce-richards P02 | ~5m | 3 tasks | 4 files |
 | Phase 32-engine-wake-commerce-richards P03 | ~5m | 2 tasks | 1 files |
+| 32 | 3 | - | - |
 
 ## Accumulated Context
 
