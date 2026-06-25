@@ -315,6 +315,10 @@ class WakeEngine(BaseEngine):
                 brand.get("wake_access_token") if isinstance(brand, dict) else None
             )
             if override:
+                # WR-03: seed the instance cache so the documented
+                # "override > cache > auto-extract" precedence holds consistently
+                # and the override path is not re-resolved on every search call.
+                self._token_cache = override
                 logger.debug("[Wake] using manual token override for brand_key=%s", self.brand_key)
                 return override
 

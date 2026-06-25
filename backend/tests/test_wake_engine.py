@@ -433,6 +433,29 @@ class TestWakeMaxResultsClamp:
 
 
 # ---------------------------------------------------------------------------
+# TestWakeOverrideCaching — WR-03: override seeds the instance token cache
+# ---------------------------------------------------------------------------
+
+class TestWakeOverrideCaching:
+    """A manual override token seeds _token_cache so precedence holds on later calls (WR-03)."""
+
+    def test_override_seeds_cache(self):
+        """WR-03: resolving an override populates the per-instance cache."""
+        from services.engines.wake_engine import WakeEngine
+
+        mock_brand = _make_brand_mock(wake_access_token="tcs_override_xyz")
+
+        engine = WakeEngine("richards")
+        assert engine._token_cache is None, "cache must start empty"
+
+        token = asyncio.run(engine._resolve_token(brand=mock_brand, domain="www.richards.com.br"))
+        assert token == "tcs_override_xyz"
+        assert engine._token_cache == "tcs_override_xyz", (
+            "override must seed _token_cache so the documented precedence holds (WR-03)"
+        )
+
+
+# ---------------------------------------------------------------------------
 # TestWakeModels — D-06: wake_access_token Optional field in DynamicBrandCreate
 # ---------------------------------------------------------------------------
 
