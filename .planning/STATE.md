@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Expansão Multi-Plataforma de Concorrentes & Frete VTEX
-status: Ready to execute
+status: Executing Phase 32
 stopped_at: Phase 32 context gathered
-last_updated: "2026-06-24T18:50:23.876Z"
-last_activity: 2026-06-24 -- Phase 31 complete
+last_updated: "2026-06-25T00:26:43.867Z"
+last_activity: 2026-06-25 -- Phase 32 execution started
 progress:
   total_phases: 6
   completed_phases: 3
-  total_plans: 10
+  total_plans: 13
   completed_plans: 10
   percent: 50
 ---
@@ -21,7 +21,7 @@ progress:
 See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/scrapper/.planning/PROJECT.md) (updated 2026-06-23)
 
 **Core value:** Extração automatizada e resiliente de dados de mercado com mínima intervenção humana e alta fidelidade de dados.
-**Current focus:** Phase 32 — engine-wake-commerce-richards (next)
+**Current focus:** Phase 32 — engine-wake-commerce-richards
 
 ## Current Milestone: v3.0 Expansão Multi-Plataforma de Concorrentes & Frete VTEX
 
@@ -31,11 +31,12 @@ See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/sc
 
 ## Current Position
 
-Phase: 31 (engine-sfcc-browser-p-blico-lacoste-hugoboss) — COMPLETE ✅
+Phase: 32 (engine-wake-commerce-richards) — EXECUTING
+Plan: 1 of 3
   Waves: 3/3 merged. 225/225 tests passing. REVIEW.md + VERIFICATION.md written.
   CRITICAL open item: double-www bug in SFCC URL construction — fix before first live run.
 Next: Phase 32 (engine-wake-commerce-richards) — spike-gated GO/NO-GO on GraphQL token
-Last activity: 2026-06-24 -- Phase 31 complete
+Last activity: 2026-06-25 -- Phase 32 execution started
 
 ## Performance Metrics
 

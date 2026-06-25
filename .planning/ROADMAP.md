@@ -98,7 +98,7 @@ Phases 19-29 pertencem a milestones CONCLUÍDOS (v1.10-v2.0). As phases ativas d
 
 **Wave 0** *(GATE — spike de confirmação GO/NO-GO; gateia Wave 1+)*
 
-- [ ] 32-01-PLAN.md — spike 007-wake-graphql-token-confirmation: experiment.py + REPORT.md com veredito GO/NO-GO (token GraphQL+TCS-Access-Token; Richards/Shop2gether) (SC-1)
+- [x] 32-01-PLAN.md — spike 007-wake-graphql-token-confirmation: experiment.py + REPORT.md com veredito GO/NO-GO (token GraphQL+TCS-Access-Token; Richards/Shop2gether) (SC-1)
 
 **Wave 1** *(blocked on Wave 0 — só executa se REPORT.md = GO; em NO-GO o WakeEngine é deferido por D-03)*
 
@@ -164,7 +164,7 @@ Phases ativas executam em ordem numérica: 30 → 31 → 32 → 33 → 34 → 35
 | 25-29. v2.0 (Concorrentes & Confiabilidade) | v2.0 | - | Complete | shipped |
 | 30. Detecção de Engine SFCC & Wake | v3.0 | 3/3 | Complete    | 2026-06-23 |
 | 31. Engine SFCC (Browser Público) | v3.0 | 3/3 | Complete   | 2026-06-24 |
-| 32. Engine Wake Commerce — Richards | v3.0 | 0/? | Not started | - |
+| 32. Engine Wake Commerce — Richards | v3.0 | 1/3 | In Progress|  |
 | 33. Frete via Checkout nos Sites VTEX | v3.0 | 0/? | Not started | - |
 | 34. Extração de Banners Desktop | v3.0 | 4/4 | Complete   | 2026-06-23 |
 | 35. Publicação de Banners no SharePoint | v3.0 | 0/? | Not started | - |
