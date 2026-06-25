@@ -84,6 +84,7 @@ Last activity: 2026-06-25
 
 ### Decisions
 
+- [onboarding-live/2026-06-25]: Cadastro ao vivo das marcas concorrentes restantes (persistido em backend/data/brands.json, commit adb9635). Richards → engine `wake`, `www.richards.com.br`, **ativa**, busca OK (3 produtos). **Hugo Boss → engine `vtex` (NÃO `sfcc` — correção empírica da suposição COMP-03/Phase 31), `www.hugoboss.com.br`, ativa, busca OK (3 produtos)**. Lacoste → engine `sfcc`, **inativa** (bloqueio anti-bot, ver Blockers). Engines de Richards/Lacoste atribuídos por evidência (spike 007 + marcadores HTML + assinatura 403), pois `detect_engine` retorna `unknown` sob anti-bot na Richards. `hugoboss.com.br` sem www NÃO resolve — usar `www.hugoboss.com.br`.
 - [32-03/SC-2/SC-3/SC-4]: test_wake_engine.py criado com 11 testes herméticos (5 classes); mock seam SessionManager.get_session; guard test_factory_wake_still_raises já removido em 32-02; suite completa 235 testes verde.
 - [32-02/SC-3]: EngineFactory.get_engine para engine='wake' agora retorna WakeEngine (import lazy) — NotImplementedError removido do branch wake em factory.py.
 - [32-02/D-06]: Campo wake_access_token: Optional[str] = None adicionado em DynamicBrandCreate apos logo_url; herdado por DynamicBrand; marcas existentes sem o campo continuam validas.
@@ -135,8 +136,9 @@ Last activity: 2026-06-25
 ### Blockers/Concerns
 
 - [v3.0/COMP-04] Wake/Richards: fluxo GraphQL + `TCS-Access-Token` é HIGH confidence documentalmente (wakecommerce.readme.io) mas NÃO testado empiricamente. Phase 32 deve iniciar pelo spike de confirmação (Wave 0) com decisão GO/NO-GO antes do engine completo.
-- [v3.0/COMP-03] Lacoste/HugoBoss (SFCC): HTTP direto é 403; extração validada apenas pela via pública browser-rendered (JSON-LD/OpenGraph). Escopo limitado a catálogo + preço — sem frete/checkout/estoque por CEP.
-- [31-REVIEW/HIGH] SFCC double-www: `DynamicBrand.clean_domain` não remove prefixo `www.` — `"www.lacoste.com.br"` construído como `"https://www.www.lacoste.com.br/..."`. Corrigir com `re.sub(r"^www\.", "", domain)` em `sfcc_engine.py:149` e `:379` antes do primeiro live run. Testes passam (browser mockado) mas produção quebraria com 404.
+- [v3.0/COMP-03 — atualizado 2026-06-25] **Hugo Boss BR é VTEX, não SFCC** (suposição da Phase 31 corrigida ao vivo): `www.hugoboss.com.br` expõe `vtexassets.com`; onboardada como `vtex`, ativa, busca OK. Apenas a **Lacoste** permanece SFCC entre as concorrentes do v3.0.
+- [v3.0/COMP-03 — Lacoste BLOQUEADA 2026-06-25] Lacoste (`sfcc`) cadastrada **inativa**: HTTP direto = 403 e **o Playwright headless também recebe "Access Denied" (296B)** na home E na busca. A extração via browser público (premissa dos spikes 003-006) NÃO passa com o `BrowserManager` atual. Habilitar requer estratégia anti-bot (browser stealth / proxy residencial / fingerprint real) — fora do escopo v3.0 atual; endereçada na nova phase de marcas restantes.
+- [31-REVIEW/HIGH — RESOLVIDO 2026-06-25] SFCC double-www: corrigido em `sfcc_engine.py` (helper `_strip_www` remove prefixo `www.` antes dos builders de search/home URL + teste de regressão `test_search_url_no_double_www_when_domain_has_www`). Commit 83dfdba. O bloqueio remanescente da Lacoste é anti-bot, não mais o double-www.
 - FRET-06 (Shopify): permanece adiado — smoke test necessário antes de comprometer (sessão/cookie no AJAX Cart pode requerer Playwright). Fora do escopo do v3.0.
 - [v3.0/BANNER-05] SharePoint: site/biblioteca de destino, credenciais e permissões ainda não foram fornecidos. Phase 35 deve começar por um gate de conectividade e acesso antes do publicador completo.
 
@@ -168,7 +170,8 @@ Resume file: .planning/phases/32-engine-wake-commerce-richards/32-03-SUMMARY.md
 
 ## Operator Next Steps
 
-- Fix SFCC double-www bug (`sfcc_engine.py:149` and `:379`) before first live Lacoste/HugoBoss run
-- Phase 32 COMPLETE — WakeEngine (spike GO + engine + testes) entregue. 235 testes verdes.
-- Phase 33: `/gsd-plan-phase 33` (Frete VTEX via checkout — orthogonal to engines)
-- Fix SFCC double-www bug (`sfcc_engine.py:149` and `:379`) before first live Lacoste/HugoBoss run
+- SFCC double-www: CORRIGIDO (commit 83dfdba) — não é mais bloqueador.
+- Marcas concorrentes restantes cadastradas ao vivo: Richards (wake) ✅ e Hugo Boss (vtex) ✅ ativas; Lacoste (sfcc) inativa por anti-bot. Nova phase criada para Lacoste/Zara (marcas restantes).
+- Phase 33: `/gsd-plan-phase 33` (Frete VTEX via checkout — ortogonal aos engines)
+- Phase 35: `/gsd-plan-phase 35` (gate de acesso ao SharePoint)
+- (opcional) Hugo Boss: rodar de/para de categorias VTEX (onboard_vtex_brands-style) para habilitar scans por categoria além da busca por SKU.
