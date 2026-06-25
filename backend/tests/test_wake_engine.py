@@ -72,6 +72,25 @@ def _make_mock_session_with_post(json_return_value: dict) -> MagicMock:
     return mock_session
 
 
+def _make_mock_session_with_get(*, status: int, html: str = "") -> MagicMock:
+    """Build a mock aiohttp session whose .get() context manager returns the given status/body.
+
+    Used to exercise the token auto-extraction path (_resolve_token GET):
+      - status 200 + token HTML  -> token extracted
+      - status 301/302/...       -> redirect detected (WR-01) -> None
+      - status 403/404/5xx       -> non-200 skipped (WR-04) -> None
+    """
+    mock_resp = AsyncMock()
+    mock_resp.status = status
+    mock_resp.text = AsyncMock(return_value=html)
+    mock_resp.__aenter__ = AsyncMock(return_value=mock_resp)
+    mock_resp.__aexit__ = AsyncMock(return_value=False)
+
+    mock_session = MagicMock()
+    mock_session.get = MagicMock(return_value=mock_resp)
+    return mock_session
+
+
 def _make_brand_mock(
     *,
     brand_name: str = "Richards",
@@ -280,6 +299,137 @@ class TestWakeTokenFailure:
         assert not (len(result.products) == 0 and result.error is None), (
             "D-07: 0 products with error=None is the forbidden silent failure pattern"
         )
+
+
+# ---------------------------------------------------------------------------
+# TestWakeTokenAutoExtract — WR-01 / WR-04: home GET status handling
+# ---------------------------------------------------------------------------
+
+class TestWakeTokenAutoExtract:
+    """Auto-extraction GET inspects HTTP status before parsing (WR-01 redirect, WR-04 non-200)."""
+
+    def test_redirect_status_yields_no_token(self):
+        """WR-01: an apex->www 3xx (redirects disabled) must NOT be parsed as token HTML.
+
+        With allow_redirects=False (open-redirect protection T-32-01), a 301 yields only a
+        short redirect body. The engine must detect the redirect and resolve no token,
+        surfacing the D-07 ValueError -> BrandSearchResult.error rather than silently
+        matching nothing.
+        """
+        from services.engines.factory import EngineFactory
+        from core.models import BrandSearchResult
+
+        # No override token -> forces the auto-extraction GET path.
+        mock_brand = _make_brand_mock(engine="wake", wake_access_token=None)
+        # 301 with a token-looking body proves the redirect short-circuits BEFORE the regex.
+        mock_session = _make_mock_session_with_get(
+            status=301, html="storefrontAccessToken:'tcs_should_be_ignored'"
+        )
+
+        with patch(
+            "services.engines.factory.brand_service.get_brand",
+            return_value=mock_brand,
+        ):
+            with patch(
+                "services.brand_service.brand_service.get_brand",
+                return_value=mock_brand,
+            ):
+                with patch(_SESSION_GET_TARGET, return_value=mock_session):
+                    results = asyncio.run(
+                        EngineFactory().search_all_brands("camisa", brands=["richards"])
+                    )
+
+        assert len(results) == 1
+        result = results[0]
+        assert isinstance(result, BrandSearchResult)
+        assert result.error, "redirect on home GET must yield a token-resolution error (WR-01)"
+
+    def test_non_200_status_yields_no_token(self):
+        """WR-04: a 403/404/5xx body must not be fed to the token regex."""
+        from services.engines.factory import EngineFactory
+        from core.models import BrandSearchResult
+
+        mock_brand = _make_brand_mock(engine="wake", wake_access_token=None)
+        # 403 anti-bot page that happens to contain a token-looking string must be ignored.
+        mock_session = _make_mock_session_with_get(
+            status=403, html="storefrontAccessToken:'tcs_attacker_controlled'"
+        )
+
+        with patch(
+            "services.engines.factory.brand_service.get_brand",
+            return_value=mock_brand,
+        ):
+            with patch(
+                "services.brand_service.brand_service.get_brand",
+                return_value=mock_brand,
+            ):
+                with patch(_SESSION_GET_TARGET, return_value=mock_session):
+                    results = asyncio.run(
+                        EngineFactory().search_all_brands("camisa", brands=["richards"])
+                    )
+
+        assert len(results) == 1
+        result = results[0]
+        assert isinstance(result, BrandSearchResult)
+        assert result.error, "non-200 home GET must yield a token-resolution error (WR-04)"
+
+    def test_200_status_extracts_token(self):
+        """Happy path: a 200 home page with the token string yields the token."""
+        from services.engines.wake_engine import WakeEngine
+
+        mock_session = _make_mock_session_with_get(
+            status=200, html="window.config={storefrontAccessToken:'tcs_live_abc'};"
+        )
+
+        with patch(_SESSION_GET_TARGET, return_value=mock_session):
+            engine = WakeEngine("richards")
+            token = asyncio.run(engine._resolve_token(brand=None, domain="www.richards.com.br"))
+
+        assert token == "tcs_live_abc"
+
+
+# ---------------------------------------------------------------------------
+# TestWakeMaxResultsClamp — WR-02: $first is clamped/coerced to a bounded int
+# ---------------------------------------------------------------------------
+
+class TestWakeMaxResultsClamp:
+    """max_results is coerced to a bounded positive int before flowing into $first (WR-02)."""
+
+    def _run_and_capture_first(self, max_results) -> int:
+        from services.engines.wake_engine import WakeEngine
+
+        mock_session = _make_mock_session_with_post(_GRAPHQL_RESPONSE)
+        mock_brand = _make_brand_mock(
+            domain="www.richards.com.br", wake_access_token="tcs_loja_test"
+        )
+
+        with patch(_SESSION_GET_TARGET, return_value=mock_session):
+            with patch(
+                "services.brand_service.brand_service.get_brand",
+                return_value=mock_brand,
+            ):
+                engine = WakeEngine("richards")
+                asyncio.run(engine.search("camisa", max_results=max_results))
+
+        # Inspect the payload passed to session.post(...)
+        _, kwargs = mock_session.post.call_args
+        return kwargs["json"]["variables"]["first"]
+
+    def test_zero_clamped_to_floor(self):
+        """WR-02: max_results=0 must be raised to the floor (>=1), not sent verbatim."""
+        assert self._run_and_capture_first(0) == 1
+
+    def test_negative_clamped_to_floor(self):
+        """WR-02: a negative max_results must be raised to the floor (>=1)."""
+        assert self._run_and_capture_first(-5) == 1
+
+    def test_huge_clamped_to_ceiling(self):
+        """WR-02: an unbounded max_results must be capped at the ceiling (50)."""
+        assert self._run_and_capture_first(10_000) == 50
+
+    def test_in_range_preserved(self):
+        """WR-02: a sane value within bounds is preserved."""
+        assert self._run_and_capture_first(7) == 7
 
 
 # ---------------------------------------------------------------------------

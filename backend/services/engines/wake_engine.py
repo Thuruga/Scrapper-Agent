@@ -47,6 +47,8 @@ import logging
 import re
 from typing import Any, Dict, List, Optional
 
+import aiohttp
+
 from core.models import BrandSearchResult, SearchProductResult
 from core.session_manager import SessionManager
 from services.engines.base_engine import BaseEngine
@@ -155,8 +157,12 @@ class WakeEngine(BaseEngine):
             )
 
         if not domain:
-            # Fallback — enables smoke-testing before brand is formally onboarded
-            domain = f"{self.brand_key}.com.br"
+            # Fallback — enables smoke-testing before brand is formally onboarded.
+            # WR-01: use the www. form (not the bare apex) — Wake storefronts commonly
+            # 301 apex -> www, which would silently break token auto-extraction with
+            # allow_redirects=False. Stored brand domains already include www. (self-consistent;
+            # avoids the double-www the GET builder would otherwise produce).
+            domain = f"www.{self.brand_key}.com.br"
             logger.info(
                 "[Wake] no registered domain for brand_key=%s; using fallback domain=%s",
                 self.brand_key,
@@ -173,17 +179,28 @@ class WakeEngine(BaseEngine):
 
         # POST GraphQL — T-32-02: variables, not f-string interpolation
         session = await SessionManager.get_session()
+        # WR-02: clamp/coerce max_results to a bounded positive int before it
+        # flows into $first (Int!) — rejects 0/negative/huge values at the boundary.
+        try:
+            first = max(1, min(int(max_results), 50))
+        except (TypeError, ValueError):
+            first = DEFAULT_MAX_RESULTS
         payload = {
             "query": _WAKE_SEARCH_QUERY,
             "variables": {
                 "q": query.strip(),
-                "first": max_results,
+                "first": first,
             },
         }
         headers = {"TCS-Access-Token": token}
 
         try:
-            async with session.post(GRAPHQL_ENDPOINT, json=payload, headers=headers) as resp:
+            async with session.post(
+                GRAPHQL_ENDPOINT,
+                json=payload,
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=10),  # WR-05: bound a hung storefront
+            ) as resp:
                 resp.raise_for_status()
                 data = await resp.json()
         except Exception as exc:
@@ -314,8 +331,34 @@ class WakeEngine(BaseEngine):
         logger.info("[Wake] auto-extracting token from %s", store_url)
         try:
             session = await SessionManager.get_session()
-            # T-32-01: allow_redirects=False — same pattern as T-25-01-SR in routes_brands.py:44
-            async with session.get(store_url, allow_redirects=False) as resp:
+            # T-32-01: allow_redirects=False — same pattern as T-25-01-SR in routes_brands.py:44.
+            # WR-05: bound a hung storefront with an explicit timeout.
+            async with session.get(
+                store_url,
+                allow_redirects=False,
+                timeout=aiohttp.ClientTimeout(total=5),
+            ) as resp:
+                # WR-01: a 3xx (commonly apex -> www, e.g. richards.com.br -> www.richards.com.br)
+                # yields only a short redirect body with redirects disabled (kept off for the
+                # open-redirect threat T-32-01), so the token regex would silently miss. Surface
+                # this distinctly instead of collapsing into a generic "not found".
+                if resp.status in (301, 302, 303, 307, 308):
+                    logger.warning(
+                        "[Wake] %s redirected (%s) with redirects disabled; token HTML not read. "
+                        "Check the registered domain form (www vs apex).",
+                        store_url,
+                        resp.status,
+                    )
+                    return None
+                # WR-04: do not parse non-200 bodies (403 anti-bot, 404, 5xx, cached CDN error
+                # pages). Only a healthy 200 storefront should feed the token regex.
+                if resp.status != 200:
+                    logger.warning(
+                        "[Wake] home GET %s returned %s; skipping token extraction",
+                        store_url,
+                        resp.status,
+                    )
+                    return None
                 html = await resp.text()
         except Exception as exc:
             logger.warning("[Wake] token auto-extraction GET failed for %s: %s", store_url, exc)
