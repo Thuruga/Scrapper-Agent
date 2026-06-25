@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Expansão Multi-Plataforma de Concorrentes & Frete VTEX
-status: Ready to plan remaining v3.0 phases
-stopped_at: Phase 36 complete — Lacoste NO-GO, Zara promoted to future dedicated phase
-last_updated: "2026-06-25T18:27:32.322Z"
-last_activity: 2026-06-25 -- Phase 33 planning complete
+status: Executing Phase 33
+stopped_at: "Phase 33 Plan 01 complete — pure parser + model contract; Wave 2 (33-02) next"
+last_updated: "2026-06-25T18:41:45Z"
+last_activity: 2026-06-25 -- Phase 33 Plan 01 executed (TDD)
 progress:
   total_phases: 7
   completed_phases: 5
-  total_plans: 16
-  completed_plans: 16
-  percent: 71
+  total_plans: 19
+  completed_plans: 17
+  percent: 74
 ---
 
 # Project State: Intelligence Scraper
@@ -21,7 +21,7 @@ progress:
 See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/scrapper/.planning/PROJECT.md) (updated 2026-06-23)
 
 **Core value:** Extração automatizada e resiliente de dados de mercado com mínima intervenção humana e alta fidelidade de dados.
-**Current focus:** Phase 33 or Phase 35 — remaining v3.0 planning work
+**Current focus:** Phase 33 — frete-via-checkout-nos-sites-vtex
 
 ## Current Milestone: v3.0 Expansão Multi-Plataforma de Concorrentes & Frete VTEX
 
@@ -31,13 +31,13 @@ See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/sc
 
 ## Current Position
 
-Phase: 36
-Plan: Complete
-  Plan 01 (gate): COMPLETE — spike 008 returned Lacoste NO-GO; REPORT.md written
-  Plan 02 (fetcher): SKIPPED — conditional GO not met; no backend fetcher implemented
-  Plan 03 (activation): SKIPPED — no fetcher; Lacoste remains inactive
-Next: Phase 33 (`/gsd-plan-phase 33`) or Phase 35 (`/gsd-plan-phase 35`) remain available as orthogonal backlog.
-Last activity: 2026-06-25 -- Phase 33 planning complete
+Phase: 33 (frete-via-checkout-nos-sites-vtex) — EXECUTING
+Plan: 2 of 3
+  Plan 01 (parser + modelo): COMPLETE — vtex_shipping.py puro, ShippingInfo estendida, shipping_options aditivo (2026-06-25)
+  Plan 02 (wiring HTTP): PENDING
+  Plan 03 (frontend): PENDING
+Next: 33-02 (wiring dos helpers no _fetch_shipping real + retry + CEP config endpoint)
+Last activity: 2026-06-25 -- Phase 33 Plan 01 completed (TDD)
 
 ## Performance Metrics
 
@@ -89,6 +89,9 @@ Last activity: 2026-06-25 -- Phase 33 planning complete
 
 ### Decisions
 
+- [33-01/Backstage-exception]: Backstage MCP não configurado nesta sessão — operador aprovou exceção; convenções seguidas: stateless helper style vtex_parsing.py + Pydantic fields style models.py + test style test_vtex_api_client.py + Clean Code / refactoring.guru. VTEX-only boundary (D-03) re-afirmada.
+- [33-01/is_free_shipping-em-ShippingInfo]: is_free_shipping adicionado ao ShippingInfo (além de SearchProductResult) para que cada opção em shipping_options carregue seu próprio flag sem lógica no caller.
+- [33-01/filter_and_sort_slas-dict]: filter_and_sort_slas retorna dicts enriquecidos (price_reais, is_free_shipping, estimate_*) em vez de ShippingInfo, para que o caller Wave 2 construa os objetos Pydantic após ter o seller_id e service metadata completos.
 - [onboarding-live/2026-06-25]: Cadastro ao vivo das marcas concorrentes restantes (persistido em backend/data/brands.json, commit adb9635). Richards → engine `wake`, `www.richards.com.br`, **ativa**, busca OK (3 produtos). **Hugo Boss → engine `vtex` (NÃO `sfcc` — correção empírica da suposição COMP-03/Phase 31), `www.hugoboss.com.br`, ativa, busca OK (3 produtos)**. Lacoste → engine `sfcc`, **inativa** (bloqueio anti-bot, ver Blockers). Engines de Richards/Lacoste atribuídos por evidência (spike 007 + marcadores HTML + assinatura 403), pois `detect_engine` retorna `unknown` sob anti-bot na Richards. `hugoboss.com.br` sem www NÃO resolve — usar `www.hugoboss.com.br`.
 - [36-01/NO-GO]: Spike 008 testou Lacoste home/search (`polo`, `camisa`) com baseline Playwright e `playwright-stealth`; todos retornaram HTTP 403, 296B, `Access Denied`/Akamai. Decisão: manter `lacoste.is_active=false`, não implementar fetcher degradado, não executar 36-02/36-03.
 - [36-01/Zara]: Recheck Zara carregou home e search públicos com stealth (HTTP 200, HTML grande). Não foi criado engine; COMP-FUT-03 deve virar fase futura dedicada para validar produto+preço e implementação.

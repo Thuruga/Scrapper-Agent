@@ -123,7 +123,7 @@ Phases 19-29 pertencem a milestones CONCLUÍDOS (v1.10-v2.0). As phases ativas d
 **Plans**: 3 plans
 **Wave 1**
 
-- [ ] 33-01-PLAN.md — Parser puro de frete (vtex_shipping.py) + evolução aditiva dos modelos (shipping_options) + testes test-first
+- [x] 33-01-PLAN.md — Parser puro de frete (vtex_shipping.py) + evolução aditiva dos modelos (shipping_options) + testes test-first
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -177,7 +177,7 @@ Phases ativas executam em ordem numérica: 30 → 31 → 32 → 33 → 34 → 35
 | 30. Detecção de Engine SFCC & Wake | v3.0 | 3/3 | Complete    | 2026-06-23 |
 | 31. Engine SFCC (Browser Público) | v3.0 | 3/3 | Complete   | 2026-06-24 |
 | 32. Engine Wake Commerce — Richards | v3.0 | 3/3 | Complete    | 2026-06-25 |
-| 33. Frete via Checkout nos Sites VTEX | v3.0 | 0/? | Not started | - |
+| 33. Frete via Checkout nos Sites VTEX | v3.0 | 1/3 | In Progress|  |
 | 34. Extração de Banners Desktop | v3.0 | 4/4 | Complete   | 2026-06-23 |
 | 35. Publicação de Banners no SharePoint | v3.0 | 0/? | Not started | - |
 | 36. Onboarding das Marcas Concorrentes Restantes | v3.0 | 3/3 | Complete (NO-GO) | 2026-06-25 |
@@ -187,7 +187,7 @@ Phases ativas executam em ordem numérica: 30 → 31 → 32 → 33 → 34 → 35
 **Goal**: Habilitar a busca ao vivo da **Lacoste** (SFCC) — hoje cadastrada porém **inativa** por bloqueio anti-bot (HTTP direto 403 e "Access Denied" 296B mesmo no Playwright headless, na home e na busca) — por meio de uma estratégia anti-bot (browser stealth / proxy residencial / fingerprint real), iniciando por um **gate de viabilidade GO/NO-GO** antes de investir no fetcher completo; e **reavaliar** a viabilidade pública da **Zara/Inditex**. Entregar a Lacoste ativa com ≥1 produto (título + URL + preço) na busca OU registrar formalmente a inviabilidade com evidência.
 **Requirements**: COMP-03 (gap: Lacoste ao vivo — Hugo Boss já entregue como VTEX, Richards como Wake), COMP-FUT-03 (Zara/Inditex — reavaliar)
 **Depends on**: Phase 31 (SFCCEngine + correção double-www) e Phase 32 (padrão de onboarding por evidência). Ortogonal às Phases 33 (frete VTEX) e 35 (SharePoint).
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 **Success Criteria** (o que deve ser VERDADE):
 
 - Gate de viabilidade anti-bot da Lacoste com veredito **GO/NO-GO** documentado ANTES de qualquer investimento no fetcher completo (espelha o padrão spike-gate da Phase 32).
