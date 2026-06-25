@@ -6,6 +6,29 @@ from config import settings
 logger = logging.getLogger("BrowserManager")
 
 
+def _to_playwright_proxy(proxy_url: Optional[str]) -> Optional[dict]:
+    """Converte ``http://[user:senha@]host:porta`` no dict de proxy do Playwright.
+
+    Retorna ``None`` quando ``proxy_url`` é vazio (modo direto — dev/redes limpas).
+    Usado para dar à Lacoste/SFCC um egress de IP limpo sem afetar as demais marcas
+    (o proxy é resolvido por marca em ``brand.proxy_url`` — D-09/D-10).
+    """
+    if not proxy_url:
+        return None
+    from urllib.parse import urlparse
+
+    parsed = urlparse(proxy_url if "://" in proxy_url else f"http://{proxy_url}")
+    server = f"{parsed.scheme or 'http'}://{parsed.hostname}"
+    if parsed.port:
+        server = f"{server}:{parsed.port}"
+    proxy: dict = {"server": server}
+    if parsed.username:
+        proxy["username"] = parsed.username
+    if parsed.password:
+        proxy["password"] = parsed.password
+    return proxy
+
+
 class BrowserManager:
     """
     Gerenciador Playwright com otimizações para ambientes com pouca RAM.
@@ -82,6 +105,7 @@ class BrowserManager:
         timeout: int = 30000,
         wait_until: str = "domcontentloaded",
         extra_sleep: float = 1.0,
+        proxy: Optional[str] = None,
     ) -> str:
         """
         Abre o navegador, navega até a URL e retorna o HTML.
@@ -99,10 +123,12 @@ class BrowserManager:
             import time
             
             with sync_playwright() as p:
-                browser = p.chromium.launch(
-                    headless=True,
-                    args=cls.CHROMIUM_ARGS,
-                )
+                launch_kwargs = {"headless": True, "args": cls.CHROMIUM_ARGS}
+                pw_proxy = _to_playwright_proxy(proxy)
+                if pw_proxy:
+                    launch_kwargs["proxy"] = pw_proxy
+                    logger.info("[PLAYWRIGHT] egress via proxy: %s", pw_proxy["server"])
+                browser = p.chromium.launch(**launch_kwargs)
                 context = browser.new_context(
                     user_agent=(
                         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "

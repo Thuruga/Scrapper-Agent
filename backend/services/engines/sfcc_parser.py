@@ -398,6 +398,27 @@ def extract_nav_categories(html: str, base_domain: str) -> List[Dict[str, Any]]:
 # Search results URL extraction
 # ---------------------------------------------------------------------------
 
+def _absolutize(url: str, base_domain: str) -> str:
+    """Normaliza um href/src para URL https absoluta.
+
+    Cobre as três formas que páginas SFCC emitem:
+      - protocol-relative ``//host/path`` → ``https://host/path``  (corrige o bug do ``//``
+        que gerava ``https://www.lacoste.com.br//www.lacoste.com/br/...``)
+      - root-relative      ``/path``       → ``https://www.<domain>/path``
+      - já absoluta         ``https://...`` → inalterada
+    """
+    if not url:
+        return url
+    if url.startswith("//"):
+        return f"https:{url}"
+    if url.startswith(("http://", "https://")):
+        return url
+    if url.startswith("/"):
+        host = base_domain if base_domain.startswith("www.") else f"www.{base_domain}"
+        return f"https://{host}{url}"
+    return url
+
+
 def _looks_like_pdp_url(href: str, base_domain: str) -> bool:
     """
     Heuristic: is this href likely a product detail page (PDP)?
@@ -471,19 +492,99 @@ def parse_search_results(html: str, base_domain: str) -> List[str]:
         if not href or href.startswith("#") or href.startswith("javascript:"):
             continue
 
-        if not _looks_like_pdp_url(href, base_domain):
-            continue
+        # Normaliza ANTES de testar (cobre protocol-relative //host/path) — corrige o bug
+        # que gerava URLs com // e mascarava links de nav como PDP. A heurística passa a
+        # operar sobre a URL absoluta.
+        absolute = _absolutize(href, base_domain)
 
-        # Normalize to absolute URL
-        if href.startswith("/"):
-            absolute = f"https://www.{base_domain.lstrip('www.')}{href}"
-        else:
-            absolute = href
+        if not _looks_like_pdp_url(absolute, base_domain):
+            continue
 
         # Strip query strings for dedup purposes (keep the canonical PDP URL)
         canonical = absolute.split("?")[0].rstrip("/")
         if canonical not in seen:
             seen.add(canonical)
             results.append(canonical)
+
+    return results
+
+
+# ---------------------------------------------------------------------------
+# Search results — direct tile extraction (preferred over PDP enrichment)
+# ---------------------------------------------------------------------------
+
+def parse_search_tiles(html: str, base_domain: str, brand: str = "") -> List[Dict[str, Any]]:
+    """
+    Extrai produtos DIRETO dos tiles da página de busca/categoria SFCC.
+
+    Cada tile (``div[data-producttile="true"]`` / ``div.product-tile[data-pid]``) já
+    carrega título, URL absoluta da PDP, preço de venda, imagem e estoque — então o
+    contrato catálogo+preço é satisfeito SEM uma navegação por PDP. Menos requisições
+    = menos exposição a anti-bot (D-13) e menor latência que o enriquecimento por PDP.
+
+    Retorna dicts no mesmo formato de :func:`parse_pdp` (compatível com RawProductBronze):
+    ``url, brand, raw_title, raw_description, price_full, image_url, stock_availability,
+    available_colors, available_sizes, specifications``.
+
+    Função pura (sem rede/sem BrowserManager) — testável contra um fixture capturado.
+    """
+    soup = BeautifulSoup(html, "html.parser")
+    results: List[Dict[str, Any]] = []
+    seen: set = set()
+
+    tiles = soup.select('div[data-producttile="true"]') or soup.select("div.product-tile[data-pid]")
+    for tile in tiles:
+        # --- título + url (h2 do título; fallback p/ link overlay do tile) ---
+        link = tile.select_one("h2 a[href]") or tile.select_one("a.js-product-tile-link[href]")
+        if not link:
+            continue
+        url = _absolutize((link.get("href") or "").strip(), base_domain)
+        if not url:
+            continue
+        raw_title = link.get_text(strip=True)
+        if not raw_title:
+            img_alt = tile.select_one("img[alt]")
+            raw_title = (img_alt.get("alt") or "").strip() if img_alt else ""
+        if not raw_title:
+            continue
+
+        # --- preço: sales-price preferida; fallback p/ qualquer R$ no tile ---
+        price_full: Optional[float] = None
+        sales = tile.select_one(".sales-price")
+        if sales:
+            price_full = parse_price_br(sales.get_text(" ", strip=True))
+        if price_full is None:
+            price_full = parse_price_br(tile.get_text(" ", strip=True))
+
+        # --- imagem (protocol-relative //imagesa1... → https:) ---
+        image_url: Optional[str] = None
+        img = tile.select_one("img.js-img[src]") or tile.select_one("img[src]")
+        if img and img.get("src"):
+            image_url = _absolutize(img["src"].strip(), base_domain)
+
+        # --- disponibilidade via data-out-of-stock ---
+        if tile.has_attr("data-out-of-stock"):
+            stock_availability: Optional[bool] = tile["data-out-of-stock"].strip().lower() != "true"
+        else:
+            stock_availability = None
+
+        # dedup por URL canônica (ignora ?color=)
+        canonical = url.split("?")[0].rstrip("/")
+        if canonical in seen:
+            continue
+        seen.add(canonical)
+
+        results.append({
+            "url": url,
+            "brand": brand,
+            "raw_title": raw_title,
+            "raw_description": raw_title,
+            "price_full": price_full,
+            "image_url": image_url,
+            "stock_availability": stock_availability,
+            "available_colors": [],
+            "available_sizes": [],
+            "specifications": {},
+        })
 
     return results

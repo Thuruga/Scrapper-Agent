@@ -224,6 +224,12 @@ class DynamicBrandCreate(BaseModel):
     engine: Optional[str] = "vtex"  # ex: "vtex", "shopify"
     logo_url: Optional[str] = None  # ex: "https://.../logo.png"
     wake_access_token: Optional[str] = None  # override manual do token público de storefront Wake (D-06)
+    # Override por marca da URL de busca. Necessário p/ SFCC Lacoste, cujo host canônico é
+    # www.lacoste.com/br/ (o lacoste.com.br redireciona à home e perde o ?q=). {query} = termo URL-encoded.
+    search_url_template: Optional[str] = None
+    # Egress de IP limpo por marca (proxy Playwright). Lacoste/Akamai bloqueia IP de datacenter/corporativo;
+    # None = conexão direta (dev / redes limpas). Formato: http://[user:senha@]host:porta.
+    proxy_url: Optional[str] = None
 
 
 class DynamicBrand(DynamicBrandCreate):

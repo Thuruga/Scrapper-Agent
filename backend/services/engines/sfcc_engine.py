@@ -38,6 +38,7 @@ from services.engines.sfcc_parser import (
     extract_nav_categories,
     parse_pdp,
     parse_search_results,
+    parse_search_tiles,
 )
 
 logger = logging.getLogger(__name__)
@@ -163,13 +164,34 @@ class SFCCEngine(BaseEngine):
         # normalize a stored www.-prefixed domain to the bare apex first.
         domain = _strip_www(domain)
 
-        # T-31-03: URL-encode the query; navigation stays on the same domain.
+        # Per-brand overrides (D-09/D-10 — isolados por marca, não mudam o global):
+        #   search_url_template — SFCC Lacoste usa o host canônico www.lacoste.com/br/;
+        #     o lacoste.com.br redireciona à home e descarta o ?q= (spike 009).
+        #   proxy_url — egress de IP limpo (Lacoste/Akamai bloqueia IP datacenter/corporativo);
+        #     None = conexão direta (dev / redes limpas).
+        search_url_template: Optional[str] = None
+        proxy_url: Optional[str] = None
+        if brand:
+            search_url_template = getattr(brand, "search_url_template", None) or (
+                brand.get("search_url_template") if isinstance(brand, dict) else None
+            )
+            proxy_url = getattr(brand, "proxy_url", None) or (
+                brand.get("proxy_url") if isinstance(brand, dict) else None
+            )
+
+        # T-31-03: URL-encode the query; navigation stays on the brand domain.
         encoded_query = quote_plus(query.strip())
-        search_url = SEARCH_URL_TEMPLATE.format(domain=domain, query=encoded_query)
-        logger.info("[SFCC] search url: %s (brand=%s)", search_url, self.brand_key)
+        if search_url_template:
+            search_url = search_url_template.format(query=encoded_query, domain=domain)
+        else:
+            search_url = SEARCH_URL_TEMPLATE.format(domain=domain, query=encoded_query)
+        logger.info(
+            "[SFCC] search url: %s (brand=%s, proxy=%s)",
+            search_url, self.brand_key, "yes" if proxy_url else "no",
+        )
 
         try:
-            search_html = await BrowserManager.fetch_html(search_url)
+            search_html = await BrowserManager.fetch_html(search_url, proxy=proxy_url)
         except Exception as exc:
             logger.warning("[SFCC] search page fetch failed for %s: %s", search_url, exc)
             return BrandSearchResult(
@@ -178,14 +200,26 @@ class SFCCEngine(BaseEngine):
                 error=f"Search page fetch failed: {exc}",
             )
 
-        candidate_urls = parse_search_results(search_html, domain)
-        logger.info(
-            "[SFCC] found %d candidate PDP URLs for brand=%s",
-            len(candidate_urls),
-            self.brand_key,
-        )
-
-        validated_products = await self._enrich_results(candidate_urls, max_results, brand_name)
+        # Preferred path: extract products straight from the search-result tiles
+        # (title+url+price+image+stock all present in the tile). Fewer browser hits
+        # and less anti-bot exposure (D-13) than per-PDP enrichment.
+        tile_products = parse_search_tiles(search_html, domain, brand_name)
+        if tile_products:
+            validated_products = self._build_results_from_parsed(
+                tile_products, max_results, brand_name
+            )
+            logger.info(
+                "[SFCC] %d products from search tiles (brand=%s)",
+                len(validated_products), self.brand_key,
+            )
+        else:
+            # Fallback (legacy): discover candidate PDP URLs and enrich each.
+            candidate_urls = parse_search_results(search_html, domain)
+            logger.info(
+                "[SFCC] tiles empty; %d candidate PDP URLs for brand=%s",
+                len(candidate_urls), self.brand_key,
+            )
+            validated_products = await self._enrich_results(candidate_urls, max_results, brand_name)
 
         return BrandSearchResult(
             brand_key=self.brand_key,
@@ -232,15 +266,32 @@ class SFCCEngine(BaseEngine):
 
         raw_results = await asyncio.gather(*[_enrich_one(u) for u in urls_to_fetch])
 
-        # Drop None (failed / empty PDPs)
+        # Drop None (failed / empty PDPs), then run the shared CAT-01 filter +
+        # Quality Gate + SearchProductResult build (identical to the tiles path).
         parsed: List[Dict[str, Any]] = [r for r in raw_results if r is not None]
+        return self._build_results_from_parsed(parsed, max_results, brand_name)
 
-        # CAT-01: filter feminine / off-category items
+    def _build_results_from_parsed(
+        self,
+        parsed: List[Dict[str, Any]],
+        max_results: int,
+        brand_name: str,
+    ) -> List[SearchProductResult]:
+        """
+        Turn already-parsed product dicts (from search tiles OR PDP enrichment)
+        into validated SearchProductResult objects, capped at ``max_results``.
+
+        Shared tail of both search paths:
+          - filter_mens_fashion()  — CAT-01 consistency (drops feminine/off-category)
+          - validate_single()      — Quality Gate (rejects missing url/title/price/image)
+          - never sets is_free_shipping / shipping_price (T-31-06)
+        """
         filtered = self.filter_mens_fashion(parsed)
 
-        # Quality Gate — rejects products missing url/raw_title/price_full/image_url
         validated: List[SearchProductResult] = []
         for p in filtered:
+            if len(validated) >= max_results:
+                break
             validated_dict = self.validate_single(p)
             if validated_dict:
                 validated.append(
