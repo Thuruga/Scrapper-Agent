@@ -18,6 +18,7 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from config import settings
 from services.brand_service import brand_service
 from core.models import ComparisonResult
 from services.engines.factory import engine_factory
@@ -81,6 +82,15 @@ class CrossMarketplaceRequest(BaseModel):
     min_score: float = Field(55.0, description="Match score mínimo.")
     zipcode: Optional[str] = Field(None, pattern=r"^\d{5}-?\d{3}$", description="CEP de destino")
 
+
+
+class SearchConfigResponse(BaseModel):
+    """Resposta do endpoint de configuração de busca — somente dados não-sensíveis."""
+
+    default_cep: str = Field(
+        ...,
+        description="CEP padrão configurado no backend para cálculo de frete.",
+    )
 
 
 class CalculateShippingRequest(BaseModel):
@@ -246,6 +256,25 @@ async def search_products_get(
         brands_searched=all_brands,
         results=brand_results,
     )
+
+
+@router.get(
+    "/config",
+    response_model=SearchConfigResponse,
+    summary="Configuração de busca (somente leitura)",
+    description=(
+        "Retorna dados de configuração não-sensíveis para o frontend, "
+        "como o CEP padrão usado no cálculo de frete. "
+        "Não requer autenticação e não expõe segredos (T-33-01)."
+    ),
+)
+async def get_search_config() -> SearchConfigResponse:
+    """Endpoint read-only que expõe DEFAULT_CEP para o frontend (D-04).
+
+    Sem acesso a banco, sem segredos — somente leitura de settings.
+    CEP nunca é interpolado em URL; apenas retornado no corpo JSON.
+    """
+    return SearchConfigResponse(default_cep=settings.DEFAULT_CEP)
 
 
 @router.post(
