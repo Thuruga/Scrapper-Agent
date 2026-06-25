@@ -31,7 +31,7 @@ Phases 19-29 pertencem a milestones CONCLUÍDOS (v1.10-v2.0). As phases ativas d
 - [ ] **Phase 33: Frete via Checkout nos Sites VTEX** - Cálculo de preço e prazo de frete via checkout simulation nos sites de marca VTEX, com contrato de unidade (centavos→reais) documentado e detecção de frete grátis (FRET-05)
 - [x] **Phase 34: Extração de Banners Desktop** - Motor reutilizável percorre as marcas ativas, coleta todos os slides de imagem do carrossel principal e produz arquivos originais, metadados e relatório visual auditável (BANNER-01, BANNER-02, BANNER-03, BANNER-04) (completed 2026-06-23)
 - [ ] **Phase 35: Publicação de Banners no SharePoint** - Configuração segura do destino e publicação idempotente dos banners e metadados, com resultado por arquivo e gate inicial de acesso/permissões (BANNER-05, BANNER-06)
-- [ ] **Phase 36: Onboarding das Marcas Concorrentes Restantes — Lacoste (anti-bot) & Zara** - Habilitar a busca ao vivo da Lacoste (SFCC), hoje inativa por bloqueio anti-bot (HTTP 403 + "Access Denied" mesmo no Playwright headless), via estratégia anti-bot com gate de viabilidade GO/NO-GO; e reavaliar a Zara/Inditex (COMP-03 gap, COMP-FUT-03)
+- [x] **Phase 36: Onboarding das Marcas Concorrentes Restantes — Lacoste (anti-bot) & Zara** - Gate de viabilidade executado: Lacoste NO-GO no envelope público stealth permitido, mantida inativa; Zara reavaliada e promovida para fase futura dedicada (completed 2026-06-25)
 
 ## Phase Details
 
@@ -120,7 +120,10 @@ Phases 19-29 pertencem a milestones CONCLUÍDOS (v1.10-v2.0). As phases ativas d
   2. Quando o frete é gratuito, o campo `is_free_shipping` é `true` e `shipping_cost` é `0.0` — distinguível de um frete não calculado (que permanece nulo, não `0.0`).
   3. O contrato de unidade (centavos→reais, divisão por 100) está documentado no caminho de frete VTEX e coberto por ao menos um teste de range que detecta regressão de unidade (ex.: valor acima de R$ 1.000 sem frete grátis é suspeito).
 
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 33-01-PLAN.md — Parser puro de frete (vtex_shipping.py) + evolução aditiva dos modelos (shipping_options) + testes test-first
+- [ ] 33-02-PLAN.md — Rewire de _fetch_shipping (SKU+seller, retry único, estados explícitos, shipping_options) + endpoint read-only de CEP padrão + testes de contrato
+- [ ] 33-03-PLAN.md — Frontend: loader de config, init único de CEP, bloqueio de CEP inválido, render de todas as modalidades (Truck/CheckCircle2) com fallback legado
 
 ### Phase 34: Extração de Banners Desktop
 
@@ -155,7 +158,7 @@ Phases 19-29 pertencem a milestones CONCLUÍDOS (v1.10-v2.0). As phases ativas d
 ## Progress
 
 **Execution Order:**
-Phases ativas executam em ordem numérica: 30 → 31 → 32 → 33 → 34 → 35. Phase 33 (frete VTEX) e Phase 34 (extração de banners) são independentes das Phases 30-32 e podem ser paralelizadas; Phase 31 e Phase 32 dependem da Phase 30. Phase 35 depende da Phase 34 e começa por um gate de acesso ao SharePoint. O build do engine na Phase 32 é gated pelo spike de confirmação (Wave 0) interno.
+Phases ativas executam em ordem numérica: 30 → 31 → 32 → 33 → 34 → 35 → 36. Phase 33 (frete VTEX) e Phase 34 (extração de banners) são independentes das Phases 30-32 e podem ser paralelizadas; Phase 31 e Phase 32 dependem da Phase 30. Phase 35 depende da Phase 34 e começa por um gate de acesso ao SharePoint. Phase 36 depende das Phases 31/32 e é gateada internamente pelo spike 36-01; 36-02/36-03 só rodam em GO. O build do engine na Phase 32 é gated pelo spike de confirmação (Wave 0) interno.
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -169,13 +172,14 @@ Phases ativas executam em ordem numérica: 30 → 31 → 32 → 33 → 34 → 35
 | 33. Frete via Checkout nos Sites VTEX | v3.0 | 0/? | Not started | - |
 | 34. Extração de Banners Desktop | v3.0 | 4/4 | Complete   | 2026-06-23 |
 | 35. Publicação de Banners no SharePoint | v3.0 | 0/? | Not started | - |
+| 36. Onboarding das Marcas Concorrentes Restantes | v3.0 | 3/3 | Complete (NO-GO) | 2026-06-25 |
 
 ### Phase 36: Onboarding das Marcas Concorrentes Restantes — Lacoste (anti-bot) & Zara
 
 **Goal**: Habilitar a busca ao vivo da **Lacoste** (SFCC) — hoje cadastrada porém **inativa** por bloqueio anti-bot (HTTP direto 403 e "Access Denied" 296B mesmo no Playwright headless, na home e na busca) — por meio de uma estratégia anti-bot (browser stealth / proxy residencial / fingerprint real), iniciando por um **gate de viabilidade GO/NO-GO** antes de investir no fetcher completo; e **reavaliar** a viabilidade pública da **Zara/Inditex**. Entregar a Lacoste ativa com ≥1 produto (título + URL + preço) na busca OU registrar formalmente a inviabilidade com evidência.
 **Requirements**: COMP-03 (gap: Lacoste ao vivo — Hugo Boss já entregue como VTEX, Richards como Wake), COMP-FUT-03 (Zara/Inditex — reavaliar)
 **Depends on**: Phase 31 (SFCCEngine + correção double-www) e Phase 32 (padrão de onboarding por evidência). Ortogonal às Phases 33 (frete VTEX) e 35 (SharePoint).
-**Plans:** 0 plans
+**Plans:** 3 plans
 **Success Criteria** (o que deve ser VERDADE):
 
 - Gate de viabilidade anti-bot da Lacoste com veredito **GO/NO-GO** documentado ANTES de qualquer investimento no fetcher completo (espelha o padrão spike-gate da Phase 32).
@@ -184,6 +188,10 @@ Phases ativas executam em ordem numérica: 30 → 31 → 32 → 33 → 34 → 35
 - Zara/Inditex reavaliada: caminho público validado (→ promover a requisito ativo) OU mantida deferida (COMP-FUT-03) com razão atualizada.
 - Escopo: catálogo + preço apenas; sem frete/checkout/estoque por CEP. Acesso restrito a dados públicos de catálogo (sem evasão para fins maliciosos).
 
+**Outcome (2026-06-25):** Lacoste `NO-GO` dentro do envelope permitido (baseline e stealth retornaram HTTP 403, 296B, `Access Denied`); `lacoste.is_active=false` permanece. Zara carregou home/search públicos e deve virar fase futura dedicada para validar contrato produto+preço antes de qualquer engine.
+
 Plans:
 
-- [ ] TBD (rodar /gsd-plan-phase 36 para detalhar)
+- [x] 36-01-PLAN.md — Gate Lacoste/Zara executado: REPORT.md com Lacoste `NO-GO` e Zara `PROMOVER_REQUISITO_FUTURO`
+- [x] 36-02-PLAN.md — Skipped por gate: Lacoste `NO-GO`, nenhum SFCCAntiBotFetcher implementado
+- [x] 36-03-PLAN.md — Skipped por gate: sem ativação, `lacoste.is_active=false`
