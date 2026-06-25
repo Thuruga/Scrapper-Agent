@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Expansão Multi-Plataforma de Concorrentes & Frete VTEX
 status: Executing Phase 32
-stopped_at: Phase 32 context gathered
-last_updated: "2026-06-25T00:26:43.867Z"
-last_activity: 2026-06-25 -- Phase 32 execution started
+stopped_at: Phase 32 Plan 02 complete — WakeEngine implemented and wired
+last_updated: "2026-06-25T00:43:00Z"
+last_activity: 2026-06-25 -- Phase 32 Plan 02 executed (WakeEngine build)
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 13
-  completed_plans: 10
-  percent: 50
+  completed_plans: 11
+  percent: 54
 ---
 
 # Project State: Intelligence Scraper
@@ -32,11 +32,12 @@ See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/sc
 ## Current Position
 
 Phase: 32 (engine-wake-commerce-richards) — EXECUTING
-Plan: 1 of 3
-  Waves: 3/3 merged. 225/225 tests passing. REVIEW.md + VERIFICATION.md written.
-  CRITICAL open item: double-www bug in SFCC URL construction — fix before first live run.
-Next: Phase 32 (engine-wake-commerce-richards) — spike-gated GO/NO-GO on GraphQL token
-Last activity: 2026-06-25 -- Phase 32 execution started
+Plan: 2 of 3 (complete) — next: 32-03 (testes herméticos do WakeEngine)
+  Plan 01 (spike): GO — fluxo GraphQL+TCS-Access-Token validado contra Richards (5 produtos, A1-A6 confirmados)
+  Plan 02 (engine): WakeEngine implementado — wake_access_token em models.py, wake_engine.py (354 linhas), factory.py wired
+  Plan 03 (testes): pendente — testes herméticos do WakeEngine (TestWakeModels, TestWakeEngineSearch, TestWakeFactory, TestWakeTokenFailure, TestWakeStubs)
+Next: Phase 32 Plan 03 — testes herméticos do WakeEngine
+Last activity: 2026-06-25 -- Phase 32 Plan 02 complete (WakeEngine build)
 
 ## Performance Metrics
 
@@ -74,11 +75,18 @@ Last activity: 2026-06-25 -- Phase 32 execution started
 | 28 | 3 | - | - |
 | Phase 30-detec-o-de-engine-sfcc-wake P01 | 10m | 2 tasks | 1 files |
 | 30 | 3 | - | - |
+| Phase 32-engine-wake-commerce-richards P01 | ~10m | 2 tasks | 2 files |
+| Phase 32-engine-wake-commerce-richards P02 | ~5m | 3 tasks | 4 files |
 
 ## Accumulated Context
 
 ### Decisions
 
+- [32-02/SC-3]: EngineFactory.get_engine para engine='wake' agora retorna WakeEngine (import lazy) — NotImplementedError removido do branch wake em factory.py.
+- [32-02/D-06]: Campo wake_access_token: Optional[str] = None adicionado em DynamicBrandCreate apos logo_url; herdado por DynamicBrand; marcas existentes sem o campo continuam validas.
+- [32-02/D-07]: WakeEngine._resolve_token levanta ValueError se token nao resolvido — capturado por _search_one como BrandSearchResult.error (nunca 0 produtos silenciosos).
+- [32-02/prices.price]: prices.price da Wake GraphQL e float em reais (confirmado spike 007: 479 = R$479); sem divisao por 100 (contraste com VTEX).
+- [32-02/aliasComplete]: aliasComplete e relativo (e.g. "produto/camisa-123"); URL completa montada como f"https://{domain}/{alias.lstrip('/')}".
 - [30-01/D-05]: Wake branch returns 'wake' — fbitsstatic.net probe now labels Richards correctly; D-04 auto-deactivation no longer fires for Wake brands.
 - [30-01/D-02+D-07]: SFCC browser probe uses exclusive demandware.static/demandware.edgesuite.net markers and is last-resort (after Shopify, VTEX, HTML probes); SC-4 guaranteed.
 - [30-01/D-03]: BrowserManager imported lazily inside try block in detect_engine; Playwright-absent startup does not break module load.
@@ -151,12 +159,12 @@ Last activity: 2026-06-25 -- Phase 32 execution started
 
 ## Session Continuity
 
-Last session: 2026-06-24T18:06:50.298Z
-Stopped at: Phase 32 context gathered
-Resume file: .planning/phases/32-engine-wake-commerce-richards/32-CONTEXT.md
+Last session: 2026-06-25T00:43:00Z
+Stopped at: Phase 32 Plan 02 complete — WakeEngine implemented, factory wired, 224 tests passing
+Resume file: .planning/phases/32-engine-wake-commerce-richards/32-02-SUMMARY.md
 
 ## Operator Next Steps
 
 - Fix SFCC double-www bug (`sfcc_engine.py:149` and `:379`) before first live Lacoste/HugoBoss run
-- Phase 32: `/gsd-plan-phase 32` (Wake Commerce engine — spike-gated)
+- Phase 32 Plan 03: `/gsd-execute-phase 32 03` — testes herméticos do WakeEngine (TestWakeModels, TestWakeEngineSearch, TestWakeFactory, TestWakeTokenFailure, TestWakeStubs)
 - Phase 33: `/gsd-plan-phase 33` (Frete VTEX via checkout — orthogonal to engines, can run in parallel)

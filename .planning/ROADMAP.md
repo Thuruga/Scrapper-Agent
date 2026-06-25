@@ -102,7 +102,7 @@ Phases 19-29 pertencem a milestones CONCLUÍDOS (v1.10-v2.0). As phases ativas d
 
 **Wave 1** *(blocked on Wave 0 — só executa se REPORT.md = GO; em NO-GO o WakeEngine é deferido por D-03)*
 
-- [ ] 32-02-PLAN.md — WakeEngine: campo wake_access_token (models.py) + engine (busca GraphQL + token por loja + stubs) + wiring na EngineFactory (SC-2/SC-3/SC-4)
+- [x] 32-02-PLAN.md — WakeEngine: campo wake_access_token (models.py) + engine (busca GraphQL + token por loja + stubs) + wiring na EngineFactory (SC-2/SC-3/SC-4) (completed 2026-06-25)
 
 **Wave 2** *(blocked on Wave 1)*
 
@@ -164,7 +164,7 @@ Phases ativas executam em ordem numérica: 30 → 31 → 32 → 33 → 34 → 35
 | 25-29. v2.0 (Concorrentes & Confiabilidade) | v2.0 | - | Complete | shipped |
 | 30. Detecção de Engine SFCC & Wake | v3.0 | 3/3 | Complete    | 2026-06-23 |
 | 31. Engine SFCC (Browser Público) | v3.0 | 3/3 | Complete   | 2026-06-24 |
-| 32. Engine Wake Commerce — Richards | v3.0 | 1/3 | In Progress|  |
+| 32. Engine Wake Commerce — Richards | v3.0 | 2/3 | In Progress| 2026-06-25 |
 | 33. Frete via Checkout nos Sites VTEX | v3.0 | 0/? | Not started | - |
 | 34. Extração de Banners Desktop | v3.0 | 4/4 | Complete   | 2026-06-23 |
 | 35. Publicação de Banners no SharePoint | v3.0 | 0/? | Not started | - |
