@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Expansão Multi-Plataforma de Concorrentes & Frete VTEX
-status: Executing Phase 33
-stopped_at: "Phase 33 Plan 01 complete — pure parser + model contract; Wave 2 (33-02) next"
-last_updated: "2026-06-25T18:41:45Z"
-last_activity: 2026-06-25 -- Phase 33 Plan 01 executed (TDD)
+status: Ready to execute
+stopped_at: Completed 33-02-PLAN.md
+last_updated: "2026-06-25T18:55:06.398Z"
+last_activity: 2026-06-25 -- Phase 33 Plan 01 completed (TDD)
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 19
-  completed_plans: 17
-  percent: 74
+  completed_plans: 18
+  percent: 71
 ---
 
 # Project State: Intelligence Scraper
@@ -27,12 +27,12 @@ See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/sc
 
 **Goal:** Onboardar marcas concorrentes fora do VTEX, entregar o frete VTEX pendente e automatizar a extração de banners desktop com publicação no SharePoint.
 **Phases:** 7 (30-36) — Phase 34 planejada em 4 waves; Phase 36 adicionada para as marcas concorrentes restantes
-**Progress:** [███████░░░] 71%
+**Progress:** [██████████] 95%
 
 ## Current Position
 
 Phase: 33 (frete-via-checkout-nos-sites-vtex) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
   Plan 01 (parser + modelo): COMPLETE — vtex_shipping.py puro, ShippingInfo estendida, shipping_options aditivo (2026-06-25)
   Plan 02 (wiring HTTP): PENDING
   Plan 03 (frontend): PENDING
@@ -79,6 +79,7 @@ Last activity: 2026-06-25 -- Phase 33 Plan 01 completed (TDD)
 | Phase 32-engine-wake-commerce-richards P02 | ~5m | 3 tasks | 4 files |
 | Phase 32-engine-wake-commerce-richards P03 | ~5m | 2 tasks | 1 files |
 | 32 | 3 | - | - |
+| Phase 33 P02 | 18 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -174,9 +175,9 @@ Last activity: 2026-06-25 -- Phase 33 Plan 01 completed (TDD)
 
 ## Session Continuity
 
-Last session: 2026-06-25T02:17:10Z
-Stopped at: Phase 36 complete — Lacoste NO-GO, Zara promoted to future dedicated phase
-Resume file: .planning/phases/36-onboarding-das-marcas-concorrentes-restantes-lacoste-anti-bo/36-01-SUMMARY.md
+Last session: 2026-06-25T18:55:02.056Z
+Stopped at: Completed 33-02-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 
