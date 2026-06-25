@@ -197,6 +197,43 @@ class TestWakeEngineSearch:
             f"calculate_shipping must return None (D-08), got: {result}"
         )
 
+    def test_search_graphql_errors_in_200(self):
+        """CR-01 / SC-2: GraphQL errors arrive as HTTP 200 + {"errors": [...], "data": null}.
+
+        The parse path must NOT raise AttributeError on the null `data`; it must surface
+        the GraphQL error message via BrandSearchResult.error (D-07 structured-error path),
+        leaving products empty. Regression guard for the 200-with-errors response shape.
+        """
+        from services.engines.wake_engine import WakeEngine
+        from core.models import BrandSearchResult
+
+        error_response = {
+            "errors": [{"message": "Invalid storefront access token"}],
+            "data": None,
+        }
+        mock_session = _make_mock_session_with_post(error_response)
+        mock_brand = _make_brand_mock(
+            brand_name="Richards",
+            domain="www.richards.com.br",
+            wake_access_token="tcs_loja_test",
+        )
+
+        with patch(_SESSION_GET_TARGET, return_value=mock_session):
+            with patch(
+                "services.brand_service.brand_service.get_brand",
+                return_value=mock_brand,
+            ):
+                engine = WakeEngine("richards")
+                # Must not raise AttributeError on data=null
+                result = asyncio.run(engine.search("camisa", max_results=3))
+
+        assert isinstance(result, BrandSearchResult)
+        assert result.products == [], "products must be empty on a GraphQL error response"
+        assert result.error, "error must be set when GraphQL returns errors with data=null"
+        assert "Invalid storefront access token" in result.error, (
+            f"GraphQL error message must be surfaced to the operator, got: {result.error!r}"
+        )
+
 
 # ---------------------------------------------------------------------------
 # TestWakeTokenFailure — SC-4 / D-07: token absent → BrandSearchResult.error

@@ -194,13 +194,28 @@ class WakeEngine(BaseEngine):
                 error=f"GraphQL request failed: {exc}",
             )
 
+        # GraphQL returns application errors as HTTP 200 with {"errors": [...], "data": null}.
+        # raise_for_status() only catches non-2xx, so surface those here — otherwise the null
+        # `data` would raise a cryptic AttributeError and bypass the D-07 structured-error path
+        # (CR-01 / SC-2).
+        gql_errors = data.get("errors")
+        payload_data = data.get("data")
+        if gql_errors or payload_data is None:
+            if isinstance(gql_errors, list) and gql_errors:
+                msg = "; ".join(str(e.get("message", e)) for e in gql_errors)
+            else:
+                msg = "resposta GraphQL sem dados (data=null)"
+            logger.warning("[Wake] GraphQL error response for brand=%s: %s", self.brand_key, msg)
+            return BrandSearchResult(
+                brand_key=self.brand_key,
+                brand_name=brand_name,
+                error=f"GraphQL error: {msg}",
+            )
+
         # Parse response — spike 007 confirmed the nested path
-        edges: List[Dict[str, Any]] = (
-            data.get("data", {})
-            .get("search", {})
-            .get("products", {})
-            .get("edges", [])
-        )
+        search_node = payload_data.get("search") or {}
+        products_node = search_node.get("products") or {}
+        edges: List[Dict[str, Any]] = products_node.get("edges") or []
 
         parsed_dicts: List[Dict[str, Any]] = []
         for edge in edges:
