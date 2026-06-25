@@ -23,7 +23,7 @@ O milestone também incorpora a frente de banners, validada por um protótipo ex
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
-Phases 19-29 pertencem a milestones CONCLUÍDOS (v1.10-v2.0). As phases ativas do v3.0 são **30-35**.
+Phases 19-29 pertencem a milestones CONCLUÍDOS (v1.10-v2.0). As phases ativas do v3.0 são **30-36**.
 
 - [x] **Phase 30: Detecção de Engine SFCC & Wake** - `detect_engine` reconhece e rotula `sfcc` e `wake` (em vez de `unknown`), liberando o cadastro dessas marcas com o engine correto (COMP-05) (completed 2026-06-23)
 - [x] **Phase 31: Engine SFCC (Browser Público) — Lacoste & HugoBoss** - Onboarding e busca das marcas SFCC via extração pública browser-rendered (JSON-LD / OpenGraph): catálogo + preço apenas (COMP-03) (completed 2026-06-24)
@@ -31,6 +31,7 @@ Phases 19-29 pertencem a milestones CONCLUÍDOS (v1.10-v2.0). As phases ativas d
 - [ ] **Phase 33: Frete via Checkout nos Sites VTEX** - Cálculo de preço e prazo de frete via checkout simulation nos sites de marca VTEX, com contrato de unidade (centavos→reais) documentado e detecção de frete grátis (FRET-05)
 - [x] **Phase 34: Extração de Banners Desktop** - Motor reutilizável percorre as marcas ativas, coleta todos os slides de imagem do carrossel principal e produz arquivos originais, metadados e relatório visual auditável (BANNER-01, BANNER-02, BANNER-03, BANNER-04) (completed 2026-06-23)
 - [ ] **Phase 35: Publicação de Banners no SharePoint** - Configuração segura do destino e publicação idempotente dos banners e metadados, com resultado por arquivo e gate inicial de acesso/permissões (BANNER-05, BANNER-06)
+- [ ] **Phase 36: Onboarding das Marcas Concorrentes Restantes — Lacoste (anti-bot) & Zara** - Habilitar a busca ao vivo da Lacoste (SFCC), hoje inativa por bloqueio anti-bot (HTTP 403 + "Access Denied" mesmo no Playwright headless), via estratégia anti-bot com gate de viabilidade GO/NO-GO; e reavaliar a Zara/Inditex (COMP-03 gap, COMP-FUT-03)
 
 ## Phase Details
 
@@ -168,3 +169,21 @@ Phases ativas executam em ordem numérica: 30 → 31 → 32 → 33 → 34 → 35
 | 33. Frete via Checkout nos Sites VTEX | v3.0 | 0/? | Not started | - |
 | 34. Extração de Banners Desktop | v3.0 | 4/4 | Complete   | 2026-06-23 |
 | 35. Publicação de Banners no SharePoint | v3.0 | 0/? | Not started | - |
+
+### Phase 36: Onboarding das Marcas Concorrentes Restantes — Lacoste (anti-bot) & Zara
+
+**Goal**: Habilitar a busca ao vivo da **Lacoste** (SFCC) — hoje cadastrada porém **inativa** por bloqueio anti-bot (HTTP direto 403 e "Access Denied" 296B mesmo no Playwright headless, na home e na busca) — por meio de uma estratégia anti-bot (browser stealth / proxy residencial / fingerprint real), iniciando por um **gate de viabilidade GO/NO-GO** antes de investir no fetcher completo; e **reavaliar** a viabilidade pública da **Zara/Inditex**. Entregar a Lacoste ativa com ≥1 produto (título + URL + preço) na busca OU registrar formalmente a inviabilidade com evidência.
+**Requirements**: COMP-03 (gap: Lacoste ao vivo — Hugo Boss já entregue como VTEX, Richards como Wake), COMP-FUT-03 (Zara/Inditex — reavaliar)
+**Depends on**: Phase 31 (SFCCEngine + correção double-www) e Phase 32 (padrão de onboarding por evidência). Ortogonal às Phases 33 (frete VTEX) e 35 (SharePoint).
+**Plans:** 0 plans
+**Success Criteria** (o que deve ser VERDADE):
+
+- Gate de viabilidade anti-bot da Lacoste com veredito **GO/NO-GO** documentado ANTES de qualquer investimento no fetcher completo (espelha o padrão spike-gate da Phase 32).
+- Em **GO**: Lacoste `is_active=True` e `search_all_brands("camisa", brands=["lacoste"])` retorna ≥1 produto com título + URL (domínio Lacoste) + preço; suíte de testes verde, sem regressão nos engines existentes.
+- Em **NO-GO**: inviabilidade registrada com evidência (resposta do anti-bot, técnicas testadas) e Lacoste permanece inativa com a decisão documentada.
+- Zara/Inditex reavaliada: caminho público validado (→ promover a requisito ativo) OU mantida deferida (COMP-FUT-03) com razão atualizada.
+- Escopo: catálogo + preço apenas; sem frete/checkout/estoque por CEP. Acesso restrito a dados públicos de catálogo (sem evasão para fins maliciosos).
+
+Plans:
+
+- [ ] TBD (rodar /gsd-plan-phase 36 para detalhar)

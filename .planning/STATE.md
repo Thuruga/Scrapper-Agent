@@ -26,7 +26,7 @@ See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/sc
 ## Current Milestone: v3.0 Expansão Multi-Plataforma de Concorrentes & Frete VTEX
 
 **Goal:** Onboardar marcas concorrentes fora do VTEX, entregar o frete VTEX pendente e automatizar a extração de banners desktop com publicação no SharePoint.
-**Phases:** 6 (30-35) — Phase 34 planejada em 4 waves
+**Phases:** 7 (30-36) — Phase 34 planejada em 4 waves; Phase 36 adicionada para as marcas concorrentes restantes
 **Progress:** [███████░░░] 71%
 
 ## Current Position
@@ -81,6 +81,10 @@ Last activity: 2026-06-25
 | 32 | 3 | - | - |
 
 ## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 36 adicionada (2026-06-25): Onboarding das Marcas Concorrentes Restantes — Lacoste (anti-bot SFCC) com gate de viabilidade GO/NO-GO + reavaliação Zara/Inditex. Endereça o gap da Lacoste (COMP-03) e COMP-FUT-03. Hugo Boss (VTEX) e Richards (Wake) já entregues e ativos neste ciclo.
 
 ### Decisions
 
