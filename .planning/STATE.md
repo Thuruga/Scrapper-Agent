@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Expansão Multi-Plataforma de Concorrentes & Frete VTEX
-status: Ready to execute
+status: Executing Phase 33
 stopped_at: Completed 33-02-PLAN.md
-last_updated: "2026-06-25T18:55:06.398Z"
-last_activity: 2026-06-25 -- Phase 33 Plan 01 completed (TDD)
+last_updated: "2026-06-26T12:21:00.309Z"
+last_activity: 2026-06-26 -- Phase 33 execution started
 progress:
   total_phases: 7
   completed_phases: 5
@@ -32,12 +32,12 @@ See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/sc
 ## Current Position
 
 Phase: 33 (frete-via-checkout-nos-sites-vtex) — EXECUTING
-Plan: 3 of 3
+Plan: 1 of 3
   Plan 01 (parser + modelo): COMPLETE — vtex_shipping.py puro, ShippingInfo estendida, shipping_options aditivo (2026-06-25)
   Plan 02 (wiring HTTP): PENDING
   Plan 03 (frontend): PENDING
 Next: 33-02 (wiring dos helpers no _fetch_shipping real + retry + CEP config endpoint)
-Last activity: 2026-06-25 -- Phase 33 Plan 01 completed (TDD)
+Last activity: 2026-06-26 -- Phase 33 execution started
 
 ## Performance Metrics
 
