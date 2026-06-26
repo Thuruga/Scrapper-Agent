@@ -1145,28 +1145,31 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
       setSearch({ cepInitialized: true });
       return;
     }
-    setCepLoading(true);
-    ApiClient.getSearchConfig().then((cfg) => {
-      // Late-resolution guard: if the user edited the CEP while the request was in flight, abort.
-      const stateAfterFetch = useSearchStore.getState().search;
-      if (stateAfterFetch.cepInitialized) return;
-      if (stateAfterFetch.zipcode.replace(/\D/g, '').length > 0) {
+    void (async () => {
+      setCepLoading(true);
+      try {
+        const cfg = await ApiClient.getSearchConfig();
+        // Late-resolution guard: if the user edited the CEP while the request was in flight, abort.
+        const stateAfterFetch = useSearchStore.getState().search;
+        if (stateAfterFetch.cepInitialized) return;
+        if (stateAfterFetch.zipcode.replace(/\D/g, '').length > 0) {
+          setSearch({ cepInitialized: true });
+          return;
+        }
+        const raw = (cfg?.default_cep ?? '').replace(/\D/g, '').slice(0, 8);
+        if (raw.length === 8) {
+          const masked = raw.slice(0, 5) + '-' + raw.slice(5);
+          setSearch({ zipcode: masked, cepInitialized: true });
+        } else {
+          setSearch({ cepInitialized: true });
+        }
+      } catch {
+        // Config fetch failed — mark as initialized so the field is unblocked.
         setSearch({ cepInitialized: true });
-        return;
+      } finally {
+        setCepLoading(false);
       }
-      const raw = (cfg?.default_cep ?? '').replace(/\D/g, '').slice(0, 8);
-      if (raw.length === 8) {
-        const masked = raw.slice(0, 5) + '-' + raw.slice(5);
-        setSearch({ zipcode: masked, cepInitialized: true });
-      } else {
-        setSearch({ cepInitialized: true });
-      }
-    }).catch(() => {
-      // Config fetch failed — mark as initialized so the field is unblocked.
-      setSearch({ cepInitialized: true });
-    }).finally(() => {
-      setCepLoading(false);
-    });
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
