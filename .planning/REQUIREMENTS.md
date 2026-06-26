@@ -1,56 +1,71 @@
 # Requirements: Intelligence Scraper
 
-**Defined:** 2026-06-23
-**Milestone:** v3.0 Expansão Multi-Plataforma de Concorrentes & Frete VTEX
+**Defined:** 2026-06-26
+**Milestone:** v4.0 Paridade de Dados, Cobertura Total de Frete & Inteligência Competitiva
 **Core Value:** Extração automatizada e resiliente de dados de mercado com mínima intervenção humana e alta fidelidade de dados.
 
-## v3.0 Requirements
+## v4.0 Requirements
 
 Requisitos comprometidos para este milestone. Cada um mapeia para uma phase no ROADMAP.
 
-### Concorrentes — Novas Plataformas
+### A — Paridade de Dados de Marca
 
-- [ ] **COMP-03**: Operador consegue onboardar e buscar produtos das marcas SFCC **Lacoste** e **HugoBoss** (catálogo + preço) via extração pública browser-rendered (JSON-LD / OpenGraph). _(cumpre COMP-FUT-02; status 2026-06-25: Hugo Boss entregue como VTEX, Lacoste segue bloqueada/inativa após Phase 36 NO-GO no envelope público stealth permitido)_
-- [x] **COMP-04**: Operador consegue onboardar e buscar produtos da **Richards** (Wake Commerce) via API GraphQL com header `TCS-Access-Token` por loja. _(cumpre COMP-FUT-01; gated por um spike de confirmação do fluxo GraphQL + token antes de construir o engine)_
-- [x] **COMP-05**: Ao cadastrar uma marca SFCC ou Wake, o sistema detecta e rotula o engine correto (`detect_engine` retorna `sfcc` / `wake` em vez de `unknown`), permitindo o cadastro com o engine certo em vez de desativar a marca.
+- [ ] **PARID-01**: Existe um vocabulário canônico único de atributos de produto, compartilhado por todas as marcas/engines (sobre o bag `RawProductBronze.specifications` + campos tipados).
+- [ ] **PARID-02**: Cada engine (VTEX/Wake/SFCC/marketplace) popula o conjunto canônico de atributos para as marcas hoje deficientes (Levi's, Calvin Klein, Zapalla, Austral, Track & Field, Richards, Hugo Boss), atingindo paridade com as marcas de referência.
+- [ ] **PARID-03**: Nomes de atributos das fontes são normalizados/aliasados para as chaves canônicas (ex.: `Cor2`→`color`, `Corte`/`Fit`→`fit`), de forma aditiva — sem sobrescrever o `specifications` bruto.
+- [ ] **PARID-04**: Operador vê um relatório de cobertura de atributos por marca (% de campos canônicos preenchidos), distinguindo "não extraído" de "ausente na fonte".
 
-### Frete (Checkout) — carregado do v2.0
+### B — Cobertura de Marcas
 
-- [x] **FRET-05**: O sistema calcula preço e prazo de frete via checkout para os sites de marca VTEX (que hoje retornam vazio em `calculate_shipping`), com unidade correta (centavos→reais) e detecção de frete grátis.
+- [ ] **COMP-06**: Varredura por categoria e monitoramento por categoria da **Hugo Boss** funcionam (de/para de categorias VTEX, mirando o padrão VALID_SLUGS-from-RAW; sem novo engine).
+- [ ] **COMP-07**: Operador onboarda e busca produtos da **Zara** (catálogo + preço). _Gated por um spike de viabilidade GO/NO-GO sobre extração pública de produto+preço (Inditex); se NO-GO, vira backlog sem construir o engine._ (cumpre COMP-FUT-03)
+- [ ] **COMP-08**: **Lacoste** não aparece como alvo selecionável em nenhuma superfície de busca (comparativa, SKU, categoria, scheduler, export); garantido no chokepoint `list_brands(active_only=True)` + teste de regressão.
 
-### Banners Desktop — Extração
+### C — UX de Monitoramento & Busca
 
-- [x] **BANNER-01**: Operador consegue executar uma coleta desktop (`1366×768`) em todas as marcas ativas cadastradas e obter todos os slides de imagem do carrossel principal da primeira tela.
-- [x] **BANNER-02**: Para cada banner extraído, o sistema preserva o arquivo original e registra marca, URL de origem, link de destino, texto alternativo, dimensões, tipo de mídia, data da coleta e hash SHA-256.
-- [x] **BANNER-03**: O sistema navega o carrossel para descobrir slides ocultos ou carregados sob demanda e contabiliza slides em vídeo sem classificá-los ou baixá-los como imagens.
-- [x] **BANNER-04**: Cada execução gera JSON, CSV, galeria visual e screenshot por site, isolando e reportando a falha de uma marca sem interromper as demais.
+- [ ] **UX-01**: Monitor de categoria e varredura por categoria são responsivos em viewports menores.
+- [ ] **UX-02**: Lista de monitoramento exibe o valor da promoção (`price_discount`) além do preço cheio.
+- [ ] **UX-03**: Operador cadastra uma marca colando **apenas a URL**; o sistema detecta marca + engine (`detect_engine` + inferência de nome) e apresenta para confirmação antes de salvar, com override manual disponível.
+- [ ] **UX-04**: Operador adiciona um produto ao monitoramento direto da busca comparativa, da busca por SKU e do monitor de categoria; criação idempotente (dedup por url+marca).
+- [ ] **UX-05**: Toggles de ativar/desativar disponíveis também para os marketplaces virtuais (Mercado Livre, Netshoes, Amazon), respeitados pelo `cross_marketplace_service`.
+- [ ] **UX-06**: Histórico de busca fica no canto superior direito, tanto na busca comparativa quanto na busca por SKU.
+- [ ] **UX-07**: Busca por SKU aceita somente o padrão de SKU (ex.: `ML.05.0326046`, validado) e o campo de CEP fica na mesma linha do input do SKU (igual à comparativa).
+- [ ] **UX-08**: Selecionar uma categoria no monitor dispara automaticamente a primeira varredura e exibe a lista de produtos, sem trigger manual.
 
-### Banners Desktop — SharePoint
+### D — Frete (Cobertura Total)
 
-- [ ] **BANNER-05**: Operador consegue configurar o destino e as credenciais do SharePoint sem armazenar segredos no código ou nos artefatos gerados.
-- [ ] **BANNER-06**: Operador consegue publicar os banners originais e seus metadados no SharePoint, organizados por marca e sem duplicar o mesmo arquivo em reexecuções, com resultado de envio por item.
+- [ ] **FRET-07**: O sistema calcula frete para marcas não-VTEX (Wake/Shopify/SFCC) via uma abstração de frete por engine, e fecha o gap de frete do **Buckman** (VTEX). VTEX permanece no `VtexApiClient` (D-03).
+- [ ] **FRET-08**: O sistema calcula frete para os marketplaces (Mercado Livre, Netshoes, Amazon).
+- [ ] **FRET-09**: **Matriz de Frete Multi-Regional** — o sistema calcula frete para CEPs-chave das 5 regiões do Brasil. _Guard-rails: on-demand/batched (nunca inline na varredura), throttle, cache por (sku, cep), lista de CEPs curada._
+
+### E — Inteligência Competitiva
+
+- [ ] **MAP-01**: Operador define um preço mínimo permitido (MAP) por produto/marca/categoria e o sistema sinaliza produtos anunciados abaixo dele, identificando o vendedor infrator (compara o campo de preço anunciado correto).
+- [ ] **PROMO-01**: O sistema extrai selos de oferta e condições de pagamento ("Leve 3 pague 2", "15% OFF no Pix", parcelamento) em um campo estruturado de promoções, preservando o texto bruto quando não parseável.
+- [ ] **STOCK-01**: Na varredura por categoria, o sistema registra a porcentagem de produtos esgotados por marca.
+- [ ] **STOCK-02**: O sistema captura a profundidade de estoque via requisição de 999 unidades no carrinho, rotulada como "máximo observado/estimativa". _Guard-rails: só em varreduras controladas (nunca em busca), sessões efêmeras isoladas + cleanup, throttle._
+- [ ] **REVW-01**: Extração de notas e comentários reforçada para todas as marcas registradas (por provider — Trustvox/VTEX native/etc.), com paginação limitada e dedup.
+- [ ] **SORT-01**: Um cron de análise de sortimento varre a categoria/site e contabiliza produtos por atributo canônico (ex.: polos por cor/tecido), gerando snapshots por execução para identificar buracos no catálogo (depende de PARID).
 
 ## Future Requirements
 
 Reconhecidos, porém adiados — não entram no roadmap deste milestone.
 
-### Concorrentes em plataformas não suportadas (precisam de engine novo)
+### Carryover do v3.0
 
-- [ ] **COMP-FUT-03**: Engine para **Zara** (Inditex IOP, proprietário — sem API padrão de catálogo). Phase 36 recheck carregou home/search públicos sem bloqueio; promover para fase futura dedicada para validar extração de produto+preço e só então comprometer engine.
+- [ ] **BANNER-05 / BANNER-06**: Configuração e publicação idempotente dos banners no SharePoint. Movido ao backlog ao iniciar o v4.0; ainda bloqueado por destino/credenciais/permissões do SharePoint.
+- [ ] **COMP-03 (Lacoste SFCC)**: Engine SFCC corrigida e testada offline; ativação dormente — depende de egress de IP limpo (anti-bot Akamai por reputação de IP). Reabrir quando houver proxy residencial/móvel.
+- [ ] **FRET-06**: Frete via checkout para sites de marca Shopify — pode requerer Playwright (AJAX Cart com cookie de sessão); validar com spike. _Nota: pode ser absorvido/antecipado por FRET-07 (abstração inclui Shopify)._
 
-### Perfis de acesso (adiado da reunião 17/06)
+### Perfis de acesso
 
-- [ ] **PROFILE-FUT-01**: Perfis de acesso por equipe (ARAMIS: Janete/Edna/Heitor; URBAN: Aline/Caio; NEXT: Aline/Caio; MARKETPLACE: Cauan), com login por usuário, papéis e seleção de marcas a acompanhar no 1º acesso. Exige reforma da auth (hoje API key compartilhada). Provável milestone próprio.
+- [ ] **PROFILE-FUT-01**: Perfis de acesso por equipe com login por usuário e papéis. Exige reforma da auth (hoje API key compartilhada). Provável milestone próprio.
 
-### Frete (próximas iterações)
-
-- [ ] **FRET-06**: Calcular frete via checkout para sites de marca Shopify. Adiado por incerteza de viabilidade — o fluxo AJAX Cart (`prepare/async_shipping_rates`) exige cookie de sessão e pode demandar Playwright; validar com um spike antes de comprometer.
-
-### Carryover de milestones anteriores
+### Outros carryovers
 
 - [ ] **EXPORT-HIST-01**: Exportar para Excel a partir de uma busca por SKU salva no histórico.
-- [ ] **EXPORT-UNIFY-01**: Levar a seleção de produtos (todos/selecionados) ao export da busca comparativa por marca (`/search/export`).
-- [ ] **IDENT-01**: Investigar sinal de identidade de produto além do EAN (EAN invalidado por baixa cobertura).
+- [ ] **EXPORT-UNIFY-01**: Levar a seleção de produtos ao export da busca comparativa por marca.
+- [ ] **IDENT-01**: Investigar sinal de identidade de produto além do EAN.
 
 ## Out of Scope
 
@@ -58,37 +73,26 @@ Explicitamente excluído deste milestone, com motivo.
 
 | Feature | Reason |
 |---------|--------|
-| Frete / checkout / estoque por CEP para marcas SFCC | O caminho SFCC validado por spike é só catálogo+preço via browser público; checkout/frete exigiria OCAPI/SCAPI (credenciais) — fora de escopo. |
-| OCAPI / SCAPI (APIs autenticadas SFCC) | Exigem credenciais comerciais não disponíveis; a extração SFCC fica na via pública browser-rendered. |
-| Escalada anti-bot / proxy pago / CAPTCHA / WAF | Phase 36 testou apenas o envelope público stealth aprovado; qualquer escalada além disso exige aprovação explícita posterior. |
-| Engine **Zara / Inditex IOP** | Plataforma proprietária; Phase 36 viu páginas públicas carregarem, mas produto+preço e engine exigem fase futura dedicada (COMP-FUT-03). |
-| Reforma de autenticação / perfis de acesso por usuário | Disruptivo (hoje é API key compartilhada); permanece Future (PROFILE-FUT-01). |
-| Banners mobile | O milestone cobre somente viewport desktop; imagens responsivas/mobile exigem coleta e validação próprias. |
-| Download de slides em vídeo | Vídeos são contabilizados para completar o carrossel, mas a entrega comprometida é somente de imagens. |
-| Agendamento recorrente da coleta | A execução será disparada sob demanda; cadência automática não foi definida. |
+| Bypass anti-bot / proxy pago / CAPTCHA para Lacoste | Sem verba de egress de IP limpo; Lacoste segue dormente (COMP-03 Future). |
+| Frete/checkout/estoque por CEP para SFCC | Caminho SFCC é só catálogo+preço via browser público. |
+| Reforma de autenticação / perfis por usuário | Disruptivo; permanece Future (PROFILE-FUT-01). |
+| Publicação no SharePoint (banners) | Bloqueado por credenciais/permissões; movido ao backlog. |
+| Servidor de banco externo (Postgres etc.) | SQLite (stdlib) é suficiente para os dados analíticos deste tool single-node. |
+| Análise de sortimento em tempo real | SORT-01 é cron/batch; não é tempo real. |
+| Profundidade de estoque em busca ao vivo | Cart-probe (STOCK-02) só roda em varreduras controladas, nunca em busca. |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| COMP-05 | Phase 30 | Complete |
-| COMP-03 | Phase 31 + Phase 36 | Partial / blocked for Lacoste (NO-GO) |
-| COMP-04 | Phase 32 | Complete |
-| FRET-05 | Phase 33 | Complete |
-| BANNER-01 | Phase 34 | Complete |
-| BANNER-02 | Phase 34 | Complete |
-| BANNER-03 | Phase 34 | Complete |
-| BANNER-04 | Phase 34 | Complete |
-| BANNER-05 | Phase 35 | Pending |
-| BANNER-06 | Phase 35 | Pending |
+| _(preenchido na criação do ROADMAP)_ | — | Pending |
 
 **Coverage:**
 
-- v3.0 requirements: 10 total
-- Mapped to phases: 10 (COMP-05→30, COMP-03→31+36, COMP-04→32, FRET-05→33, BANNER-01..04→34, BANNER-05..06→35)
-- Unmapped: 0 ✓
-- Deferred (Future): COMP-FUT-03 (promover para fase Zara/Inditex dedicada), PROFILE-FUT-01, FRET-06, EXPORT-HIST-01, EXPORT-UNIFY-01, IDENT-01
+- v4.0 requirements: 24 total (PARID×4, COMP-06..08, UX-01..08, FRET-07..09, MAP-01, PROMO-01, STOCK-01..02, REVW-01, SORT-01)
+- Mapped to phases: _(preenchido na criação do ROADMAP)_
+- Unmapped: _(a validar)_
 
 ---
-*Requirements defined: 2026-06-23 for milestone v3.0*
-*Last updated: 2026-06-25 — Phase 36 concluiu Lacoste NO-GO no envelope público stealth permitido; Zara recheck promove COMP-FUT-03 para fase futura dedicada.*
+*Requirements defined: 2026-06-26 for milestone v4.0*
+*Last updated: 2026-06-26 — definição inicial (Zara spike-gated; STOCK-02 e FRET-09 com guard-rails anti-bot).*
