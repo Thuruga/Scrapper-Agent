@@ -17,6 +17,11 @@ interface SearchSlice {
   sort: string
   inStock: boolean
   zipcode: string
+  // One-time init flag (D-06): CEP is initialized from getSearchConfig exactly once per session.
+  // A late config response must not overwrite a CEP the user already edited (pitfall 8).
+  // Memory-only — no persist middleware — so reload resets both zipcode and this flag to their
+  // initial values, and the visible default is re-fetched fresh (D-06).
+  cepInitialized: boolean
   selectedBrands: string[]
   results: any | null
   loading: boolean
@@ -75,6 +80,7 @@ export const useSearchStore = create<SearchStoreState>()((set, get) => ({
     sort: 'relevance',
     inStock: false,
     zipcode: '',
+    cepInitialized: false,
     selectedBrands: [],
     results: null,
     loading: false,

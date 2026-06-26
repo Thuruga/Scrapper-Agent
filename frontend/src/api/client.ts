@@ -87,6 +87,10 @@ export class ApiClient {
     }, signal);
   }
 
+  static getSearchConfig() {
+    return this.request<any>('/search/config');
+  }
+
   static getHistoryList() {
     return this.request<any[]>('/history');
   }

@@ -33,6 +33,8 @@ import {
   History,
   Images,
   Square,
+  MapPin,
+  Truck,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -1079,12 +1081,13 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
   const loading = useSearchStore((s) => s.search.loading);
   const results = useSearchStore((s) => s.search.results);
   // useShallow para múltiplos campos do mesmo slice (evita re-render por referência nova do objeto)
-  const { query, sort, inStock, zipcode, selectedBrands } = useSearchStore(
+  const { query, sort, inStock, zipcode, cepInitialized, selectedBrands } = useSearchStore(
     useShallow((s) => ({
       query: s.search.query,
       sort: s.search.sort,
       inStock: s.search.inStock,
       zipcode: s.search.zipcode,
+      cepInitialized: s.search.cepInitialized,
       selectedBrands: s.search.selectedBrands,
     }))
   );
@@ -1094,6 +1097,9 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
   // UI transiente — permanecem como useState local (D-03)
   const [exporting, setExporting] = useState(false);
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+  const [cepError, setCepError] = useState<string | null>(null);
+  const [cepLoading, setCepLoading] = useState(false);
+  const cepInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (preloadedJobId) {
@@ -1128,6 +1134,42 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preloadedJobId]);
 
+  // One-time CEP init from backend default (D-04, D-06, pitfall 8).
+  // Runs once on mount. A late resolution early-returns if the user already edited the CEP
+  // (cepInitialized=true) so a slow config response never overwrites an edited value.
+  useEffect(() => {
+    if (cepInitialized) return;
+    const currentZipcode = useSearchStore.getState().search.zipcode;
+    // If the user already typed something before the effect ran, bail out.
+    if (currentZipcode.replace(/\D/g, '').length > 0) {
+      setSearch({ cepInitialized: true });
+      return;
+    }
+    setCepLoading(true);
+    ApiClient.getSearchConfig().then((cfg) => {
+      // Late-resolution guard: if the user edited the CEP while the request was in flight, abort.
+      const stateAfterFetch = useSearchStore.getState().search;
+      if (stateAfterFetch.cepInitialized) return;
+      if (stateAfterFetch.zipcode.replace(/\D/g, '').length > 0) {
+        setSearch({ cepInitialized: true });
+        return;
+      }
+      const raw = (cfg?.default_cep ?? '').replace(/\D/g, '').slice(0, 8);
+      if (raw.length === 8) {
+        const masked = raw.slice(0, 5) + '-' + raw.slice(5);
+        setSearch({ zipcode: masked, cepInitialized: true });
+      } else {
+        setSearch({ cepInitialized: true });
+      }
+    }).catch(() => {
+      // Config fetch failed — mark as initialized so the field is unblocked.
+      setSearch({ cepInitialized: true });
+    }).finally(() => {
+      setCepLoading(false);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const toggleBrand = (key: string) => {
     const next = selectedBrands.includes(key)
       ? selectedBrands.filter(k => k !== key)
@@ -1146,14 +1188,23 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
+    // D-05: block search if the user edited the CEP to an incomplete/invalid value.
+    // A CEP is "user-edited and invalid" when it's non-empty but has fewer than 8 digits.
+    const cepDigits = zipcode.replace(/\D/g, '');
+    if (cepDigits.length > 0 && cepDigits.length < 8) {
+      setCepError('Informe um CEP válido com 8 dígitos.');
+      cepInputRef.current?.focus();
+      return;
+    }
+    setCepError(null);
     onClearPreloadedJob?.();
     const outcome = await startSearch({
       query,
       sort,
       only_in_stock: inStock,
       brands: selectedBrands.length > 0 ? selectedBrands : undefined,
-      zipcode: zipcode.replace(/\D/g, '').length === 8 ? zipcode.replace(/\D/g, '') : undefined,
-      include_shipping: zipcode.replace(/\D/g, '').length === 8 ? true : undefined,
+      zipcode: cepDigits.length === 8 ? cepDigits : undefined,
+      include_shipping: cepDigits.length === 8 ? true : undefined,
     });
     // historyRefreshKey permanece local (D-03) — só refaz a HistoryList em busca CONCLUÍDA
     // (não em cancelamento/erro — WR-06)
@@ -1164,6 +1215,14 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
 
   const handleExport = async () => {
     if (!query) return;
+    // D-05: block export if the user edited the CEP to an incomplete/invalid value.
+    const cepDigits = zipcode.replace(/\D/g, '');
+    if (cepDigits.length > 0 && cepDigits.length < 8) {
+      setCepError('Informe um CEP válido com 8 dígitos.');
+      cepInputRef.current?.focus();
+      return;
+    }
+    setCepError(null);
     setExporting(true);
     try {
       await ApiClient.exportSearch({
@@ -1171,8 +1230,8 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
         sort,
         only_in_stock: inStock,
         brands: selectedBrands.length > 0 ? selectedBrands : undefined,
-        zipcode: zipcode.replace(/\D/g, '').length === 8 ? zipcode.replace(/\D/g, '') : undefined,
-        include_shipping: zipcode.replace(/\D/g, '').length === 8 ? true : undefined
+        zipcode: cepDigits.length === 8 ? cepDigits : undefined,
+        include_shipping: cepDigits.length === 8 ? true : undefined
       });
     } catch (err: any) {
       console.error(err);
@@ -1202,24 +1261,42 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
             </div>
 
             <div className="search-field">
-              <label className="search-field-label">CEP (Opcional)</label>
-              <div className="search-input-wrapper">
+              <label className="search-field-label" htmlFor="cep-input">CEP de entrega</label>
+              <div className={`search-input-wrapper${cepError ? ' cep-input-error' : ''}`}>
+                <MapPin className="search-icon" size={20} aria-hidden="true" />
                 <input
+                  id="cep-input"
+                  ref={cepInputRef}
                   type="text"
+                  inputMode="numeric"
+                  autoComplete="postal-code"
                   className="search-input"
                   placeholder="00000-000"
                   value={zipcode}
+                  disabled={cepLoading}
+                  aria-invalid={cepError ? 'true' : 'false'}
+                  aria-describedby={cepError ? 'cep-error-msg' : 'cep-helper-msg'}
                   onChange={(e) => {
                     let val = e.target.value.replace(/\D/g, '');
                     if (val.length > 8) val = val.slice(0, 8);
                     if (val.length > 5) {
                       val = val.slice(0, 5) + '-' + val.slice(5);
                     }
-                    setSearch({ zipcode: val });
+                    setSearch({ zipcode: val, cepInitialized: true });
+                    if (cepError) setCepError(null);
                   }}
-                  style={{ paddingLeft: '8px' }}
                 />
               </div>
+              {cepError ? (
+                <p id="cep-error-msg" className="cep-helper cep-helper-error" role="alert" aria-live="polite">
+                  <AlertTriangle size={12} aria-hidden="true" />
+                  {cepError}
+                </p>
+              ) : (
+                <p id="cep-helper-msg" className="cep-helper">
+                  {cepLoading ? 'Carregando CEP padrão…' : 'Usado para calcular o frete automaticamente.'}
+                </p>
+              )}
             </div>
           </div>
 
