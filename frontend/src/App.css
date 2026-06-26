@@ -1276,3 +1276,157 @@ body {
   .banner-report-actions { width: 100%; margin-left: 0; }
   .banner-report-actions .btn { flex: 1; }
 }
+
+/* =========================================================
+   CEP field validation (Phase 33 — D-05)
+   ========================================================= */
+
+/* Error ring on the input wrapper */
+.cep-input-error {
+  outline: 1px solid var(--error);
+  border-radius: 12px;
+}
+
+/* Helper / error text below the CEP input */
+.cep-helper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.cep-helper-error {
+  color: var(--error);
+}
+
+/* =========================================================
+   Shipping section inside product card (Phase 33 — D-08–D-12)
+   ========================================================= */
+
+/* Container: 1px --border top divider with spacing, visually separated from product price */
+.shipping-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+/* Header row: Truck icon + "Entrega para {CEP}" */
+.shipping-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 0.8125rem; /* 13px */
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* Semantic list — resets browser default list styles */
+.shipping-options-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Each delivery option row: two columns (service | price) */
+.shipping-option-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 8px;
+  align-items: start;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.shipping-option-row:last-child {
+  border-bottom: none;
+}
+
+/* Left column: service name + estimate stacked */
+.shipping-option-service {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.shipping-service-name {
+  font-size: 0.8125rem; /* 13px — shipping service/price tier */
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shipping-estimate {
+  font-size: 0.75rem; /* 12px — estimate/helper tier */
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+/* Right column: price — right aligned, max-content width */
+.shipping-option-price {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
+
+/* Free shipping highlight: success green + CheckCircle2 */
+.shipping-free {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--success);
+  white-space: nowrap;
+}
+
+/* Paid freight: tabular numerics for clean alignment */
+.shipping-paid {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Non-option state rows: unavailable + temporary failure */
+.shipping-state-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.4;
+  padding: 4px 0;
+}
+
+/* "Entrega indisponível para este CEP" — neutral/muted (NOT red, per D-14) */
+.shipping-state-unavailable {
+  color: var(--text-muted);
+}
+
+/* "Frete temporariamente indisponível" — amber warning */
+.shipping-state-warning {
+  color: var(--warning);
+}
+
+@media (max-width: 640px) {
+  /* Allow service name and estimate to wrap; price stays right-aligned */
+  .shipping-service-name {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+  }
+}

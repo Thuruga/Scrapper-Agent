@@ -1423,15 +1423,98 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
                           {p.available ? <CheckCircle2 size={14} className="text-success" /> : <XCircle size={14} className="text-error" />}
                           <span>{p.available ? 'Em estoque' : 'Esgotado'}</span>
                         </div>
-                        {p.shipping && (
-                          <div className="product-meta" style={{ marginTop: '6px', color: p.shipping.status === 'Grátis' ? '#10b981' : 'inherit' }}>
-                            <Package size={14} />
-                            <span>
-                              {p.shipping.status === 'Grátis' ? 'Frete Grátis' : (p.shipping.price ? `Frete: R$ ${p.shipping.price.toFixed(2)}` : p.shipping.status)}
-                              {p.shipping.estimated_delivery_days ? ` (${p.shipping.estimated_delivery_days} dias)` : ''}
-                            </span>
-                          </div>
-                        )}
+                        {/* Shipping section: shipping_options list with non-option states and legacy fallback (D-08 compat).
+                            Three cases:
+                            (A) shipping_options non-empty array → render all delivery options
+                            (B) shipping_options empty array + shipping present → show unavailable/failure state row
+                            (C) shipping_options absent (undefined) → legacy fallback to p.shipping */}
+                        {(() => {
+                          const hasOptions = Array.isArray(p.shipping_options) && p.shipping_options.length > 0;
+                          const hasEmptyOptions = Array.isArray(p.shipping_options) && p.shipping_options.length === 0;
+
+                          // Case A: render delivery options list
+                          if (hasOptions) {
+                            return (
+                              <div className="shipping-section">
+                                <div className="shipping-header">
+                                  <Truck size={14} aria-hidden="true" />
+                                  <span>Entrega para {zipcode}</span>
+                                </div>
+                                <ul className="shipping-options-list">
+                                  {/* Backend order: price asc then estimate asc — do NOT re-sort (D-10) */}
+                                  {p.shipping_options.map((opt: any, idx: number) => {
+                                    const isFree = opt.is_free_shipping === true || opt.price === 0 || opt.price === 0.0;
+                                    const serviceName = opt.service_name || opt.service_id || 'Entrega';
+                                    // estimate_display is the backend-formatted PT text (e.g. "Até 5 dias úteis")
+                                    const estimateText = opt.estimate_display || opt.raw_text || (opt.estimated_delivery_days ? `Até ${opt.estimated_delivery_days} dias úteis` : '');
+                                    return (
+                                      <li key={idx} className="shipping-option-row">
+                                        <div className="shipping-option-service">
+                                          <span className="shipping-service-name">{serviceName}</span>
+                                          {estimateText && <span className="shipping-estimate">{estimateText}</span>}
+                                        </div>
+                                        <div className="shipping-option-price">
+                                          {isFree ? (
+                                            <span className="shipping-free">
+                                              <CheckCircle2 size={12} aria-hidden="true" />
+                                              Frete Grátis
+                                            </span>
+                                          ) : (
+                                            <span className="shipping-paid">
+                                              R$ {(opt.price ?? 0).toFixed(2).replace('.', ',')}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              </div>
+                            );
+                          }
+
+                          // Case B: empty options array — unavailable_for_cep or temporary_failure state (D-13, D-14)
+                          // Map backend status strings to exact UI-SPEC copy (Copywriting Contract).
+                          if (hasEmptyOptions && p.shipping) {
+                            const statusLower = (p.shipping.status || '').toLowerCase();
+                            const isFailure = statusLower.includes('temporariamente');
+                            // Use exact copy strings from UI-SPEC Copywriting Contract
+                            const stateText = isFailure
+                              ? 'Frete temporariamente indisponível'
+                              : 'Entrega indisponível para este CEP';
+                            return (
+                              <div className="shipping-section">
+                                <div className="shipping-header">
+                                  <Truck size={14} aria-hidden="true" />
+                                  <span>Entrega para {zipcode}</span>
+                                </div>
+                                <div className={`shipping-state-row ${isFailure ? 'shipping-state-warning' : 'shipping-state-unavailable'}`}>
+                                  {isFailure ? (
+                                    <AlertTriangle size={13} aria-hidden="true" />
+                                  ) : (
+                                    <MapPin size={13} aria-hidden="true" />
+                                  )}
+                                  <span>{stateText}</span>
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          // Case C: shipping_options absent — legacy fallback for old history records (D-08 compat)
+                          if (!Array.isArray(p.shipping_options) && p.shipping) {
+                            return (
+                              <div className="product-meta" style={{ marginTop: '6px', color: p.shipping.status === 'Grátis' ? 'var(--success)' : 'inherit' }}>
+                                <Package size={14} aria-hidden="true" />
+                                <span>
+                                  {p.shipping.status === 'Grátis' ? 'Frete Grátis' : (p.shipping.price ? `Frete: R$ ${p.shipping.price.toFixed(2)}` : p.shipping.status)}
+                                  {p.shipping.estimated_delivery_days ? ` (${p.shipping.estimated_delivery_days} dias)` : ''}
+                                </span>
+                              </div>
+                            );
+                          }
+
+                          return null;
+                        })()}
                       </div>
                     </a>
                   ))}
