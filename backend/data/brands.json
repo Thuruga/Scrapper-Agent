@@ -358,8 +358,84 @@
     "vtex_account": null,
     "engine": "wake",
     "logo_url": null,
-    "wake_access_token": null,
-    "mappings": [],
+    "wake_access_token": "tcs_richa_35674061aaa44bc8ae2259bd37b4ae03",
+    "mappings": [
+      {
+        "canonical_slug": "acessorios",
+        "vtex_fq_path": "/acessorios",
+        "label": "Masculino - Acessórios"
+      },
+      {
+        "canonical_slug": "bermudas",
+        "vtex_fq_path": "/bermudas",
+        "label": "Masculino - Bermudas"
+      },
+      {
+        "canonical_slug": "blazers",
+        "vtex_fq_path": "/blazers",
+        "label": "Masculino - Blazers"
+      },
+      {
+        "canonical_slug": "calcados",
+        "vtex_fq_path": "/calcados",
+        "label": "Masculino - Calçados"
+      },
+      {
+        "canonical_slug": "calcas",
+        "vtex_fq_path": "/calcas",
+        "label": "Masculino - Calças"
+      },
+      {
+        "canonical_slug": "camisas",
+        "vtex_fq_path": "/camisas",
+        "label": "Masculino - Camisas"
+      },
+      {
+        "canonical_slug": "intimo",
+        "vtex_fq_path": "/intimo",
+        "label": "Masculino - Íntimo"
+      },
+      {
+        "canonical_slug": "jaquetas",
+        "vtex_fq_path": "/jaquetas",
+        "label": "Masculino - Jaquetas"
+      },
+      {
+        "canonical_slug": "moletom",
+        "vtex_fq_path": "/moletom",
+        "label": "Masculino - Moletom"
+      },
+      {
+        "canonical_slug": "polos",
+        "vtex_fq_path": "/polos",
+        "label": "Masculino - Polos"
+      },
+      {
+        "canonical_slug": "praia",
+        "vtex_fq_path": "/praia",
+        "label": "Masculino - Praia"
+      },
+      {
+        "canonical_slug": "shorts",
+        "vtex_fq_path": "/shorts",
+        "label": "Masculino - Shorts"
+      },
+      {
+        "canonical_slug": "t-shirts",
+        "vtex_fq_path": "/camisetas",
+        "label": "Masculino - T-Shirts"
+      },
+      {
+        "canonical_slug": "tricos-e-blusas",
+        "vtex_fq_path": "/tricot",
+        "label": "Masculino - Tricos e Blusas"
+      },
+      {
+        "canonical_slug": "outlet",
+        "vtex_fq_path": "/sale/masculino",
+        "label": "Masculino - Outlet"
+      }
+    ],
     "is_active": true
   },
   "lacoste": {
@@ -372,6 +448,8 @@
     "engine": "sfcc",
     "logo_url": null,
     "wake_access_token": null,
+    "search_url_template": "https://www.lacoste.com/br/search?q={query}",
+    "proxy_url": null,
     "mappings": [],
     "is_active": false
   },

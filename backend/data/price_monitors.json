@@ -1,1 +1,53 @@
-{}
+{
+  "e37105e8-e601-469d-aef1-debd08012510": {
+    "job_id": "e37105e8-e601-469d-aef1-debd08012510",
+    "url": "https://www.aramis.com.br/camisa-manga-longa-regular-sarja-mista-chumbo-ml-05-0326-046/p",
+    "brand": "aramis",
+    "interval_minutes": 10,
+    "duration_hours": 24,
+    "start_time": "2026-06-23T18:43:03.536439+00:00",
+    "last_price": 299.9,
+    "history": [
+      {
+        "timestamp": "2026-06-23T18:43:05.314882+00:00",
+        "price": 299.9,
+        "available": true,
+        "available_colors": [
+          "CAQUI",
+          "CINZA",
+          "AZUL",
+          "CHUMBO",
+          "VERDE MILITAR",
+          "VERDE",
+          "C\u00c1QUI"
+        ],
+        "available_sizes": [
+          "P",
+          "M",
+          "G",
+          "GG",
+          "XGG"
+        ]
+      }
+    ],
+    "active": true,
+    "image_url": "https://aramismenswear.vteximg.com.br/arquivos/ids/1494461/ML050326_046_1-CAMISA-REG-SARJA-MISTA-OUT--PA-.jpg?v=638924620851070000",
+    "product_name": "Camisa Manga Longa Regular Sarja Mista Chumbo",
+    "available_colors": [
+      "CAQUI",
+      "CINZA",
+      "AZUL",
+      "CHUMBO",
+      "VERDE MILITAR",
+      "VERDE",
+      "C\u00c1QUI"
+    ],
+    "available_sizes": [
+      "P",
+      "M",
+      "G",
+      "GG",
+      "XGG"
+    ]
+  }
+}

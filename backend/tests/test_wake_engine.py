@@ -54,6 +54,29 @@ _GRAPHQL_RESPONSE = {
     }
 }
 
+# Hotsite (coleção/seção, ex.: /sale/masculino) — mesmo Product node do search,
+# aninhado sob data.hotsite.products. Usado para a varredura por categoria real
+# (fix: Outlet/Sale não correspondem a nenhum termo de busca).
+_HOTSITE_RESPONSE = {
+    "data": {
+        "hotsite": {
+            "products": {
+                "edges": [
+                    {
+                        "node": {
+                            "productName": "Jaqueta Rain Nylon Azul Bic",
+                            "aliasComplete": "produto/jaqueta-rain-nylon-azul-bic-154264",
+                            "prices": {"price": 798.0},
+                            "images": [{"url": "https://richards.fbitsstatic.net/img/p/jaqueta.jpg"}],
+                            "available": True,
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -507,31 +530,196 @@ class TestWakeModels:
 
 
 # ---------------------------------------------------------------------------
-# TestWakeStubs — D-08: graceful stubs return [] without crash
+# TestWakeCatalog — categorias derivadas do de/para (brand.mappings)
+# (substitui os antigos stubs D-08 de get_catalog/discover_categories — bug
+#  richards-sem-categorias: Wake nunca surfacava categorias no dropdown)
 # ---------------------------------------------------------------------------
 
-class TestWakeStubs:
-    """WakeEngine graceful stubs: discover_categories / get_catalog return [] (D-08)."""
+_GET_BRAND_TARGET = "services.brand_service.brand_service.get_brand"
 
-    def test_discover_categories_stub(self):
-        """D-08: discover_categories() returns [] without crash (graceful stub)."""
+
+def _make_brand_with_mappings(mappings):
+    """Stub leve de DynamicBrand com os campos que o WakeEngine lê."""
+    brand = MagicMock()
+    brand.domain = "www.richards.com.br"
+    brand.brand_name = "Richards"
+    brand.wake_access_token = None
+    brand.mappings = mappings
+    return brand
+
+
+def _mapping(canonical_slug: str, label: str, path: str):
+    m = MagicMock()
+    m.canonical_slug = canonical_slug
+    m.label = label
+    m.vtex_fq_path = path
+    return m
+
+
+class TestWakeCatalog:
+    """get_catalog / discover_categories derivam categorias de brand.mappings."""
+
+    def test_discover_categories_empty_when_no_mappings(self):
+        """Sem mappings → [] (graceful; preserva o comportamento seguro do D-08)."""
         from services.engines.wake_engine import WakeEngine
 
-        engine = WakeEngine("richards")
-        result = asyncio.run(engine.discover_categories())
-        assert result == [], (
-            f"discover_categories must return [] (D-08 graceful stub), got: {result}"
-        )
+        with patch(_GET_BRAND_TARGET, return_value=_make_brand_with_mappings([])):
+            engine = WakeEngine("richards")
+            result = asyncio.run(engine.discover_categories())
+        assert result == [], f"discover_categories must return [] when no mappings, got: {result}"
 
-    def test_get_catalog_stub(self):
-        """D-08: get_catalog() returns [] without crash (graceful stub)."""
+    def test_get_catalog_empty_when_no_mappings(self):
+        """Sem mappings → [] (dropdown vazio, mas sem crash)."""
         from services.engines.wake_engine import WakeEngine
 
-        engine = WakeEngine("richards")
-        result = asyncio.run(engine.get_catalog())
-        assert result == [], (
-            f"get_catalog must return [] (D-08 graceful stub), got: {result}"
+        with patch(_GET_BRAND_TARGET, return_value=_make_brand_with_mappings([])):
+            engine = WakeEngine("richards")
+            result = asyncio.run(engine.get_catalog())
+        assert result == [], f"get_catalog must return [] when no mappings, got: {result}"
+
+    def test_discover_categories_from_mappings(self):
+        """Com mappings → lista plana de {name, path} (fix richards-sem-categorias)."""
+        from services.engines.wake_engine import WakeEngine
+
+        mappings = [
+            _mapping("camisas", "Camisas", "/camisas"),
+            _mapping("polos", "Polos", "/polos"),
+        ]
+        with patch(_GET_BRAND_TARGET, return_value=_make_brand_with_mappings(mappings)):
+            engine = WakeEngine("richards")
+            result = asyncio.run(engine.discover_categories())
+        assert result == [
+            {"name": "Camisas", "path": "/camisas"},
+            {"name": "Polos", "path": "/polos"},
+        ], f"discover_categories must surface mappings, got: {result}"
+
+    def test_get_catalog_from_mappings_frontend_shape(self):
+        """Com mappings → {group, items:[{label, path}]} (contrato do dropdown)."""
+        from services.engines.wake_engine import WakeEngine
+
+        mappings = [
+            _mapping("camisas", "Camisas", "/camisas"),
+            _mapping("polos", "Polos", "/polos"),
+        ]
+        with patch(_GET_BRAND_TARGET, return_value=_make_brand_with_mappings(mappings)):
+            engine = WakeEngine("richards")
+            result = asyncio.run(engine.get_catalog())
+        assert result == [
+            {
+                "group": "Categorias",
+                "items": [
+                    {"label": "Camisas", "path": "/camisas"},
+                    {"label": "Polos", "path": "/polos"},
+                ],
+            }
+        ], f"get_catalog must match frontend shape, got: {result}"
+
+    def test_category_url_to_search_term(self):
+        """Deriva o termo de busca do último segmento do path da categoria."""
+        from services.engines.wake_engine import WakeEngine
+
+        assert WakeEngine._category_url_to_search_term("/camisas") == "camisas"
+        assert WakeEngine._category_url_to_search_term("/roupas/polos") == "polos"
+        assert (
+            WakeEngine._category_url_to_search_term("https://www.richards.com.br/bermudas-e-shorts")
+            == "bermudas e shorts"
         )
+        assert WakeEngine._category_url_to_search_term("") == ""
+
+    def test_run_bulk_scrape_yields_products_via_search(self):
+        """run_bulk_scrape('/camisas') deriva termo 'camisas' e produz produtos via search."""
+        from services.engines.wake_engine import WakeEngine
+
+        mock_session = _make_mock_session_with_post(_GRAPHQL_RESPONSE)
+        mock_brand = _make_brand_mock(
+            brand_name="Richards",
+            domain="www.richards.com.br",
+            wake_access_token="tcs_loja_test",
+        )
+
+        async def _collect():
+            engine = WakeEngine("richards")
+            out = []
+            async for product in engine.run_bulk_scrape("/camisas"):
+                out.append(product)
+            return out
+
+        with patch(_SESSION_GET_TARGET, return_value=mock_session):
+            with patch(
+                "services.brand_service.brand_service.get_brand",
+                return_value=mock_brand,
+            ):
+                products = asyncio.run(_collect())
+
+        assert len(products) >= 1, "Expected ≥1 product yielded from category scrape"
+        first = products[0]
+        assert first["raw_title"], "yielded product must have raw_title"
+        assert first["url"].startswith("https://www.richards.com.br/"), (
+            f"URL must be absolute richards URL, got: {first['url']}"
+        )
+        assert first["price_full"] and first["price_full"] > 0, (
+            f"price_full must be positive reais float, got: {first['price_full']}"
+        )
+
+    def test_hotsite_path_normalizes(self):
+        """_hotsite_path → path relativo com barra inicial, sem host/query/barra final."""
+        from services.engines.wake_engine import WakeEngine
+
+        assert WakeEngine._hotsite_path("https://www.richards.com.br/sale/masculino") == "/sale/masculino"
+        assert WakeEngine._hotsite_path("camisas") == "/camisas"
+        assert WakeEngine._hotsite_path("/outlet/") == "/outlet"
+        assert WakeEngine._hotsite_path("/x?p=1") == "/x"
+        assert WakeEngine._hotsite_path("") == ""
+
+    def test_run_bulk_scrape_yields_products_via_hotsite(self):
+        """run_bulk_scrape usa hotsite(url:) quando o path é uma coleção (fix Outlet).
+
+        A resposta mockada traz data.hotsite (não data.search) → o caminho de
+        hotsite produz os produtos e o fallback por busca NÃO é acionado.
+        """
+        from services.engines.wake_engine import WakeEngine
+
+        mock_session = _make_mock_session_with_post(_HOTSITE_RESPONSE)
+        mock_brand = _make_brand_mock(
+            brand_name="Richards",
+            domain="www.richards.com.br",
+            wake_access_token="tcs_loja_test",
+        )
+
+        async def _collect():
+            engine = WakeEngine("richards")
+            out = []
+            async for product in engine.run_bulk_scrape("https://www.richards.com.br/sale/masculino"):
+                out.append(product)
+            return out
+
+        with patch(_SESSION_GET_TARGET, return_value=mock_session):
+            with patch(
+                "services.brand_service.brand_service.get_brand",
+                return_value=mock_brand,
+            ):
+                products = asyncio.run(_collect())
+
+        assert len(products) >= 1, "Expected ≥1 product yielded from hotsite collection scrape"
+        first = products[0]
+        assert first["raw_title"] == "Jaqueta Rain Nylon Azul Bic"
+        assert first["url"] == (
+            "https://www.richards.com.br/produto/jaqueta-rain-nylon-azul-bic-154264"
+        )
+        assert first["price_full"] == 798.0
+
+    def test_fetch_hotsite_products_none_when_not_hotsite(self):
+        """_fetch_hotsite_products retorna None quando a resposta não tem hotsite (→ fallback)."""
+        from services.engines.wake_engine import WakeEngine
+
+        # _GRAPHQL_RESPONSE tem data.search mas NÃO data.hotsite
+        mock_session = _make_mock_session_with_post(_GRAPHQL_RESPONSE)
+        with patch(_SESSION_GET_TARGET, return_value=mock_session):
+            engine = WakeEngine("richards")
+            result = asyncio.run(
+                engine._fetch_hotsite_products("/acessorios", "www.richards.com.br", "Richards", "tok")
+            )
+        assert result is None, f"non-hotsite response must yield None (signals fallback), got: {result}"
 
     def test_get_product_details_stub(self):
         """D-10: get_product_details() returns None without crash (no PDP enrichment in phase)."""

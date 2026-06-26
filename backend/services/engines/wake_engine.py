@@ -100,6 +100,32 @@ query WakeSearch($q: String!, $first: Int!) {
 """.strip()
 
 
+# GraphQL query (WakeHotsite) — collection/section listing (e.g. /sale/masculino,
+# /camisas). Wake category/sale pages are "hotsites"; the products node is the same
+# Product type as `search`, so the node field set mirrors _WAKE_SEARCH_QUERY.
+_WAKE_HOTSITE_QUERY: str = """
+query WakeHotsite($url: String!, $first: Int!) {
+  hotsite(url: $url) {
+    products(first: $first) {
+      edges {
+        node {
+          productName
+          aliasComplete
+          prices {
+            price
+          }
+          images {
+            url
+          }
+          available
+        }
+      }
+    }
+  }
+}
+""".strip()
+
+
 class WakeEngine(BaseEngine):
     """Engine for Wake Commerce storefronts (e.g. Richards, Shop2gether).
 
@@ -393,12 +419,47 @@ class WakeEngine(BaseEngine):
         return None
 
     async def discover_categories(self) -> List[Dict[str, Any]]:
-        """Graceful stub — returns [] without crashing (D-08)."""
-        return []
+        """Categorias da marca derivadas do de/para (`brand.mappings`).
+
+        Wake não expõe uma árvore de categorias navegável como a VTEX; o
+        catálogo de categorias da marca vem do mapeamento de/para configurado
+        no cadastro (mesmo mecanismo usado por `resolve_category_for_brands` e
+        pelo padrão Shopify). Retorna uma lista plana de {name, path}.
+        """
+        from services.brand_service import brand_service  # lazy — circular import
+
+        brand = brand_service.get_brand(self.brand_key)
+        mappings = getattr(brand, "mappings", None) if brand else None
+        if not mappings:
+            return []
+
+        flat: List[Dict[str, Any]] = []
+        for m in mappings:
+            label = getattr(m, "label", None) or getattr(m, "canonical_slug", "")
+            path = getattr(m, "vtex_fq_path", "") or ""
+            if not path:
+                continue
+            flat.append({"name": label, "path": path})
+        return flat
 
     async def get_catalog(self) -> List[Dict[str, Any]]:
-        """Graceful stub — returns [] without crashing (D-08)."""
-        return []
+        """Catálogo agrupado para o dropdown do frontend.
+
+        Como o Wake não possui árvore navegável, agrupamos todas as categorias
+        do de/para sob um único grupo — mesmo contrato de retorno do Shopify
+        ({group, items:[{label, path}]}), consumido por
+        `GET /brands/{brand}/categories` e pelo componente de Varredura por
+        Categoria do frontend.
+        """
+        flat = await self.discover_categories()
+        if not flat:
+            return []
+        return [
+            {
+                "group": "Categorias",
+                "items": [{"label": c["name"], "path": c["path"]} for c in flat],
+            }
+        ]
 
     async def run_bulk_scrape(
         self,
@@ -407,9 +468,244 @@ class WakeEngine(BaseEngine):
         cancel_event: Any = None,
         zipcode: Optional[str] = None,
         include_shipping: bool = False,
-    ) -> None:
-        """Stub — yields nothing (D-08)."""
-        return
+    ):
+        """Varredura por categoria — hotsite primeiro, busca por termo como fallback.
+
+        As páginas de coleção/seção do Wake (ex.: /sale/masculino, /camisas) são
+        "hotsites". `hotsite(url:)` devolve a listagem REAL da coleção que o usuário
+        vê no site — inclusive seções como Outlet que não correspondem a nenhum
+        termo de busca (o motivo de "Outlet" antes retornar 0 produtos). Quando o
+        path não é um hotsite, caímos para um termo de busca derivado do último
+        segmento do path via `search(query:)` (spike 007).
+
+        Yields product dicts validados (mesmo contrato de VTEX/Shopify), após os
+        Quality Gates (filter_mens_fashion -> validate_single).
+        """
+        def emit(msg: Any) -> None:
+            self.emit_log(log_callback, msg)
+
+        from services.brand_service import brand_service  # lazy — avoid circular import
+
+        brand = brand_service.get_brand(self.brand_key)
+        domain, brand_name = self._resolve_domain_and_name(brand)
+        token = await self._resolve_token(brand, domain)
+        if not token:
+            emit(
+                {
+                    "type": "error_done",
+                    "message": (
+                        f"[Wake] token não resolvido para '{self.brand_key}'. "
+                        "Configure wake_access_token na marca ou verifique o storefront."
+                    ),
+                }
+            )
+            return
+
+        # 1. HOTSITE — listagem real da coleção (cobre Outlet/Sale e categorias)
+        path = self._hotsite_path(category_url)
+        hotsite_raw = await self._fetch_hotsite_products(path, domain, brand_name, token)
+        if hotsite_raw:
+            emit(f"[Wake] coleção '{path}' via hotsite: {len(hotsite_raw)} itens brutos")
+            for product in self._apply_quality_gates(hotsite_raw, brand_name):
+                if cancel_event is not None and cancel_event.is_set():
+                    return
+                yield product
+            return
+
+        # 2. FALLBACK — busca por termo derivado do path
+        term = self._category_url_to_search_term(category_url)
+        if not term:
+            emit(
+                {
+                    "type": "brand_warning",
+                    "message": (
+                        "[Wake] sem hotsite e sem termo de busca derivável da "
+                        f"categoria '{category_url}'. Varredura abortada."
+                    ),
+                }
+            )
+            return
+
+        emit(f"[Wake] sem hotsite para '{path}'; varredura por busca: termo='{term}'")
+
+        # WR-06: clamp para um teto razoável de itens por varredura de categoria.
+        result = await self.search(term, max_results=50, only_in_stock=False)
+
+        if result.error:
+            emit({"type": "error_done", "message": f"[Wake] busca falhou: {result.error}"})
+            return
+
+        for product in result.products:
+            if cancel_event is not None and cancel_event.is_set():
+                return
+            # SearchProductResult -> dict no contrato esperado pelo orchestrator
+            yield {
+                "raw_title": product.product_name,
+                "url": product.url,
+                "price_full": product.price_full,
+                "image_url": product.image_url,
+                "brand": result.brand_name,
+                "raw_description": "",
+                "stock_availability": product.available,
+            }
+
+    async def _fetch_hotsite_products(
+        self, path: str, domain: str, brand_name: str, token: str
+    ) -> Optional[List[Dict[str, Any]]]:
+        """POST `hotsite(url:path)` e retorna dicts de produto (pré-gate).
+
+        Retorna None quando o path não é um hotsite, a resposta tem erro/null, ou
+        a coleção não tem produtos — sinalizando ao chamador que use o fallback
+        por busca. Não levanta: falhas viram None (varredura nunca quebra aqui).
+        """
+        if not path:
+            return None
+
+        session = await SessionManager.get_session()
+        payload = {
+            "query": _WAKE_HOTSITE_QUERY,
+            # WR-06: mesmo teto de 50 itens por varredura usado na busca.
+            "variables": {"url": path, "first": 50},
+        }
+        try:
+            async with session.post(
+                GRAPHQL_ENDPOINT,
+                json=payload,
+                headers={"TCS-Access-Token": token},
+                timeout=aiohttp.ClientTimeout(total=10),  # WR-05
+            ) as resp:
+                resp.raise_for_status()
+                data = await resp.json()
+        except Exception as exc:
+            logger.warning(
+                "[Wake] hotsite request failed for brand=%s path=%s: %s",
+                self.brand_key, path, exc,
+            )
+            return None
+
+        if data.get("errors") or data.get("data") is None:
+            return None
+        hotsite = (data.get("data") or {}).get("hotsite")
+        if not hotsite:
+            return None
+
+        edges = ((hotsite.get("products") or {}).get("edges")) or []
+        raw: List[Dict[str, Any]] = []
+        for edge in edges:
+            parsed = self._node_to_dict(edge.get("node", {}), domain, brand_name)
+            if parsed:
+                raw.append(parsed)
+        return raw or None
+
+    def _apply_quality_gates(
+        self, raw: List[Dict[str, Any]], brand_name: str
+    ) -> List[Dict[str, Any]]:
+        """Quality Gates (CAT-01 + Pydantic): filter_mens_fashion -> validate_single.
+
+        Mesma ordem obrigatória usada em `search` (PATTERNS §Quality Gates).
+        """
+        out: List[Dict[str, Any]] = []
+        for p in self.filter_mens_fashion(raw):
+            validated = self.validate_single(p)
+            if validated:
+                out.append(
+                    {
+                        "raw_title": validated["raw_title"],
+                        "url": validated["url"],
+                        "price_full": validated.get("price_full"),
+                        "image_url": validated.get("image_url"),
+                        "brand": brand_name,
+                        "raw_description": "",
+                        "stock_availability": validated.get("stock_availability"),
+                    }
+                )
+        return out
+
+    def _resolve_domain_and_name(self, brand: Any) -> tuple[str, str]:
+        """Resolve (domain, brand_name) com compat dict/Pydantic (PATTERNS §Shared)."""
+        domain: str = ""
+        brand_name: str = self.brand_key
+        if brand:
+            domain = getattr(brand, "domain", None) or (
+                brand.get("domain", "") if isinstance(brand, dict) else ""
+            )
+            brand_name = getattr(brand, "brand_name", None) or (
+                brand.get("brand_name", self.brand_key) if isinstance(brand, dict) else self.brand_key
+            )
+        if not domain:
+            domain = f"www.{self.brand_key}.com.br"
+        return domain, brand_name
+
+    @staticmethod
+    def _node_to_dict(
+        node: Dict[str, Any], domain: str, brand_name: str
+    ) -> Optional[Dict[str, Any]]:
+        """Converte um nó GraphQL de produto no dict do orchestrator (ou None se incompleto).
+
+        Mesmas armadilhas tratadas em `search`: aliasComplete relativo (Armadilha 2),
+        prices.price em reais (Armadilha 4), images é lista (Armadilha 3).
+        """
+        product_name = node.get("productName", "")
+        alias = node.get("aliasComplete", "")
+        product_url = f"https://{domain}/{alias.lstrip('/')}" if alias else ""
+        prices = node.get("prices") or {}
+        price_raw = prices.get("price")
+        price_full = float(price_raw) if price_raw is not None else None
+        images = node.get("images") or []
+        image_url = images[0].get("url") if images else None
+        available = node.get("available", True)
+        if not product_name or not product_url or price_full is None:
+            return None
+        return {
+            "raw_title": product_name,
+            "url": product_url,
+            "price_full": price_full,
+            "image_url": image_url,
+            "brand": brand_name,
+            "raw_description": "",
+            "stock_availability": bool(available),
+        }
+
+    @staticmethod
+    def _hotsite_path(category_url: str) -> str:
+        """Normaliza o path do hotsite (com barra inicial, sem host/query/barra final).
+
+        Ex.: 'https://www.richards.com.br/sale/masculino' -> '/sale/masculino'
+             'camisas' -> '/camisas'
+        """
+        if not category_url:
+            return ""
+        path = category_url
+        if "://" in path:
+            path = path.split("://", 1)[1]
+            path = path[path.find("/"):] if "/" in path else ""
+        path = path.split("?", 1)[0].rstrip("/")
+        if path and not path.startswith("/"):
+            path = "/" + path
+        return path
+
+    @staticmethod
+    def _category_url_to_search_term(category_url: str) -> str:
+        """Deriva um termo de busca a partir do path/URL da categoria.
+
+        Ex.: 'https://www.richards.com.br/roupas-masculinas/camisas' -> 'camisas'
+             '/roupas/polos' -> 'polos'
+        Usa o último segmento não-vazio do path, normalizando hífens em espaços.
+        """
+        if not category_url:
+            return ""
+        # Remove esquema/host se vier URL completa
+        path = category_url
+        if "://" in path:
+            path = path.split("://", 1)[1]
+            path = path[path.find("/"):] if "/" in path else ""
+        segments = [s for s in path.split("/") if s]
+        if not segments:
+            return ""
+        last = segments[-1]
+        # remove query string e normaliza
+        last = last.split("?", 1)[0]
+        return last.replace("-", " ").strip()
 
     async def get_product_details(self, product_url: str) -> Optional[Dict[str, Any]]:
         """Stub — returns None (D-10: no PDP enrichment in this phase)."""
