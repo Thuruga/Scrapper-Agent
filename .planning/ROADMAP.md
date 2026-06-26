@@ -177,7 +177,7 @@ Phases ativas executam em ordem numérica: 30 → 31 → 32 → 33 → 34 → 35
 | 30. Detecção de Engine SFCC & Wake | v3.0 | 3/3 | Complete    | 2026-06-23 |
 | 31. Engine SFCC (Browser Público) | v3.0 | 3/3 | Complete   | 2026-06-24 |
 | 32. Engine Wake Commerce — Richards | v3.0 | 3/3 | Complete    | 2026-06-25 |
-| 33. Frete via Checkout nos Sites VTEX | v3.0 | 3/3 | Complete   | 2026-06-26 |
+| 33. Frete via Checkout nos Sites VTEX | v3.0 | 3/3 | Complete    | 2026-06-26 |
 | 34. Extração de Banners Desktop | v3.0 | 4/4 | Complete   | 2026-06-23 |
 | 35. Publicação de Banners no SharePoint | v3.0 | 0/? | Not started | - |
 | 36. Onboarding das Marcas Concorrentes Restantes | v3.0 | 3/3 | Complete (NO-GO) | 2026-06-25 |
