@@ -441,3 +441,73 @@ class TestFetchShippingCharacterization:
         # prod_b não deve ter sido afetado
         assert prod_b.shipping is not None
         assert prod_b.shipping.price == pytest.approx(19.90)
+
+    def test_flatten_slas_across_all_logistics_entries(self):
+        """CR-02: SLAs são achatados de TODAS as entradas de logisticsInfo, não só [0].
+
+        Quando a 1ª entrada não tem SLA de entrega mas uma entrada posterior tem,
+        o frete NÃO pode ser descartado (regressão do hard-index logisticsInfo[0]).
+        """
+        body = {
+            "logisticsInfo": [
+                {"slas": []},  # 1ª entrada vazia — o bug antigo pararia aqui
+                {"slas": [_delivery_sla("Normal", 1990, "5bd")]},
+            ]
+        }
+        client = _client_with_response(200, body)
+        prod = _run_fetch(client)
+
+        assert prod.shipping is not None
+        assert prod.shipping.price == pytest.approx(19.90)
+        assert len(prod.shipping_options) == 1
+
+    def test_malformed_logistics_entry_is_skipped(self):
+        """Robustez: entradas não-dict em logisticsInfo são ignoradas sem AttributeError."""
+        body = {
+            "logisticsInfo": [
+                None,  # entrada malformada
+                {"slas": [_delivery_sla("Normal", 1990, "5bd")]},
+            ]
+        }
+        client = _client_with_response(200, body)
+        prod = _run_fetch(client)
+
+        assert prod.shipping is not None
+        assert prod.shipping.price == pytest.approx(19.90)
+
+
+class TestSimulateShippingReturnsState:
+    """simulate_shipping retorna estado + opções sem mutar nenhum produto."""
+
+    def test_available_returns_options_list(self):
+        body = {"logisticsInfo": [{"slas": [_delivery_sla("Normal", 1990, "5bd")]}]}
+        client = _client_with_response(200, body)
+        result = asyncio.run(client.simulate_shipping(_SKU, _SELLER, _ZIPCODE, _DOMAIN))
+
+        assert result["state"] == "available"
+        assert len(result["shipping_options"]) == 1
+        assert result["shipping_options"][0].price == pytest.approx(19.90)
+
+    def test_unavailable_for_cep_returns_empty(self):
+        client = _client_with_response(200, {"logisticsInfo": []})
+        result = asyncio.run(client.simulate_shipping(_SKU, _SELLER, _ZIPCODE, _DOMAIN))
+
+        assert result["state"] == "unavailable_for_cep"
+        assert result["shipping_options"] == []
+
+    def test_temporary_failure_on_persistent_error(self, monkeypatch):
+        monkeypatch.setattr(
+            "services.vtex_api_scraper.VtexApiClient._SHIPPING_RETRY_SLEEP", 0
+        )
+        import asyncio as _asyncio
+
+        class _AlwaysTimeoutSession:
+            def post(self, url, json=None, timeout=None):
+                raise _asyncio.TimeoutError()
+
+        client = VtexApiClient(brand_name="Aramis")
+        client.session = _AlwaysTimeoutSession()
+        result = asyncio.run(client.simulate_shipping(_SKU, _SELLER, _ZIPCODE, _DOMAIN))
+
+        assert result["state"] == "temporary_failure"
+        assert result["shipping_options"] == []

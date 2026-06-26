@@ -99,6 +99,15 @@ class CalculateShippingRequest(BaseModel):
     zipcode: str = Field(..., description="CEP de destino")
 
 
+class CalculateVtexShippingRequest(BaseModel):
+    """Cálculo de frete VTEX sob demanda para um produto da busca comparativa."""
+
+    brand_key: str = Field(..., min_length=1, description="Chave da marca VTEX (ex: 'aramis', 'foxton').")
+    sku_id: str = Field(..., min_length=1, description="itemId do SKU (vem do produto da busca).")
+    seller_id: str = Field(default="1", description="ID do seller do SKU.")
+    zipcode: str = Field(..., pattern=r"^\d{5}-?\d{3}$", description="CEP de destino.")
+
+
 # ---------------------------------------------------------------------------
 # Export helpers and models — POST /cross-marketplace/export
 # ---------------------------------------------------------------------------
@@ -599,3 +608,35 @@ async def calculate_shipping_single(request: CalculateShippingRequest):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post(
+    "/calculate-shipping-vtex",
+    summary="Cálculo de frete VTEX sob demanda (busca comparativa)",
+    description=(
+        "Calcula o frete de um produto VTEX via simulação de checkout, sob demanda. "
+        "O domínio é resolvido a partir da marca persistida (nunca de input do caller — T-33-01). "
+        "Retorna o estado (available / unavailable_for_cep / temporary_failure) e a lista de opções."
+    ),
+)
+async def calculate_shipping_vtex(request: CalculateVtexShippingRequest):
+    """Aciona a simulação de checkout VTEX para um único SKU e retorna as modalidades de entrega."""
+    from services.vtex_api_scraper import VtexApiClient
+
+    clean_zipcode = request.zipcode.replace("-", "")
+
+    try:
+        result = await VtexApiClient.calculate_for_brand(
+            brand_key=request.brand_key.lower(),
+            sku_id=request.sku_id,
+            seller_id=request.seller_id or "1",
+            zipcode=clean_zipcode,
+        )
+    except ValueError as e:
+        # Marca inexistente ou não-VTEX → erro de cliente.
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return {
+        "state": result["state"],
+        "shipping_options": [opt.model_dump(mode="json") for opt in result["shipping_options"]],
+    }

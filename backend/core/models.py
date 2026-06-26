@@ -133,6 +133,16 @@ class SearchProductResult(BaseModel):
     available_colors: List[str] = Field(default_factory=list)
     available_sizes: List[str] = Field(default_factory=list)
     seller: Optional[str] = None
+    # Identidade do SKU/seller usada para a simulação de frete sob demanda (Phase 33.x).
+    # Additive, opcional — registros antigos sem estes campos continuam válidos.
+    sku_id: Optional[str] = Field(
+        default=None,
+        description="itemId do SKU selecionado (oferta disponível) — usado no cálculo de frete on-demand.",
+    )
+    seller_id: Optional[str] = Field(
+        default=None,
+        description="ID do seller do SKU selecionado — usado no cálculo de frete on-demand.",
+    )
     shipping: ShippingInfo | None = None
     shipping_options: List[ShippingInfo] = Field(
         default_factory=list,

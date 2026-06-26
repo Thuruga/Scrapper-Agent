@@ -432,20 +432,21 @@ class VtexApiClient(BaseScraper):
     # Delay entre tentativas de frete — definido aqui para ser patchável nos testes.
     _SHIPPING_RETRY_SLEEP: float = 0.3
 
-    async def _fetch_shipping(
+    async def simulate_shipping(
         self,
         sku_id: str,
         seller_id: str,
         zipcode: str,
         domain: str,
-        prod_result: Any,
-    ) -> None:
-        """Busca o frete via simulação de checkout VTEX com retry limitado e estados explícitos.
+    ) -> Dict[str, Any]:
+        """Simula o frete via checkout VTEX e retorna estado + opções (sem mutar produto).
 
         Contrato de estados (D-13, D-14, D-15):
-          - available            → shipping_options populado; primary shipping definido.
+          - available            → shipping_options populado (ordenado por preço asc, prazo asc).
           - unavailable_for_cep  → 200 válido sem SLA de entrega; 1 chamada, sem retry.
           - temporary_failure    → erro de transporte/HTTP retryável após 2 tentativas.
+
+        Retorna: {"state": str, "shipping_options": List[ShippingInfo]}.
 
         Segurança (T-33-01): URL construída somente do `domain` persistido — nunca de input do caller.
         Privacidade (T-33-02): CEP e payload nunca logados em info/error.
@@ -459,25 +460,30 @@ class VtexApiClient(BaseScraper):
         }
 
         _RETRYABLE_HTTP = {408, 429}
-        transport_error = False
 
         try:
             async with self.semaphore:
                 for attempt in range(2):  # 2 total attempts: 1 call + 1 retry (D-15)
                     try:
-                        async with self.session.post(url, json=payload, timeout=5) as resp:
+                        async with self.session.post(
+                            url, json=payload, timeout=aiohttp.ClientTimeout(total=5)
+                        ) as resp:
                             if resp.status == 200:
                                 data = await resp.json()
-                                logistics = data.get("logisticsInfo", [])
-                                all_slas = logistics[0].get("slas", []) if logistics else []
+                                # Flatten SLAs de TODAS as entradas de logisticsInfo (CR-02):
+                                # hard-indexar [0] descarta frete quando a 1ª entrada não tem
+                                # slas mas outras têm (multi-item / payloads malformados).
+                                logistics = data.get("logisticsInfo") or []
+                                all_slas = []
+                                for entry in logistics:
+                                    if isinstance(entry, dict):
+                                        all_slas.extend(entry.get("slas") or [])
                                 options = filter_and_sort_slas(all_slas)
                                 state = classify_result(options, transport_error=False)
 
                                 if state == "available":
-                                    # Populate all valid delivery options
-                                    shipping_options = []
-                                    for opt in options:
-                                        shipping_options.append(ShippingInfo(
+                                    shipping_options = [
+                                        ShippingInfo(
                                             price=opt["price_reais"],
                                             status="Grátis" if opt["is_free_shipping"] else "Disponível",
                                             estimated_delivery_days=opt.get("estimate_value"),
@@ -487,26 +493,16 @@ class VtexApiClient(BaseScraper):
                                             estimate_display=opt.get("estimate_display"),
                                             estimate_unit=opt.get("estimate_unit"),
                                             is_free_shipping=opt["is_free_shipping"],
-                                        ))
+                                        )
+                                        for opt in options
+                                    ]
+                                    return {"state": "available", "shipping_options": shipping_options}
 
-                                    prod_result.shipping_options = shipping_options
-                                    # Primary = cheapest (first after sort)
-                                    primary = shipping_options[0]
-                                    prod_result.shipping = primary
-                                    prod_result.shipping_price = primary.price
-                                    prod_result.is_free_shipping = primary.is_free_shipping
-                                    return
-
-                                # 200 with no valid home-delivery SLA — business result, NOT retried (D-15, pitfall 5)
-                                prod_result.shipping = ShippingInfo(
-                                    status="Entrega indisponível para este CEP",
-                                    raw_text="Sem modalidade de entrega para o CEP informado",
-                                )
-                                return
+                                # 200 sem SLA domiciliar válido — resultado de negócio, NÃO retentar (D-15, pitfall 5)
+                                return {"state": "unavailable_for_cep", "shipping_options": []}
 
                             # Retryable HTTP statuses or 5xx
                             if resp.status in _RETRYABLE_HTTP or resp.status >= 500:
-                                transport_error = True
                                 logger.warning(
                                     "[%s] Simulação de frete retornou HTTP %s (tentativa %d/2)",
                                     domain, resp.status, attempt + 1,
@@ -517,7 +513,6 @@ class VtexApiClient(BaseScraper):
                                 # Second failure — fall through to temporary_failure below
                             else:
                                 # Non-retryable 4xx — treat as transport error without retry
-                                transport_error = True
                                 logger.warning(
                                     "[%s] Simulação de frete retornou HTTP %s não-retryável",
                                     domain, resp.status,
@@ -525,7 +520,6 @@ class VtexApiClient(BaseScraper):
                                 break
 
                     except Exception as exc:
-                        transport_error = True
                         logger.warning(
                             "[%s] Erro de transporte na simulação de frete (tentativa %d/2): %s",
                             domain, attempt + 1, type(exc).__name__,
@@ -538,13 +532,71 @@ class VtexApiClient(BaseScraper):
         except Exception as exc:
             # Absorbe erros do bloco do semaphore para não cancelar asyncio.gather siblings (D-13)
             logger.warning("[%s] Falha inesperada na simulação de frete: %s", domain, type(exc).__name__)
-            transport_error = True
 
         # Chegou aqui: temporary_failure após esgotamento das tentativas
-        prod_result.shipping = ShippingInfo(
-            status="Frete temporariamente indisponível",
-            raw_text="Não foi possível simular o frete neste momento",
-        )
+        return {"state": "temporary_failure", "shipping_options": []}
+
+    async def _fetch_shipping(
+        self,
+        sku_id: str,
+        seller_id: str,
+        zipcode: str,
+        domain: str,
+        prod_result: Any,
+    ) -> None:
+        """Wrapper fino: simula o frete e popula o produto in-place (busca inline)."""
+        result = await self.simulate_shipping(sku_id, seller_id, zipcode, domain)
+        state = result["state"]
+        options = result["shipping_options"]
+
+        if state == "available" and options:
+            prod_result.shipping_options = options
+            # Primary = mais barato (primeiro após ordenação)
+            primary = options[0]
+            prod_result.shipping = primary
+            prod_result.shipping_price = primary.price
+            prod_result.is_free_shipping = primary.is_free_shipping
+        elif state == "unavailable_for_cep":
+            prod_result.shipping = ShippingInfo(
+                status="Entrega indisponível para este CEP",
+                raw_text="Sem modalidade de entrega para o CEP informado",
+            )
+        else:
+            prod_result.shipping = ShippingInfo(
+                status="Frete temporariamente indisponível",
+                raw_text="Não foi possível simular o frete neste momento",
+            )
+
+    @classmethod
+    async def calculate_for_brand(
+        cls,
+        brand_key: str,
+        sku_id: str,
+        seller_id: str,
+        zipcode: str,
+    ) -> Dict[str, Any]:
+        """Calcula o frete de um SKU sob demanda, resolvendo o domínio pela marca persistida.
+
+        Endpoint-facing: abre a própria sessão, valida que a marca é VTEX (D-03) e
+        ancora a URL ao domínio cadastrado (T-33-01 — nunca a partir de input do caller).
+        Levanta ValueError para marca inexistente/não-VTEX (o caller mapeia para HTTP 4xx).
+        """
+        brand_info = brand_service.get_brand(brand_key)
+        if not brand_info:
+            raise ValueError(f"Marca '{brand_key}' não cadastrada.")
+        if (brand_info.engine or "vtex").lower() != "vtex":
+            raise ValueError(
+                f"Cálculo de frete via checkout só é suportado para marcas VTEX "
+                f"(marca '{brand_key}' usa engine '{brand_info.engine}')."
+            )
+
+        domain = brand_info.domain.replace("https://", "").replace("http://", "").strip("/")
+        client = cls(brand_name=brand_info.brand_name)
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15)) as session:
+            client.session = session
+            result = await client.simulate_shipping(sku_id, seller_id, zipcode, domain)
+
+        return result
 
     async def scrape_category_paged(
         self,
@@ -888,7 +940,10 @@ class VtexApiClient(BaseScraper):
                             category=p.get("categories", [""])[0].split("/")[-2] if p.get("categories") else None,
                             available=available,
                             rating=rating,
-                            review_count=count
+                            review_count=count,
+                            # Expostos para o cálculo de frete sob demanda (Phase 33.x)
+                            sku_id=sku_id,
+                            seller_id=seller_id,
                         )
 
                         if include_shipping and zipcode and sku_id:

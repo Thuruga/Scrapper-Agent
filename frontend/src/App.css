@@ -1430,3 +1430,91 @@ body {
     text-overflow: unset;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Frete sob demanda (Phase 33.x): controles, botão "Calcular Frete",
+   resumo colapsável e estados de loading. Usa apenas tokens semânticos.
+   --------------------------------------------------------------------------- */
+
+/* Barra de ações acima dos resultados */
+.shipping-controls-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  align-items: center;
+}
+
+/* Botão "Calcular Frete" (sob demanda) dentro do card */
+.shipping-calc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  justify-content: center;
+  padding: 6px 10px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.shipping-calc-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--primary);
+}
+
+/* Cabeçalho/resumo colapsável do frete calculado */
+.shipping-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 2px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+.shipping-summary:hover {
+  color: var(--text-main);
+}
+
+.shipping-summary-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* Estado de loading do cálculo */
+.shipping-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+/* Link "Tentar novamente" em falha temporária */
+.shipping-retry {
+  margin-left: auto;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--primary);
+  cursor: pointer;
+  text-decoration: underline;
+}

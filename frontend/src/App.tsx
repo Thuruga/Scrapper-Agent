@@ -28,6 +28,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  ChevronUp,
   Check,
   Power,
   History,
@@ -1081,13 +1082,12 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
   const loading = useSearchStore((s) => s.search.loading);
   const results = useSearchStore((s) => s.search.results);
   // useShallow para múltiplos campos do mesmo slice (evita re-render por referência nova do objeto)
-  const { query, sort, inStock, zipcode, cepInitialized, selectedBrands } = useSearchStore(
+  const { query, sort, inStock, zipcode, selectedBrands } = useSearchStore(
     useShallow((s) => ({
       query: s.search.query,
       sort: s.search.sort,
       inStock: s.search.inStock,
       zipcode: s.search.zipcode,
-      cepInitialized: s.search.cepInitialized,
       selectedBrands: s.search.selectedBrands,
     }))
   );
@@ -1097,9 +1097,23 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
   // UI transiente — permanecem como useState local (D-03)
   const [exporting, setExporting] = useState(false);
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+  // --- Campo de CEP da barra de busca (opcional, sem valor padrão) ---
+  // Se preenchido antes da busca, o frete de TODOS os produtos vem junto (include_shipping).
+  const [cepFieldError, setCepFieldError] = useState<string | null>(null);
+  const cepFieldRef = useRef<HTMLInputElement>(null);
+  // --- Frete sob demanda (modal de CEP + cálculo de um único produto) ---
+  const [cepModalOpen, setCepModalOpen] = useState(false);
+  const [cepDraft, setCepDraft] = useState('');
   const [cepError, setCepError] = useState<string | null>(null);
-  const [cepLoading, setCepLoading] = useState(false);
-  const cepInputRef = useRef<HTMLInputElement>(null);
+  // pendingCalc: o que calcular assim que o usuário confirmar o CEP no modal.
+  const [pendingCalc, setPendingCalc] = useState<
+    | { type: 'all' }
+    | { type: 'one'; brandKey: string; sku: string; seller: string; key: string }
+    | null
+  >(null);
+  const [loadingShipping, setLoadingShipping] = useState<Record<string, boolean>>({});
+  const [expandedShipping, setExpandedShipping] = useState<Record<string, boolean>>({});
+  const cepDraftRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (preloadedJobId) {
@@ -1134,45 +1148,6 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preloadedJobId]);
 
-  // One-time CEP init from backend default (D-04, D-06, pitfall 8).
-  // Runs once on mount. A late resolution early-returns if the user already edited the CEP
-  // (cepInitialized=true) so a slow config response never overwrites an edited value.
-  useEffect(() => {
-    if (cepInitialized) return;
-    const currentZipcode = useSearchStore.getState().search.zipcode;
-    // If the user already typed something before the effect ran, bail out.
-    if (currentZipcode.replace(/\D/g, '').length > 0) {
-      setSearch({ cepInitialized: true });
-      return;
-    }
-    void (async () => {
-      setCepLoading(true);
-      try {
-        const cfg = await ApiClient.getSearchConfig();
-        // Late-resolution guard: if the user edited the CEP while the request was in flight, abort.
-        const stateAfterFetch = useSearchStore.getState().search;
-        if (stateAfterFetch.cepInitialized) return;
-        if (stateAfterFetch.zipcode.replace(/\D/g, '').length > 0) {
-          setSearch({ cepInitialized: true });
-          return;
-        }
-        const raw = (cfg?.default_cep ?? '').replace(/\D/g, '').slice(0, 8);
-        if (raw.length === 8) {
-          const masked = raw.slice(0, 5) + '-' + raw.slice(5);
-          setSearch({ zipcode: masked, cepInitialized: true });
-        } else {
-          setSearch({ cepInitialized: true });
-        }
-      } catch {
-        // Config fetch failed — mark as initialized so the field is unblocked.
-        setSearch({ cepInitialized: true });
-      } finally {
-        setCepLoading(false);
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const toggleBrand = (key: string) => {
     const next = selectedBrands.includes(key)
       ? selectedBrands.filter(k => k !== key)
@@ -1191,15 +1166,16 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    // D-05: block search if the user edited the CEP to an incomplete/invalid value.
-    // A CEP is "user-edited and invalid" when it's non-empty but has fewer than 8 digits.
+    // CEP é OPCIONAL. Se o usuário preencher um CEP válido ANTES da busca, o frete de
+    // todos os produtos vem junto (include_shipping). Sem CEP → busca só preços, e o
+    // frete fica sob demanda via "Calcular Frete" por produto.
     const cepDigits = zipcode.replace(/\D/g, '');
     if (cepDigits.length > 0 && cepDigits.length < 8) {
-      setCepError('Informe um CEP válido com 8 dígitos.');
-      cepInputRef.current?.focus();
+      setCepFieldError('Informe um CEP válido com 8 dígitos.');
+      cepFieldRef.current?.focus();
       return;
     }
-    setCepError(null);
+    setCepFieldError(null);
     onClearPreloadedJob?.();
     const outcome = await startSearch({
       query,
@@ -1218,14 +1194,13 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
 
   const handleExport = async () => {
     if (!query) return;
-    // D-05: block export if the user edited the CEP to an incomplete/invalid value.
     const cepDigits = zipcode.replace(/\D/g, '');
     if (cepDigits.length > 0 && cepDigits.length < 8) {
-      setCepError('Informe um CEP válido com 8 dígitos.');
-      cepInputRef.current?.focus();
+      setCepFieldError('Informe um CEP válido com 8 dígitos.');
+      cepFieldRef.current?.focus();
       return;
     }
-    setCepError(null);
+    setCepFieldError(null);
     setExporting(true);
     try {
       await ApiClient.exportSearch({
@@ -1234,7 +1209,7 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
         only_in_stock: inStock,
         brands: selectedBrands.length > 0 ? selectedBrands : undefined,
         zipcode: cepDigits.length === 8 ? cepDigits : undefined,
-        include_shipping: cepDigits.length === 8 ? true : undefined
+        include_shipping: cepDigits.length === 8 ? true : undefined,
       });
     } catch (err: any) {
       console.error(err);
@@ -1242,6 +1217,120 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
     } finally {
       setExporting(false);
     }
+  };
+
+  // -------------------------------------------------------------------------
+  // Frete sob demanda (modal de CEP + cálculo por produto VTEX)
+  // -------------------------------------------------------------------------
+
+  // Achata todos os produtos VTEX (com sku) dos resultados atuais.
+  const vtexProductsInResults = (): Array<{ brandKey: string; p: any }> => {
+    const out: Array<{ brandKey: string; p: any }> = [];
+    const rows = results && Array.isArray(results.results) ? results.results : [];
+    for (const row of rows) {
+      const meta = brands.find(b => b.brand_key === row.brand_key);
+      if (meta?.engine !== 'vtex') continue;
+      for (const p of (row.products || [])) {
+        if (p.sku_id) out.push({ brandKey: row.brand_key, p });
+      }
+    }
+    return out;
+  };
+
+  // Aplica o resultado da simulação de frete a um produto (por url) dentro de search.results.
+  const applyShippingToProduct = (productUrl: string, data: { state: string; shipping_options: any[] }) => {
+    const cur = useSearchStore.getState().search.results;
+    if (!cur || !Array.isArray(cur.results)) return;
+    const newResults = cur.results.map((row: any) => ({
+      ...row,
+      products: (row.products || []).map((p: any) => {
+        if (p.url !== productUrl) return p;
+        const opts = data.shipping_options || [];
+        const primary = opts.length > 0 ? opts[0] : null;
+        return {
+          ...p,
+          _shipping_state: data.state,
+          shipping_options: opts,
+          shipping: primary,
+          shipping_price: primary ? primary.price : null,
+          is_free_shipping: primary ? primary.is_free_shipping : false,
+        };
+      }),
+    }));
+    setSearch({ results: { ...cur, results: newResults } });
+  };
+
+  const runCalcOne = async (brandKey: string, sku: string, seller: string, key: string, zip: string) => {
+    setLoadingShipping(prev => ({ ...prev, [key]: true }));
+    try {
+      const data = await ApiClient.calculateVtexShipping({
+        brand_key: brandKey,
+        sku_id: sku,
+        seller_id: seller || '1',
+        zipcode: zip,
+      });
+      applyShippingToProduct(key, data);
+      setExpandedShipping(prev => ({ ...prev, [key]: true }));
+    } catch (err: any) {
+      toast.error('Erro ao calcular frete: ' + err.message);
+    } finally {
+      setLoadingShipping(prev => ({ ...prev, [key]: false }));
+    }
+  };
+
+  const runCalcAll = async (zip: string) => {
+    const targets = vtexProductsInResults();
+    if (targets.length === 0) {
+      toast.info('Nenhum produto VTEX para calcular o frete.');
+      return;
+    }
+    await Promise.all(
+      targets.map(({ brandKey, p }) =>
+        runCalcOne(brandKey, p.sku_id, p.seller_id || '1', p.url, zip)
+      )
+    );
+  };
+
+  // Abre o modal de CEP ou calcula direto se o CEP da sessão já é válido.
+  const requestCalc = (calc: { type: 'all' } | { type: 'one'; brandKey: string; sku: string; seller: string; key: string }) => {
+    const zip = zipcode.replace(/\D/g, '');
+    if (zip.length === 8) {
+      if (calc.type === 'one') runCalcOne(calc.brandKey, calc.sku, calc.seller, calc.key, zip);
+      else runCalcAll(zip);
+      return;
+    }
+    setPendingCalc(calc);
+    setCepDraft(zipcode);
+    setCepError(null);
+    setCepModalOpen(true);
+  };
+
+  const confirmCep = () => {
+    const zip = cepDraft.replace(/\D/g, '');
+    if (zip.length !== 8) {
+      setCepError('Informe um CEP válido com 8 dígitos.');
+      cepDraftRef.current?.focus();
+      return;
+    }
+    const masked = zip.slice(0, 5) + '-' + zip.slice(5);
+    setSearch({ zipcode: masked });
+    setCepModalOpen(false);
+    setCepError(null);
+    const pc = pendingCalc;
+    setPendingCalc(null);
+    if (pc?.type === 'one') runCalcOne(pc.brandKey, pc.sku, pc.seller, pc.key, zip);
+    else if (pc?.type === 'all') runCalcAll(zip);
+  };
+
+  // Expandir / recolher todos os fretes já calculados.
+  const setAllExpanded = (value: boolean) => {
+    const next: Record<string, boolean> = {};
+    for (const { p } of vtexProductsInResults()) {
+      if (p._shipping_state || (Array.isArray(p.shipping_options) && p.shipping_options.length > 0)) {
+        next[p.url] = value;
+      }
+    }
+    setExpandedShipping(next);
   };
 
   return (
@@ -1264,40 +1353,39 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
             </div>
 
             <div className="search-field">
-              <label className="search-field-label" htmlFor="cep-input">CEP de entrega</label>
-              <div className={`search-input-wrapper${cepError ? ' cep-input-error' : ''}`}>
+              <label className="search-field-label" htmlFor="cep-input">CEP de entrega (opcional)</label>
+              <div className={`search-input-wrapper${cepFieldError ? ' cep-input-error' : ''}`}>
                 <MapPin className="search-icon" size={20} aria-hidden="true" />
                 <input
                   id="cep-input"
-                  ref={cepInputRef}
+                  ref={cepFieldRef}
                   type="text"
                   inputMode="numeric"
                   autoComplete="postal-code"
                   className="search-input"
                   placeholder="00000-000"
                   value={zipcode}
-                  disabled={cepLoading}
-                  aria-invalid={cepError ? 'true' : 'false'}
-                  aria-describedby={cepError ? 'cep-error-msg' : 'cep-helper-msg'}
+                  aria-invalid={cepFieldError ? 'true' : 'false'}
+                  aria-describedby={cepFieldError ? 'cep-error-msg' : 'cep-helper-msg'}
                   onChange={(e) => {
                     let val = e.target.value.replace(/\D/g, '');
                     if (val.length > 8) val = val.slice(0, 8);
                     if (val.length > 5) {
                       val = val.slice(0, 5) + '-' + val.slice(5);
                     }
-                    setSearch({ zipcode: val, cepInitialized: true });
-                    if (cepError) setCepError(null);
+                    setSearch({ zipcode: val });
+                    if (cepFieldError) setCepFieldError(null);
                   }}
                 />
               </div>
-              {cepError ? (
+              {cepFieldError ? (
                 <p id="cep-error-msg" className="cep-helper cep-helper-error" role="alert" aria-live="polite">
                   <AlertTriangle size={12} aria-hidden="true" />
-                  {cepError}
+                  {cepFieldError}
                 </p>
               ) : (
                 <p id="cep-helper-msg" className="cep-helper">
-                  {cepLoading ? 'Carregando CEP padrão…' : 'Usado para calcular o frete automaticamente.'}
+                  Informe para calcular o frete junto da busca. Sem CEP, calcule por produto.
                 </p>
               )}
             </div>
@@ -1388,10 +1476,37 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
             ? selectedBrands
             : (Array.isArray(results.results) ? results.results.map((r: any) => r.brand_key) : brands.map(b => b.brand_key));
 
-          return brandKeysToShow.map((brandKey: string) => {
+          const vtexProds = vtexProductsInResults();
+          const anyCalculated = vtexProds.some(({ p }) =>
+            p._shipping_state || (Array.isArray(p.shipping_options) && p.shipping_options.length > 0) || p.shipping
+          );
+
+          return (
+            <>
+              {/* Barra de controle: calcular frete de todos + expandir/recolher (só quando há produtos VTEX) */}
+              {vtexProds.length > 0 && (
+                <div className="shipping-controls-bar">
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline"
+                    onClick={() => requestCalc({ type: 'all' })}
+                  >
+                    <Truck size={14} aria-hidden="true" /> Calcular frete de todos
+                  </button>
+                  {anyCalculated && (
+                    <>
+                      <button type="button" className="btn btn-sm btn-outline" onClick={() => setAllExpanded(true)}>Expandir todos</button>
+                      <button type="button" className="btn btn-sm btn-outline" onClick={() => setAllExpanded(false)}>Recolher todos</button>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {brandKeysToShow.map((brandKey: string) => {
             const brand = brands.find(b => b.brand_key === brandKey);
             const brandRes = Array.isArray(results.results) ? results.results.find((r: any) => r.brand_key === brandKey) : null;
             const products = brandRes?.products || [];
+            const isVtex = brand?.engine === 'vtex';
 
             return (
               <div key={brandKey} className="brand-column">
@@ -1426,85 +1541,138 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
                           {p.available ? <CheckCircle2 size={14} className="text-success" /> : <XCircle size={14} className="text-error" />}
                           <span>{p.available ? 'Em estoque' : 'Esgotado'}</span>
                         </div>
-                        {/* Shipping section: shipping_options list with non-option states and legacy fallback (D-08 compat).
-                            Three cases:
-                            (A) shipping_options non-empty array → render all delivery options
-                            (B) shipping_options empty array + shipping present → show unavailable/failure state row
-                            (C) shipping_options absent (undefined) → legacy fallback to p.shipping */}
+                        {/* Frete: botão sob demanda (sem CEP/cálculo) OU resumo colapsável (já calculado).
+                            Detalhe fica colapsado por padrão para não poluir o card. */}
                         {(() => {
-                          const hasOptions = Array.isArray(p.shipping_options) && p.shipping_options.length > 0;
-                          const hasEmptyOptions = Array.isArray(p.shipping_options) && p.shipping_options.length === 0;
+                          const opts = Array.isArray(p.shipping_options) ? p.shipping_options : null;
+                          const hasOptions = !!opts && opts.length > 0;
+                          const isLoading = !!loadingShipping[p.url];
+                          const isExpanded = !!expandedShipping[p.url];
+                          const calculated = !!p._shipping_state || hasOptions || !!p.shipping;
 
-                          // Case A: render delivery options list
-                          if (hasOptions) {
+                          // Estado de loading
+                          if (isLoading) {
                             return (
                               <div className="shipping-section">
-                                <div className="shipping-header">
-                                  <Truck size={14} aria-hidden="true" />
-                                  <span>Entrega para {zipcode}</span>
+                                <div className="shipping-loading">
+                                  <RefreshCw size={13} className="animate-spin" aria-hidden="true" /> Calculando frete…
                                 </div>
-                                <ul className="shipping-options-list">
-                                  {/* Backend order: price asc then estimate asc — do NOT re-sort (D-10) */}
-                                  {p.shipping_options.map((opt: any, idx: number) => {
-                                    const isFree = opt.is_free_shipping === true || opt.price === 0 || opt.price === 0.0;
-                                    const serviceName = opt.service_name || opt.service_id || 'Entrega';
-                                    // estimate_display is the backend-formatted PT text (e.g. "Até 5 dias úteis")
-                                    const estimateText = opt.estimate_display || opt.raw_text || (opt.estimated_delivery_days ? `Até ${opt.estimated_delivery_days} dias úteis` : '');
-                                    return (
-                                      <li key={idx} className="shipping-option-row">
-                                        <div className="shipping-option-service">
-                                          <span className="shipping-service-name">{serviceName}</span>
-                                          {estimateText && <span className="shipping-estimate">{estimateText}</span>}
-                                        </div>
-                                        <div className="shipping-option-price">
-                                          {isFree ? (
-                                            <span className="shipping-free">
-                                              <CheckCircle2 size={12} aria-hidden="true" />
-                                              Frete Grátis
-                                            </span>
-                                          ) : (
-                                            <span className="shipping-paid">
-                                              R$ {(opt.price ?? 0).toFixed(2).replace('.', ',')}
-                                            </span>
-                                          )}
-                                        </div>
-                                      </li>
-                                    );
-                                  })}
-                                </ul>
                               </div>
                             );
                           }
 
-                          // Case B: empty options array — unavailable_for_cep or temporary_failure state (D-13, D-14)
-                          // Map backend status strings to exact UI-SPEC copy (Copywriting Contract).
-                          if (hasEmptyOptions && p.shipping) {
-                            const statusLower = (p.shipping.status || '').toLowerCase();
-                            const isFailure = statusLower.includes('temporariamente');
-                            // Use exact copy strings from UI-SPEC Copywriting Contract
+                          // Ainda não calculado → botão sob demanda (VTEX com sku apenas)
+                          if (!calculated) {
+                            if (!isVtex || !p.sku_id) return null;
+                            return (
+                              <div className="shipping-section">
+                                <button
+                                  type="button"
+                                  className="shipping-calc-btn"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    requestCalc({ type: 'one', brandKey, sku: p.sku_id, seller: p.seller_id || '1', key: p.url });
+                                  }}
+                                >
+                                  <Truck size={14} aria-hidden="true" /> Calcular Frete
+                                </button>
+                              </div>
+                            );
+                          }
+
+                          // Calculado, com opções de entrega → resumo colapsável
+                          if (hasOptions) {
+                            const cheapest = opts[0];
+                            const cheapestFree = cheapest.is_free_shipping === true || cheapest.price === 0 || cheapest.price === 0.0;
+                            const summary = cheapestFree
+                              ? 'Frete Grátis'
+                              : `Frete a partir de R$ ${(cheapest.price ?? 0).toFixed(2).replace('.', ',')}`;
+                            return (
+                              <div className="shipping-section">
+                                <button
+                                  type="button"
+                                  className="shipping-summary"
+                                  aria-expanded={isExpanded}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setExpandedShipping(prev => ({ ...prev, [p.url]: !prev[p.url] }));
+                                  }}
+                                >
+                                  <span className="shipping-summary-main">
+                                    <Truck size={14} aria-hidden="true" />
+                                    <span className={cheapestFree ? 'shipping-free' : undefined}>{summary}</span>
+                                  </span>
+                                  {isExpanded ? <ChevronUp size={14} aria-hidden="true" /> : <ChevronDown size={14} aria-hidden="true" />}
+                                </button>
+                                {isExpanded && (
+                                  <ul className="shipping-options-list">
+                                    {/* Backend order: price asc then estimate asc — do NOT re-sort (D-10) */}
+                                    {opts.map((opt: any, idx: number) => {
+                                      const isFree = opt.is_free_shipping === true || opt.price === 0 || opt.price === 0.0;
+                                      const serviceName = opt.service_name || opt.service_id || 'Entrega';
+                                      const estimateText = opt.estimate_display || opt.raw_text || (opt.estimated_delivery_days ? `Até ${opt.estimated_delivery_days} dias úteis` : '');
+                                      return (
+                                        <li key={idx} className="shipping-option-row">
+                                          <div className="shipping-option-service">
+                                            <span className="shipping-service-name">{serviceName}</span>
+                                            {estimateText && <span className="shipping-estimate">{estimateText}</span>}
+                                          </div>
+                                          <div className="shipping-option-price">
+                                            {isFree ? (
+                                              <span className="shipping-free">
+                                                <CheckCircle2 size={12} aria-hidden="true" />
+                                                Frete Grátis
+                                              </span>
+                                            ) : (
+                                              <span className="shipping-paid">
+                                                R$ {(opt.price ?? 0).toFixed(2).replace('.', ',')}
+                                              </span>
+                                            )}
+                                          </div>
+                                        </li>
+                                      );
+                                    })}
+                                  </ul>
+                                )}
+                              </div>
+                            );
+                          }
+
+                          // Calculado sem opções → estado indisponível / falha temporária
+                          const statusLower = (p.shipping?.status || '').toLowerCase();
+                          const isFailure = p._shipping_state === 'temporary_failure' || statusLower.includes('temporariamente');
+                          const isUnavailable = p._shipping_state === 'unavailable_for_cep' || statusLower.includes('indisponível');
+                          if (isFailure || isUnavailable) {
                             const stateText = isFailure
                               ? 'Frete temporariamente indisponível'
                               : 'Entrega indisponível para este CEP';
                             return (
                               <div className="shipping-section">
-                                <div className="shipping-header">
-                                  <Truck size={14} aria-hidden="true" />
-                                  <span>Entrega para {zipcode}</span>
-                                </div>
                                 <div className={`shipping-state-row ${isFailure ? 'shipping-state-warning' : 'shipping-state-unavailable'}`}>
-                                  {isFailure ? (
-                                    <AlertTriangle size={13} aria-hidden="true" />
-                                  ) : (
-                                    <MapPin size={13} aria-hidden="true" />
-                                  )}
+                                  {isFailure ? <AlertTriangle size={13} aria-hidden="true" /> : <MapPin size={13} aria-hidden="true" />}
                                   <span>{stateText}</span>
+                                  {isFailure && isVtex && p.sku_id && (
+                                    <button
+                                      type="button"
+                                      className="shipping-retry"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        requestCalc({ type: 'one', brandKey, sku: p.sku_id, seller: p.seller_id || '1', key: p.url });
+                                      }}
+                                    >
+                                      Tentar novamente
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             );
                           }
 
-                          // Case C: shipping_options absent — legacy fallback for old history records (D-08 compat)
-                          if (!Array.isArray(p.shipping_options) && p.shipping) {
+                          // Fallback legado: registros antigos com p.shipping simples (D-08 compat)
+                          if (p.shipping) {
                             return (
                               <div className="product-meta" style={{ marginTop: '6px', color: p.shipping.status === 'Grátis' ? 'var(--success)' : 'inherit' }}>
                                 <Package size={14} aria-hidden="true" />
@@ -1529,9 +1697,59 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
                 </div>
               </div>
             );
-          });
+              })}
+            </>
+          );
         })()}
       </div>
+
+      {/* Modal de CEP — pede o CEP quando o usuário calcula frete sem ter informado um */}
+      {cepModalOpen && (
+        <div className="modal-overlay" onClick={() => setCepModalOpen(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '420px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <MapPin size={18} /> Calcular frete
+              </h3>
+              <button className="btn btn-icon" onClick={() => setCepModalOpen(false)} aria-label="Fechar"><X size={20} /></button>
+            </div>
+            <p className="text-muted" style={{ marginBottom: '12px', fontSize: '13px' }}>
+              Informe o CEP de entrega para calcular o frete.
+            </p>
+            <div className={`search-input-wrapper${cepError ? ' cep-input-error' : ''}`}>
+              <MapPin className="search-icon" size={20} aria-hidden="true" />
+              <input
+                ref={cepDraftRef}
+                type="text"
+                inputMode="numeric"
+                autoComplete="postal-code"
+                className="search-input"
+                placeholder="00000-000"
+                value={cepDraft}
+                autoFocus
+                aria-invalid={cepError ? 'true' : 'false'}
+                onChange={(e) => {
+                  let val = e.target.value.replace(/\D/g, '');
+                  if (val.length > 8) val = val.slice(0, 8);
+                  if (val.length > 5) val = val.slice(0, 5) + '-' + val.slice(5);
+                  setCepDraft(val);
+                  if (cepError) setCepError(null);
+                }}
+                onKeyDown={(e) => { if (e.key === 'Enter') confirmCep(); }}
+              />
+            </div>
+            {cepError && (
+              <p className="cep-helper cep-helper-error" role="alert" aria-live="polite" style={{ marginTop: '8px' }}>
+                <AlertTriangle size={12} aria-hidden="true" /> {cepError}
+              </p>
+            )}
+            <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+              <button type="button" className="btn btn-outline" onClick={() => setCepModalOpen(false)} style={{ flex: 1 }}>Cancelar</button>
+              <button type="button" className="btn btn-primary" onClick={confirmCep} style={{ flex: 1 }}>Calcular</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -1557,6 +1775,13 @@ const CrossMarketplacePage = ({ preloadedJobId, onClearPreloadedJob, onReopen }:
   const [loadingShipping, setLoadingShipping] = useState<Record<string, boolean>>({});
   const [exporting, setExporting] = useState(false);
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+  // Modal de CEP — mesma lógica da busca comparativa: ao clicar "Calcular Frete" sem CEP,
+  // abre o modal em vez de bloquear com alert.
+  const [cepModalOpen, setCepModalOpen] = useState(false);
+  const [cepDraft, setCepDraft] = useState('');
+  const [cepError, setCepError] = useState<string | null>(null);
+  const [pendingShipItem, setPendingShipItem] = useState<{ item: any; marketplace: string } | null>(null);
+  const cepDraftRef = useRef<HTMLInputElement>(null);
 
   // withDisplayOrder importado do store (fonte única — CR-01/IN-02): a action
   // startCrossSearch e a pré-carga de histórico aplicam exatamente a mesma lógica.
@@ -1636,16 +1861,8 @@ const CrossMarketplacePage = ({ preloadedJobId, onClearPreloadedJob, onReopen }:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preloadedJobId]);
 
-  const handleCalculateShipping = async (e: React.MouseEvent, item: any, marketplace: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    const currentZip = zipcode.replace(/\D/g, '');
-    if (!currentZip || currentZip.length !== 8) {
-      alert("Por favor, preencha um CEP válido (8 dígitos) no topo da página antes de calcular.");
-      return;
-    }
-
+  // Núcleo do cálculo de frete de UM item (já com CEP validado).
+  const runShipForItem = async (item: any, marketplace: string, currentZip: string) => {
     const key = `${marketplace}-${item.url}`;
     setLoadingShipping(prev => ({ ...prev, [key]: true }));
     // Snapshot do result set ANTES do await: se uma nova busca por SKU ou reabertura de
@@ -1687,13 +1904,44 @@ const CrossMarketplacePage = ({ preloadedJobId, onClearPreloadedJob, onReopen }:
 
         setCross({ results: { ...prev, results: newResults } });
       } else {
-        alert(data.message || "Erro ao calcular frete");
+        toast.error(data.message || "Erro ao calcular frete");
       }
     } catch (err: any) {
-      alert("Erro ao calcular frete: " + err.message);
+      toast.error("Erro ao calcular frete: " + err.message);
     } finally {
       setLoadingShipping(prev => ({ ...prev, [key]: false }));
     }
+  };
+
+  // Entry handler do botão "Calcular Frete": usa o CEP da sessão se válido, senão abre o modal.
+  const handleCalculateShipping = (e: React.MouseEvent, item: any, marketplace: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const currentZip = zipcode.replace(/\D/g, '');
+    if (currentZip.length === 8) {
+      runShipForItem(item, marketplace, currentZip);
+      return;
+    }
+    setPendingShipItem({ item, marketplace });
+    setCepDraft(zipcode);
+    setCepError(null);
+    setCepModalOpen(true);
+  };
+
+  const confirmCepCross = () => {
+    const zip = cepDraft.replace(/\D/g, '');
+    if (zip.length !== 8) {
+      setCepError('Informe um CEP válido com 8 dígitos.');
+      cepDraftRef.current?.focus();
+      return;
+    }
+    const masked = zip.slice(0, 5) + '-' + zip.slice(5);
+    setCross({ zipcode: masked });
+    setCepModalOpen(false);
+    setCepError(null);
+    const pending = pendingShipItem;
+    setPendingShipItem(null);
+    if (pending) runShipForItem(pending.item, pending.marketplace, zip);
   };
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -1990,6 +2238,54 @@ const CrossMarketplacePage = ({ preloadedJobId, onClearPreloadedJob, onReopen }:
             })}
           </div>
 
+        </div>
+      )}
+
+      {/* Modal de CEP — pede o CEP ao calcular frete sem ter informado um (mesma lógica da comparativa) */}
+      {cepModalOpen && (
+        <div className="modal-overlay" onClick={() => setCepModalOpen(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '420px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <MapPin size={18} /> Calcular frete
+              </h3>
+              <button className="btn btn-icon" onClick={() => setCepModalOpen(false)} aria-label="Fechar"><X size={20} /></button>
+            </div>
+            <p className="text-muted" style={{ marginBottom: '12px', fontSize: '13px' }}>
+              Informe o CEP de entrega para calcular o frete.
+            </p>
+            <div className={`search-input-wrapper${cepError ? ' cep-input-error' : ''}`}>
+              <MapPin className="search-icon" size={20} aria-hidden="true" />
+              <input
+                ref={cepDraftRef}
+                type="text"
+                inputMode="numeric"
+                autoComplete="postal-code"
+                className="search-input"
+                placeholder="00000-000"
+                value={cepDraft}
+                autoFocus
+                aria-invalid={cepError ? 'true' : 'false'}
+                onChange={(e) => {
+                  let val = e.target.value.replace(/\D/g, '');
+                  if (val.length > 8) val = val.slice(0, 8);
+                  if (val.length > 5) val = val.slice(0, 5) + '-' + val.slice(5);
+                  setCepDraft(val);
+                  if (cepError) setCepError(null);
+                }}
+                onKeyDown={(e) => { if (e.key === 'Enter') confirmCepCross(); }}
+              />
+            </div>
+            {cepError && (
+              <p className="cep-helper cep-helper-error" role="alert" aria-live="polite" style={{ marginTop: '8px' }}>
+                <AlertTriangle size={12} aria-hidden="true" /> {cepError}
+              </p>
+            )}
+            <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+              <button type="button" className="btn btn-outline" onClick={() => setCepModalOpen(false)} style={{ flex: 1 }}>Cancelar</button>
+              <button type="button" className="btn btn-primary" onClick={confirmCepCross} style={{ flex: 1 }}>Calcular</button>
+            </div>
+          </div>
         </div>
       )}
 

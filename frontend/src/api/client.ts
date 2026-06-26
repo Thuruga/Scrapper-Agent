@@ -80,15 +80,20 @@ export class ApiClient {
     });
   }
 
+  // Frete VTEX sob demanda para um produto da busca comparativa. O domínio é
+  // resolvido no backend a partir da marca persistida (nunca do caller — T-33-01).
+  static calculateVtexShipping(payload: { brand_key: string; sku_id: string; seller_id?: string; zipcode: string }) {
+    return this.request<{ state: string; shipping_options: any[] }>('/search/calculate-shipping-vtex', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
   static search(payload: { query: string; brands?: string[]; max_per_brand?: number; sort?: string; only_in_stock?: boolean; zipcode?: string; include_shipping?: boolean }, signal?: AbortSignal) {
     return this.request<any>('/search', {
       method: 'POST',
       body: JSON.stringify(payload),
     }, signal);
-  }
-
-  static getSearchConfig() {
-    return this.request<any>('/search/config');
   }
 
   static getHistoryList() {
