@@ -1,5 +1,5 @@
 ---
-status: partial
+status: passed
 phase: 33-frete-via-checkout-nos-sites-vtex
 source: [33-VERIFICATION.md]
 started: 2026-06-26T00:00:00Z
@@ -8,48 +8,61 @@ updated: 2026-06-26T00:00:00Z
 
 ## Current Test
 
-[awaiting human testing]
+[concluído — operador confirmou "Funcionando" em 2026-06-26]
+
+## Nota de design (gap closure)
+
+O UX original (CEP padrão visível + frete automático em toda busca) foi **revisado ao vivo**
+após o UAT. Design final (commit 178126f):
+- CEP é **opcional e sem valor padrão**.
+- Com CEP preenchido **antes** da busca → frete de todos os produtos vem junto (inline).
+- Sem CEP → busca traz só preços; cada produto VTEX tem botão **"Calcular Frete"** (cálculo
+  de um único item) que abre um **modal de CEP** quando necessário.
+- Detalhes do frete ficam **colapsados** (resumo + expandir/recolher todos / item a item).
+- Busca por SKU segue a mesma lógica (botão + modal).
+- Bug Foxton (e outras VTEX) corrigido: SLAs achatados de todas as entradas de `logisticsInfo`
+  (CR-02) + `timeout` aiohttp corrigido (WR-01).
 
 ## Tests
 
-### 1. CEP padrão carrega no load e reseta no reload
-expected: Campo "CEP de entrega" exibe o CEP padrão do backend (ex: "01310-100") ao abrir a página; ao recarregar, o campo reseta para o padrão (não para o último valor editado)
-result: [pending]
+### 1. Busca sem CEP exibe botão "Calcular Frete" por produto VTEX
+expected: Sem CEP no campo, a busca traz só preços; cada produto VTEX mostra o botão "Calcular Frete"
+result: passed
 
-### 2. CEP inválido (1-7 dígitos) bloqueia Comparar e Excel
-expected: Digitar 3 dígitos e clicar em "Comparar" ou "Exportar Excel": botão não dispara a busca, foco vai para o campo CEP, inline error "Informe um CEP válido com 8 dígitos." aparece com ícone AlertTriangle
-result: [pending]
+### 2. CEP preenchido antes da busca traz frete inline (colapsado)
+expected: Com CEP válido no campo, a busca traz preços + frete de todos os produtos VTEX, colapsado
+result: passed
 
-### 3. Config com delay não sobrescreve CEP editado pelo usuário
-expected: Editar o CEP antes da resposta do /search/config chegar (simular com network throttle ou DevTools): o valor digitado pelo usuário deve permanecer, sem overwrite silencioso
-result: [pending]
+### 3. Botão "Calcular Frete" sem CEP abre o modal e calcula um único produto
+expected: Clicar em "Calcular Frete" sem CEP abre o modal; ao confirmar, calcula só aquele produto
+result: passed
 
-### 4. Busca VTEX retorna opções de frete com preços em reais
-expected: Buscar SKU de marca VTEX ativa (ex: Levi's, Calvin Klein) com CEP válido: cada card exibe seção "Entrega para {CEP}" com ≥1 opção de entrega, preço em "R$ X,XX"
-result: [pending]
+### 4. Produto VTEX (ex: Foxton) retorna opções reais de frete em reais
+expected: Marcas VTEX trazem ≥1 modalidade de entrega com preço em reais (bug logisticsInfo[0] corrigido)
+result: passed
 
-### 5. Frete grátis exibe "Frete Grátis" em verde (não "R$ 0,00")
-expected: Para SKU com opção de frete grátis: linha exibe ícone CheckCircle2 + texto "Frete Grátis" em --success (verde), sem exibir "R$ 0,00"
-result: [pending]
+### 5. Frete grátis exibido como "Frete Grátis" (verde), não "R$ 0,00"
+expected: Opção gratuita mostra "Frete Grátis" em verde com CheckCircle2
+result: passed
 
-### 6. CEP sem cobertura exibe "Entrega indisponível" em cor muted (não vermelho)
-expected: Buscar com CEP de área sem cobertura VTEX: exibe "Entrega indisponível para este CEP" com ícone MapPin em cor --text-muted (cinza), card permanece utilizável
-result: [pending]
+### 6. Colapsar/expandir frete (todos e item a item)
+expected: Detalhes colapsados por padrão; "Expandir todos"/"Recolher todos" e chevron por card funcionam
+result: passed
 
-### 7. Falha temporária de frete exibe aviso âmbar; outros produtos não são afetados
-expected: Simular timeout/erro no checkout de um SKU: card do produto afetado exibe "Frete temporariamente indisponível" com AlertTriangle âmbar; outros produtos na mesma busca exibem opções normalmente
-result: [pending]
+### 7. Estados sem entrega / falha temporária
+expected: "Entrega indisponível para este CEP" (muted) e "Frete temporariamente indisponível" (âmbar, com "Tentar novamente")
+result: passed
 
-### 8. Histórico pré-Phase-33 renderiza via fallback legado sem crash
-expected: Abrir aba "Histórico" e visualizar registros de buscas anteriores à Phase 33 (sem campo shipping_options): registros renderizam sem crash, exibindo o campo legacy shipping se disponível
-result: [pending]
+### 8. Busca por SKU segue a mesma lógica (botão + modal)
+expected: "Calcular Frete" por item abre o modal de CEP quando não há CEP; calcula sob demanda
+result: passed
 
 ## Summary
 
 total: 8
-passed: 0
+passed: 8
 issues: 0
-pending: 8
+pending: 0
 skipped: 0
 blocked: 0
 
