@@ -3,6 +3,7 @@ created: 2026-06-20
 area: frontend + backend
 source: 27-VERIFICATION.md (non-blocking follow-up)
 priority: low
+resolves_phase: 38
 ---
 
 # Cap / paginate the search history list
