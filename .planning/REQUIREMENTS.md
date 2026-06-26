@@ -85,14 +85,37 @@ Explicitamente excluído deste milestone, com motivo.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| _(preenchido na criação do ROADMAP)_ | — | Pending |
+| PARID-01 | Phase 37 | Pending |
+| PARID-02 | Phase 37 | Pending |
+| PARID-03 | Phase 37 | Pending |
+| PARID-04 | Phase 37 | Pending |
+| COMP-08 | Phase 38 | Pending |
+| UX-01 | Phase 38 | Pending |
+| UX-02 | Phase 38 | Pending |
+| UX-06 | Phase 38 | Pending |
+| UX-07 | Phase 38 | Pending |
+| UX-08 | Phase 38 | Pending |
+| COMP-06 | Phase 39 | Pending |
+| COMP-07 | Phase 39 | Pending |
+| UX-03 | Phase 40 | Pending |
+| UX-04 | Phase 40 | Pending |
+| UX-05 | Phase 40 | Pending |
+| FRET-07 | Phase 41 | Pending |
+| FRET-08 | Phase 42 | Pending |
+| FRET-09 | Phase 42 | Pending |
+| MAP-01 | Phase 43 | Pending |
+| PROMO-01 | Phase 43 | Pending |
+| STOCK-01 | Phase 44 | Pending |
+| STOCK-02 | Phase 44 | Pending |
+| REVW-01 | Phase 44 | Pending |
+| SORT-01 | Phase 45 | Pending |
 
 **Coverage:**
 
 - v4.0 requirements: 24 total (PARID×4, COMP-06..08, UX-01..08, FRET-07..09, MAP-01, PROMO-01, STOCK-01..02, REVW-01, SORT-01)
-- Mapped to phases: _(preenchido na criação do ROADMAP)_
-- Unmapped: _(a validar)_
+- Mapped to phases: 24/24
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-06-26 for milestone v4.0*
-*Last updated: 2026-06-26 — definição inicial (Zara spike-gated; STOCK-02 e FRET-09 com guard-rails anti-bot).*
+*Last updated: 2026-06-26 — traceability preenchida após criação do ROADMAP (Phases 37-45, cobertura 24/24).*

@@ -6,15 +6,14 @@
 - ✅ **v1.11 Precisão da Busca por SKU** - Phases 22-23 (shipped)
 - ✅ **v1.12 Exportação Excel da Busca por SKU** - Phase 24 (shipped)
 - ✅ **v2.0 Cobertura de Concorrentes & Confiabilidade** - Phases 25-29 (shipped — ver `.planning/milestones/v2.0-ROADMAP.md`)
-- 🚧 **v3.0 Expansão Multi-Plataforma de Concorrentes & Frete VTEX** - Phases 30-35 (active)
+- ✅ **v3.0 Expansão Multi-Plataforma de Concorrentes & Frete VTEX** - Phases 30-36 (shipped)
+- 🚧 **v4.0 Paridade de Dados, Cobertura Total de Frete & Inteligência Competitiva** - Phases 37-45 (active)
 
-**Milestone Goal (v3.0):** Onboardar marcas concorrentes que rodam fora do VTEX, entregar o cálculo de frete VTEX pendente do v2.0 e automatizar a extração dos banners desktop com publicação no SharePoint.
+**Milestone Goal (v4.0):** Nivelar a extração de atributos entre todas as marcas, fechar lacunas de cobertura (Hugo Boss por categoria, Zara, frete universal) e adicionar camadas de inteligência competitiva (MAP, promoções, ruptura de estoque, sortimento, avaliações).
 
 ## Overview
 
-Com a fundação de motores (engine factory + `detect_engine` + flag `is_active`) já shipped no v2.0, o v3.0 expande a cobertura competitiva para plataformas que hoje caem em `unknown`. A pedra fundamental é ensinar `detect_engine` a reconhecer `sfcc` e `wake` (Phase 30): sem isso, Lacoste/HugoBoss/Richards seriam auto-desativadas no cadastro. Com a detecção pronta, dois engines novos são construídos em paralelo lógico: SFCC público (Phase 31, caminho validado por spike — só catálogo + preço) e Wake Commerce (Phase 32, **precedido de um spike de confirmação do token GraphQL** antes de comprometer o engine completo). O frete VTEX (Phase 33) é ortogonal aos engines novos — usa o caminho interno do `VtexApiClient` já existente — e pode rodar em paralelo.
-
-O milestone também incorpora a frente de banners, validada por um protótipo executado nos 13 sites ativos. A Phase 34 transforma o spike em um motor de extração desktop observável, cobrindo todos os slides de imagem do hero e reconhecendo vídeos intercalados. A Phase 35 publica os arquivos e metadados no SharePoint; começa por um gate de conectividade, destino e permissões, pois essas informações são dependências externas ainda não disponíveis.
+Com o motor multi-engine, frete VTEX e os engines Wake/SFCC entregues no v3.0, o v4.0 eleva a qualidade dos dados e expande a cobertura competitiva. A pedra fundamental é a **paridade de atributos** (Phase 37): criar um vocabulário canônico único e garantir que todos os engines o preencham para as marcas hoje deficientes — sem isso, o cron de sortimento (Phase 45) não tem atributos confiáveis para contar. Em paralelo lógico, um lote de **quick wins de UX** e **remoção da Lacoste** das buscas (Phase 38) entrega valor imediato sem dependências pesadas. A Phase 39 fecha a **cobertura de marcas** (Hugo Boss por categoria + Zara, spike-gated). A Phase 40 entrega os fluxos UX mais profundos (onboarding por URL + adicionar ao monitoramento + toggles de marketplace). O eixo de **frete** avança em duas etapas: abstração + marcas não-VTEX (Phase 41), depois marketplaces e a matriz multi-regional CEP (Phase 42, com guard-rails anti-bot). O eixo de **inteligência competitiva** é dividido em MAP+promoções (Phase 43) e ruptura de estoque+avaliações reforçadas (Phase 44 — cart-probe com sessões efêmeras). Por último, o **cron de sortimento** (Phase 45) que depende dos atributos canônicos e da persistência SQLite introduzida na Phase 37.
 
 ## Phases
 
@@ -23,150 +22,137 @@ O milestone também incorpora a frente de banners, validada por um protótipo ex
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
-Phases 19-29 pertencem a milestones CONCLUÍDOS (v1.10-v2.0). As phases ativas do v3.0 são **30-36**.
+Phases 19-36 pertencem a milestones CONCLUÍDOS (v1.10-v3.0). As phases ativas do v4.0 são **37-45**.
 
-- [x] **Phase 30: Detecção de Engine SFCC & Wake** - `detect_engine` reconhece e rotula `sfcc` e `wake` (em vez de `unknown`), liberando o cadastro dessas marcas com o engine correto (COMP-05) (completed 2026-06-23)
-- [x] **Phase 31: Engine SFCC (Browser Público) — Lacoste & HugoBoss** - Onboarding e busca das marcas SFCC via extração pública browser-rendered (JSON-LD / OpenGraph): catálogo + preço apenas (COMP-03) (completed 2026-06-24)
-- [x] **Phase 32: Engine Wake Commerce — Richards** - Spike de confirmação do GraphQL + `TCS-Access-Token` e, se validado, engine Wake completo para onboarding e busca da Richards (COMP-04) (completed 2026-06-25)
-- [x] **Phase 33: Frete via Checkout nos Sites VTEX** - Cálculo de preço e prazo de frete via checkout simulation nos sites de marca VTEX, com contrato de unidade (centavos→reais) documentado e detecção de frete grátis (FRET-05) (completed 2026-06-26)
-- [x] **Phase 34: Extração de Banners Desktop** - Motor reutilizável percorre as marcas ativas, coleta todos os slides de imagem do carrossel principal e produz arquivos originais, metadados e relatório visual auditável (BANNER-01, BANNER-02, BANNER-03, BANNER-04) (completed 2026-06-23)
-- [ ] **Phase 35: Publicação de Banners no SharePoint** - Configuração segura do destino e publicação idempotente dos banners e metadados, com resultado por arquivo e gate inicial de acesso/permissões (BANNER-05, BANNER-06)
-- [x] **Phase 36: Onboarding das Marcas Concorrentes Restantes — Lacoste (anti-bot) & Zara** - Gate de viabilidade executado: Lacoste NO-GO no envelope público stealth permitido, mantida inativa; Zara reavaliada e promovida para fase futura dedicada (completed 2026-06-25)
+- [ ] **Phase 37: Paridade de Atributos & Fundação SQLite** - Vocabulário canônico único, normalização/aliasing de atributos em todos os engines, relatório de cobertura por marca e introdução do SQLite para dados analíticos (PARID-01, PARID-02, PARID-03, PARID-04)
+- [ ] **Phase 38: UX de Busca & Monitoramento — Quick Wins** - Responsividade do monitor/varredura, promoção na lista de monitoramento, histórico no canto superior direito, padrão de SKU + CEP inline, auto-trigger do monitor de categoria e remoção da Lacoste de todas as superfícies de busca (UX-01, UX-02, UX-06, UX-07, UX-08, COMP-08)
+- [ ] **Phase 39: Cobertura de Marcas — Hugo Boss & Zara** - Varredura e monitoramento por categoria da Hugo Boss funcionando; spike-gated onboarding da Zara (GO/NO-GO antes do engine) (COMP-06, COMP-07)
+- [ ] **Phase 40: Onboarding por URL & Workflows de Adição ao Monitoramento** - Cadastro de marca só pela URL, detecção automática de engine + nome, botão "adicionar ao monitoramento" nas três superfícies de busca e toggles de ativar/desativar para marketplaces virtuais (UX-03, UX-04, UX-05)
+- [ ] **Phase 41: Abstração de Frete & Marcas Não-VTEX** - Camada de abstração de frete por engine (BaseShipping + implementações Wake/Shopify), fechamento do gap de frete do Buckman (VTEX) e VTEX permanece no VtexApiClient (FRET-07)
+- [ ] **Phase 42: Frete para Marketplaces & Matriz Multi-Regional** - Cálculo de frete para Mercado Livre, Netshoes e Amazon; Matriz de Frete Multi-Regional com CEPs-chave das 5 regiões do Brasil, on-demand com throttle e cache (FRET-08, FRET-09)
+- [ ] **Phase 43: Violação de MAP & Selos de Promoção** - Regras de preço mínimo (MAP) por produto/marca/categoria com sinalização de vendedores infratores; extração estruturada de selos de oferta e condições de pagamento (MAP-01, PROMO-01)
+- [ ] **Phase 44: Ruptura de Estoque & Avaliações Reforçadas** - Percentual de produtos esgotados por marca na varredura; profundidade de estoque via cart-probe de 999 unidades (sessões efêmeras + throttle); notas e comentários reforçados para todas as marcas com paginação e dedup (STOCK-01, STOCK-02, REVW-01)
+- [ ] **Phase 45: Análise de Sortimento** - Cron que varre categorias e contabiliza produtos por atributo canônico, gerando snapshots para identificar buracos no catálogo; depende dos atributos canônicos (PARID) e da persistência SQLite (SORT-01)
 
 ## Phase Details
 
-### Phase 30: Detecção de Engine SFCC & Wake
+### Phase 37: Paridade de Atributos & Fundação SQLite
 
-**Goal**: Ao cadastrar uma marca SFCC (Lacoste, HugoBoss) ou Wake (Richards), o sistema reconhece a plataforma e atribui o engine correto (`sfcc` / `wake`) em vez de cair em `unknown` e auto-desativar a marca — destravando o onboarding das Phases 31 e 32.
-**Depends on**: Nothing (fundação do milestone; opera sobre `detect_engine` e `EngineFactory` já shipped no v2.0)
-**Requirements**: COMP-05
+**Goal**: Todo produto retornado pelo sistema carrega o mesmo conjunto de atributos canônicos (cor, fit, tecido, tamanho, composição, gênero) independentemente da marca ou engine — e o operador consegue ver, por marca, qual porcentagem dos campos canônicos está sendo preenchida versus ausente na fonte.
+**Depends on**: Nothing (fase fundacional do v4.0; opera sobre engines e parsers existentes)
+**Requirements**: PARID-01, PARID-02, PARID-03, PARID-04
 **Success Criteria** (what must be TRUE):
+  1. Existe um vocabulário canônico de atributos documentado e centralizado (`attribute_normalizer.py`) que todos os engines chamam antes de popular `RawProductBronze.specifications`.
+  2. Para marcas hoje deficientes (Levi's, Calvin Klein, Zapalla, Austral, Track & Field, Richards, Hugo Boss), os campos canônicos (ex.: `color`, `fit`, `material`) aparecem preenchidos nos resultados de busca quando a fonte os contém — sem sobrescrever o `specifications` bruto original.
+  3. Nomes de atributos divergentes entre engines (ex.: `Cor2`, `Corte`, `Composição do produto`) são normalizados/aliasados para as chaves canônicas de forma aditiva, verificável por teste unitário por alias.
+  4. O operador acessa um relatório de cobertura de atributos (endpoint ou log estruturado) que distingue "campo canônico não extraído" de "campo ausente na fonte" para cada marca.
+  5. Dados analíticos e de série temporal (snapshots de atributos, contagens futuras de sortimento) são persistidos em SQLite (`backend/data/analytics.db`) — configuração inicial e schema validados; JSON permanece para config.
+**Plans**: TBD
+**UI hint**: yes
 
-  1. Ao chamar `detect_engine` para um domínio SFCC (ex.: Lacoste ou HugoBoss), o retorno é `"sfcc"` — não `"unknown"` nem `"vtex"`.
-  2. Ao chamar `detect_engine` para o domínio da Richards (Wake), o retorno é `"wake"` — não `"unknown"` (que era o comportamento de fallback do v2.0 via `fbitsstatic.net`).
-  3. Ao cadastrar uma marca via `POST /brands/` com engine `auto`, uma marca SFCC ou Wake é persistida com o engine detectado e **permanece ativa** (não é auto-desativada pela regra D-04 de engine desconhecido).
-  4. Domínios que não são SFCC, Wake, VTEX nem Shopify continuam retornando `"unknown"` e sendo auto-desativados — a detecção nova não introduz falsos positivos.
+### Phase 38: UX de Busca & Monitoramento — Quick Wins
 
-**Plans**: 3 plans
-**Wave 1**
-
-- [x] 30-01-PLAN.md — detect_engine: flip Wake branch to "wake" + last-resort SFCC browser probe (demandware markers)
-- [x] 30-02-PLAN.md — EngineFactory.get_engine guard: raise NotImplementedError for sfcc/wake (no silent VTEX fallback)
-
-**Wave 2** *(blocked on Wave 1 completion)*
-
-- [x] 30-03-PLAN.md — test_engine_detection.py: regression base + SFCC/Wake/anti-false-positive + SC-3 stays-active
-
-### Phase 31: Engine SFCC (Browser Público) — Lacoste & HugoBoss
-
-**Goal**: Um operador consegue onboardar Lacoste e HugoBoss e buscar seus produtos (catálogo + preço) via extração pública browser-rendered (JSON-LD / OpenGraph), com o novo `SFCCEngine` plugado na `EngineFactory` — sem frete/checkout, estoque por CEP, OCAPI/SCAPI ou bypass de anti-bot.
-**Depends on**: Phase 30 (a detecção precisa rotular `sfcc` para que Lacoste/HugoBoss sejam cadastradas com o engine certo em vez de inativadas)
-**Requirements**: COMP-03
+**Goal**: As telas de monitor de categoria e varredura funcionam corretamente em viewports menores; a lista de monitoramento exibe o valor da promoção; o histórico de buscas fica acessível no canto superior direito em todas as abas; o campo de SKU valida o padrão e o CEP fica inline; o monitor de categoria inicia a varredura automaticamente ao selecionar uma categoria; e a Lacoste deixa de aparecer em qualquer superfície de busca.
+**Depends on**: Nothing (mudanças de frontend e chokepoint de marcas; independente das fases de atributos e cobertura)
+**Requirements**: UX-01, UX-02, UX-06, UX-07, UX-08, COMP-08
 **Success Criteria** (what must be TRUE):
+  1. Em viewport de 768px (tablet), o monitor de categoria e a varredura por categoria exibem todo o conteúdo sem overflow horizontal ou elementos sobrepostos.
+  2. Na lista de monitoramento de preços, cada produto exibe o valor da promoção (`price_discount`) quando disponível, além do preço cheio — sem nova chamada de rede.
+  3. O histórico de buscas (comparativa e por SKU) está acessível por um ícone/botão no canto superior direito em ambas as abas de busca.
+  4. Na busca por SKU, o campo aceita somente strings no padrão `ML.05.XXXXXXX` (validado no frontend) e o campo de CEP fica na mesma linha do input do SKU, igual ao layout da busca comparativa.
+  5. Ao selecionar uma categoria no monitor de categoria, a primeira varredura dispara automaticamente sem necessidade de clique em "iniciar" — e os resultados aparecem na lista.
+  6. A Lacoste não aparece como opção selecionável em nenhuma superfície (busca comparativa, busca por SKU, varredura por categoria, scheduler, export) — garantido pelo chokepoint `list_brands(active_only=True)` e coberto por teste de regressão.
+**Plans**: TBD
+**UI hint**: yes
 
-  1. Com Lacoste e HugoBoss cadastradas, uma busca por produto retorna itens reais (título, URL e preço) para cada uma das duas marcas — extraídos de JSON-LD / OpenGraph na página renderizada, não de HTTP direto (que é bloqueado por 403).
-  2. O `SFCCEngine` está registrado na `EngineFactory` e é selecionado automaticamente para marcas com `engine="sfcc"`, implementando os métodos do `BaseEngine` necessários para catálogo e busca.
-  3. O preço extraído de cada produto SFCC é exibido na unidade correta (reais) nos resultados da busca, consistente com os demais engines.
-  4. `calculate_shipping` do `SFCCEngine` não tenta calcular frete (escopo público sem checkout): retorna ausência de frete de forma explícita, sem erro e sem badge de "Frete Grátis" indevido.
+### Phase 39: Cobertura de Marcas — Hugo Boss & Zara
 
-**Plans**: 3 plans
-
-**Wave 0**
-
-- [x] 31-01-PLAN.md — sfcc_parser.py (BR price `parse_price_br` + JSON-LD/OG extraction) + test_sfcc_engine.py scaffold; Backstage-standards prerequisite gate
-
-**Wave 1** *(blocked on Wave 0)*
-
-- [x] 31-02-PLAN.md — SFCCEngine search core (native search render → PDP enrichment, Semaphore(3), calculate_shipping→None) + factory.py guard split (SC-1..SC-4)
-
-**Wave 2** *(blocked on Wave 1)*
-
-- [x] 31-03-PLAN.md — discover_categories()/get_catalog() reais com fallback de stub gracioso (D-05/D-06)
-
-### Phase 32: Engine Wake Commerce — Richards
-
-**Goal**: Confirmar empiricamente o fluxo GraphQL + `TCS-Access-Token` da Wake contra a Richards (spike gating) e, uma vez validado, entregar o `WakeEngine` plugado na `EngineFactory` para que o operador onboarde e busque produtos da Richards.
-**Depends on**: Phase 30 (a detecção precisa rotular `wake` para cadastrar a Richards com o engine certo). O build do engine é internamente gated pelo spike de confirmação (Wave 0) antes do commit do engine completo.
-**Requirements**: COMP-04
+**Goal**: A varredura e o monitoramento por categoria da Hugo Boss funcionam end-to-end (de/para de categorias VTEX mapeadas), e a viabilidade de extração pública da Zara é verificada por um spike GO/NO-GO — com o engine Zara construído apenas em GO, ou o requisito deferrido com evidência em NO-GO.
+**Depends on**: Phase 37 (atributos canônicos disponíveis para testar paridade nas novas categorias da Hugo Boss)
+**Requirements**: COMP-06, COMP-07
 **Success Criteria** (what must be TRUE):
-
-  1. **Gate (Wave 0):** Um spike de confirmação demonstra, contra a Richards (ou Shop2gether), que o endpoint GraphQL da Wake responde com produtos quando recebe o header `TCS-Access-Token` da loja — produzindo uma decisão registrada de GO/NO-GO antes de qualquer código do engine completo.
-  2. Com a Richards cadastrada e o token configurado, uma busca por produto retorna itens reais (título, URL e preço) via a API GraphQL da Wake — não via o caminho VTEX (que retorna 0 produtos para lojas Wake).
-  3. O `WakeEngine` está registrado na `EngineFactory` e é selecionado automaticamente para marcas com `engine="wake"`, enviando o `TCS-Access-Token` por loja em cada requisição GraphQL.
-  4. O `TCS-Access-Token` da Richards é configurado por loja (não hardcoded global) e a ausência/erro de token produz uma falha clara e diagnosticável, não 0 produtos silenciosos.
-
-**Plans**: 3 plans
-
-**Wave 0** *(GATE — spike de confirmação GO/NO-GO; gateia Wave 1+)*
-
-- [x] 32-01-PLAN.md — spike 007-wake-graphql-token-confirmation: experiment.py + REPORT.md com veredito GO/NO-GO (token GraphQL+TCS-Access-Token; Richards/Shop2gether) (SC-1)
-
-**Wave 1** *(blocked on Wave 0 — só executa se REPORT.md = GO; em NO-GO o WakeEngine é deferido por D-03)*
-
-- [x] 32-02-PLAN.md — WakeEngine: campo wake_access_token (models.py) + engine (busca GraphQL + token por loja + stubs) + wiring na EngineFactory (SC-2/SC-3/SC-4) (completed 2026-06-25)
-
-**Wave 2** *(blocked on Wave 1)*
-
-- [x] 32-03-PLAN.md — test_wake_engine.py (SC-2/SC-3/SC-4/D-06/D-08) + remoção do guard obsoleto test_factory_wake_still_raises + regressão da suite completa (completed 2026-06-25)
-
-### Phase 33: Frete via Checkout nos Sites VTEX
-
-**Goal**: O sistema calcula preço e prazo de frete via checkout simulation para os sites de marca VTEX que hoje retornam vazio, com unidade corretamente convertida (centavos para reais) e detecção de frete grátis — usando o caminho interno do `VtexApiClient` (não o hook `calculate_shipping`, por decisão arquitetural do v2.0).
-**Depends on**: Nothing (ortogonal aos engines novos; opera sobre marcas VTEX já onboardadas no v2.0 e o `VtexApiClient` existente). Pode rodar em paralelo com as Phases 30-32.
-**Requirements**: FRET-05
-**Success Criteria** (what must be TRUE):
-
-  1. Uma busca por produto em qualquer site de marca VTEX onboardado retorna `shipping_cost` com valor em reais (não em centavos) e `shipping_time` com prazo de entrega — campos que hoje ficam vazios/nulos.
-  2. Quando o frete é gratuito, o campo `is_free_shipping` é `true` e `shipping_cost` é `0.0` — distinguível de um frete não calculado (que permanece nulo, não `0.0`).
-  3. O contrato de unidade (centavos→reais, divisão por 100) está documentado no caminho de frete VTEX e coberto por ao menos um teste de range que detecta regressão de unidade (ex.: valor acima de R$ 1.000 sem frete grátis é suspeito).
-
-**Plans**: 3 plans
-**Wave 1**
-
-- [x] 33-01-PLAN.md — Parser puro de frete (vtex_shipping.py) + evolução aditiva dos modelos (shipping_options) + testes test-first
-
-**Wave 2** *(blocked on Wave 1 completion)*
-
-- [x] 33-02-PLAN.md — Rewire de _fetch_shipping (SKU+seller, retry único, estados explícitos, shipping_options) + endpoint read-only de CEP padrão + testes de contrato
-
-**Wave 3** *(blocked on Wave 2 completion)*
-
-- [x] 33-03-PLAN.md — Frontend: loader de config, init único de CEP, bloqueio de CEP inválido, render de todas as modalidades (Truck/CheckCircle2) com fallback legado
-
-### Phase 34: Extração de Banners Desktop
-
-**Goal**: Um operador executa, sob demanda, a extração dos banners desktop de todas as marcas ativas e recebe todos os slides de imagem do carrossel principal da primeira tela, com arquivos originais, metadados e evidências visuais — sem falsos positivos de logos/produtos e sem parar o lote quando um site falha.
-**Depends on**: Nothing (ortogonal aos engines e ao frete; parte do spike validado em `testes/extrair_banners.py` e da infraestrutura Playwright existente)
-**Requirements**: BANNER-01, BANNER-02, BANNER-03, BANNER-04
-**Success Criteria** (what must be TRUE):
-
-  1. Uma execução desktop (`1366×768`) percorre todas as marcas ativas cadastradas e extrai cada slide de imagem do primeiro grande carrossel/hero, inclusive slides ocultos ou carregados ao avançar — sem incluir logos, cards de produto ou seções inferiores.
-  2. Cada item extraído preserva o arquivo original e registra marca, URL de origem, link de destino, texto alternativo, dimensões, tipo de mídia, data da coleta e hash SHA-256.
-  3. Carrosséis com vídeos intercalados continuam sendo percorridos até o final; os vídeos são contabilizados no resultado, mas não são classificados nem baixados como banners de imagem.
-  4. O lote produz JSON, CSV, galeria visual e screenshot por site; uma falha de navegação ou download fica atribuída à marca/item e não interrompe as demais.
-  5. O conjunto de referência do spike permanece reproduzível: os 13 sites ativos completam a execução e os casos VTEX/Shopify representativos passam por conferência visual sem falsos positivos conhecidos.
-
+  1. O operador consegue selecionar uma categoria da Hugo Boss no monitor de categoria e a varredura retorna produtos reais (título + URL + preço) com o mesmo schema canônico das demais marcas VTEX.
+  2. O scheduler de 10 minutos inclui a Hugo Boss nas categorias monitoradas e detecta novos produtos corretamente — sem falso positivo de "produto novo" em re-execuções de categoria inalterada.
+  3. Para a Zara: um spike documentado (GO/NO-GO) valida se produto + preço são extraíveis publicamente antes de qualquer código de engine; resultado registrado em `spikes/010-zara-product-price/REPORT.md`.
+  4. Em GO da Zara: operador onboarda a Zara e a busca retorna produtos reais (título + URL + preço); em NO-GO: COMP-07 é formalmente deferido para backlog com evidência e nenhum engine incompleto é commitado.
 **Plans**: TBD
 
-### Phase 35: Publicação de Banners no SharePoint
+### Phase 40: Onboarding por URL & Workflows de Adição ao Monitoramento
 
-**Goal**: O operador configura um destino SharePoint e publica os banners desktop coletados e seus metadados de forma segura e idempotente, organizados por marca e com rastreabilidade de sucesso ou falha por arquivo.
-**Depends on**: Phase 34 (a publicação consome o contrato estável de arquivos e metadados do motor de extração). O build começa por um gate de confirmação do site/biblioteca de destino, credenciais e permissões disponíveis.
-**Requirements**: BANNER-05, BANNER-06
+**Goal**: Um operador cadastra uma nova marca colando apenas a URL — o sistema detecta o engine e infere o nome para confirmação — e consegue adicionar qualquer produto ao monitoramento diretamente das telas de busca comparativa, busca por SKU e monitor de categoria; os marketplaces virtuais têm toggles de ativar/desativar respeitados pelo serviço de busca cruzada.
+**Depends on**: Phase 38 (UX base estável antes de adicionar novos fluxos de interação)
+**Requirements**: UX-03, UX-04, UX-05
 **Success Criteria** (what must be TRUE):
+  1. Ao colar uma URL de marca no campo de onboarding, o sistema chama `POST /brands/identify`, detecta o engine via `detect_engine` e infere o nome da marca (domínio / título / JSON-LD) — apresentando um formulário pré-preenchido para confirmação antes de salvar, com campo de override manual disponível.
+  2. Da busca comparativa, da busca por SKU e do monitor de categoria, o operador consegue clicar em "Adicionar ao monitoramento" em qualquer produto — e o produto é adicionado ao monitor de preços sem duplicata (dedup por url + marca), independentemente da superfície de origem.
+  3. Os marketplaces virtuais (Mercado Livre, Netshoes, Amazon) têm toggles de ativar/desativar visíveis na tela de configurações; desativá-los faz o `cross_marketplace_service` excluir o marketplace das buscas imediatamente na próxima execução.
+**Plans**: TBD
+**UI hint**: yes
 
-  1. **Gate de acesso:** um teste de conectividade confirma o site/biblioteca de destino e as permissões necessárias antes da implementação completa; ausência de credenciais ou permissão gera diagnóstico explícito.
-  2. Segredos e identificadores sensíveis do SharePoint são fornecidos por configuração externa e não aparecem hardcoded no repositório, JSON/CSV, galeria ou logs.
-  3. Banners originais e metadados são publicados no destino configurado com organização por marca; o relatório local registra o resultado do envio por item.
-  4. Reexecutar a publicação com o mesmo SHA-256 não cria duplicatas; arquivos novos ou alterados são distinguíveis e publicados conforme a política documentada.
-  5. Uma falha no SharePoint não apaga nem invalida a coleta local, permitindo correção de acesso e nova tentativa sem raspar os sites novamente.
+### Phase 41: Abstração de Frete & Marcas Não-VTEX
 
+**Goal**: O sistema calcula frete para marcas que não usam VTEX (Wake Commerce, Shopify) por meio de uma abstração de frete por engine — e fecha o gap de frete do Buckman (VTEX) — sem quebrar o caminho existente do VTEX no `VtexApiClient`.
+**Depends on**: Phase 37 (schema canônico estável para campos de frete), Phase 40 (onboarding de marcas estável)
+**Requirements**: FRET-07
+**Success Criteria** (what must be TRUE):
+  1. Existe uma abstração `BaseShipping` com implementações por engine (`WakeShipping`, `ShopifyShipping`) em `services/shipping/`; o resolver seleciona a implementação pelo engine da marca sem lógica espalhada nos callers.
+  2. Uma busca por produto na Richards (Wake) retorna `shipping_cost` e `shipping_time` preenchidos quando o CEP padrão está configurado — campos que hoje ficam nulos para marcas não-VTEX.
+  3. O frete do Buckman (VTEX) está calculado e exibido na busca por SKU, fechando o gap identificado no v3.0.
+  4. O caminho de frete VTEX existente (`VtexApiClient`) permanece inalterado e continua funcionando para todas as marcas VTEX — garantido por testes de regressão.
+**Plans**: TBD
+
+### Phase 42: Frete para Marketplaces & Matriz Multi-Regional
+
+**Goal**: O sistema calcula frete para os três marketplaces (Mercado Livre, Netshoes, Amazon) e permite ao operador solicitar a Matriz de Frete Multi-Regional — frete para CEPs-chave das 5 regiões do Brasil — de forma on-demand, com throttle e cache por (SKU, CEP), sem nunca executar inline durante buscas ao vivo.
+**Depends on**: Phase 41 (abstração de frete estável antes de adicionar novos providers)
+**Requirements**: FRET-08, FRET-09
+**Success Criteria** (what must be TRUE):
+  1. Uma busca cruzada nos marketplaces (Mercado Livre, Netshoes, Amazon) retorna `shipping_cost` e `shipping_time` preenchidos quando o CEP padrão está configurado — cobrindo os três marketplaces.
+  2. O operador consegue solicitar a Matriz de Frete Multi-Regional para um produto e receber o custo/prazo para CEPs-chave de todas as 5 regiões do Brasil (Sul, Sudeste, Centro-Oeste, Nordeste, Norte).
+  3. A matriz de frete usa uma lista curada de CEPs configuráveis (`backend/data/cep_matrix.json`), aplica throttle entre requisições e armazena cache por `(sku, cep)` — a segunda solicitação para o mesmo par é servida do cache sem nova requisição.
+  4. O cálculo da matriz nunca é executado inline durante uma varredura ou busca ao vivo — apenas on-demand ou em batch controlado — garantido por guard na chamada e coberto por teste.
+**Plans**: TBD
+
+### Phase 43: Violação de MAP & Selos de Promoção
+
+**Goal**: O operador define preços mínimos permitidos (MAP) por produto, marca ou categoria e o sistema sinaliza produtos anunciados abaixo do MAP identificando o vendedor infrator; os produtos retornam selos de oferta e condições de pagamento em um campo estruturado de promoções.
+**Depends on**: Phase 37 (atributos canônicos e schema de produto estáveis), Phase 41 (frete calculado para contexto de preço total)
+**Requirements**: MAP-01, PROMO-01
+**Success Criteria** (what must be TRUE):
+  1. O operador define uma regra MAP (preço mínimo) para um produto ou categoria via UI ou endpoint — persistida em `backend/data/map_rules.json` — e nos resultados de busca produtos abaixo do MAP são sinalizados com badge de violação e nome do vendedor infrator.
+  2. A comparação de violação usa o campo de preço anunciado correto (preço de venda, não preço cheio/riscado) — evitando falsos positivos com preços promocionais legítimos.
+  3. Produtos de marcas que expõem selos de oferta ("Leve 3 pague 2", "15% OFF no Pix", parcelamento) retornam o campo `promotions` estruturado (lista com tipo + valor + texto bruto) — com o texto bruto preservado quando não parseável.
+  4. O campo `promotions` é aditivo ao schema existente — produtos sem selos retornam lista vazia, sem quebrar engines que não suportam extração de promoções.
+**Plans**: TBD
+
+### Phase 44: Ruptura de Estoque & Avaliações Reforçadas
+
+**Goal**: A varredura por categoria registra a porcentagem de produtos esgotados por marca; a profundidade de estoque é capturável via cart-probe de 999 unidades em varreduras controladas com sessões efêmeras e throttle; notas e comentários são extraídos para todas as marcas com paginação limitada e dedup.
+**Depends on**: Phase 37 (schema canônico para campos de estoque), Phase 39 (Hugo Boss por categoria funcional para testar ruptura)
+**Requirements**: STOCK-01, STOCK-02, REVW-01
+**Success Criteria** (what must be TRUE):
+  1. Após uma varredura por categoria, o relatório por marca inclui a porcentagem de produtos com `in_stock=False` — distinguindo "esgotado" de "não verificado" — para cada marca varrida.
+  2. O operador consegue solicitar a profundidade de estoque de um produto específico em uma varredura controlada; o resultado é rotulado como "máximo observado (estimativa via cart-probe)" com o valor retornado pelo endpoint de carrinho.
+  3. O cart-probe usa sessões Playwright efêmeras e isoladas com cleanup garantido, aplica throttle e nunca é invocado durante buscas ao vivo — apenas em varreduras controladas explícitas.
+  4. Para todas as marcas com provider de avaliações identificado (Trustvox, VTEX native, etc.), a busca por produto retorna `rating` (nota média), `review_count` e pelo menos uma página de comentários — com dedup por ID de review e paginação limitada a N páginas configurável.
+**Plans**: TBD
+
+### Phase 45: Análise de Sortimento
+
+**Goal**: Um cron de análise de sortimento varre categorias configuradas e gera snapshots com contagem de produtos por atributo canônico (ex.: polos por cor, por tecido), persistidos em SQLite, para que o operador identifique buracos no catálogo ao comparar execuções ao longo do tempo.
+**Depends on**: Phase 37 (atributos canônicos confiáveis + SQLite schema), Phase 39 (cobertura de categorias completa incluindo Hugo Boss)
+**Requirements**: SORT-01
+**Success Criteria** (what must be TRUE):
+  1. Um cron agendado (configurável, independente do scheduler de monitoramento de 10 min) varre categorias selecionadas e persiste snapshots de contagem por atributo canônico no SQLite — sem bloquear buscas ao vivo.
+  2. O operador acessa um relatório de sortimento que mostra, para uma categoria e período, os atributos com menor cobertura (ex.: "polo azul: 2 SKUs vs. polo branco: 12 SKUs") — identificando buracos no catálogo.
+  3. Dois snapshots consecutivos da mesma categoria podem ser comparados, mostrando atributos que desapareceram ou surgiram entre execuções.
+  4. O cron é seguro para múltiplas execuções concorrentes: SQLite com writes transacionais, sem race condition com o scheduler de categoria existente.
 **Plans**: TBD
 
 ## Progress
 
 **Execution Order:**
-Phases ativas executam em ordem numérica: 30 → 31 → 32 → 33 → 34 → 35 → 36. Phase 33 (frete VTEX) e Phase 34 (extração de banners) são independentes das Phases 30-32 e podem ser paralelizadas; Phase 31 e Phase 32 dependem da Phase 30. Phase 35 depende da Phase 34 e começa por um gate de acesso ao SharePoint. Phase 36 depende das Phases 31/32 e é gateada internamente pelo spike 36-01; 36-02/36-03 só rodam em GO. O build do engine na Phase 32 é gated pelo spike de confirmação (Wave 0) interno.
+Phases ativas executam em ordem numérica: 37 → 38 → 39 → 40 → 41 → 42 → 43 → 44 → 45. Phase 38 (UX quick wins) é independente e pode rodar em paralelo com 37; Phase 39 depende de 37 (atributos canônicos) e 38 (UX base); Phase 40 depende de 38; Phase 41 depende de 37; Phase 42 depende de 41; Phase 43 depende de 37 e 41; Phase 44 depende de 37 e 39; Phase 45 depende de 37 e 39 (última — precisa do SQLite e dos atributos confiáveis).
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -174,32 +160,19 @@ Phases ativas executam em ordem numérica: 30 → 31 → 32 → 33 → 34 → 35
 | 22-23. v1.11 (Precisão SKU) | v1.11 | - | Complete | shipped |
 | 24. Exportação Excel | v1.12 | - | Complete | shipped |
 | 25-29. v2.0 (Concorrentes & Confiabilidade) | v2.0 | - | Complete | shipped |
-| 30. Detecção de Engine SFCC & Wake | v3.0 | 3/3 | Complete    | 2026-06-23 |
-| 31. Engine SFCC (Browser Público) | v3.0 | 3/3 | Complete   | 2026-06-24 |
-| 32. Engine Wake Commerce — Richards | v3.0 | 3/3 | Complete    | 2026-06-25 |
-| 33. Frete via Checkout nos Sites VTEX | v3.0 | 3/3 | Complete    | 2026-06-26 |
-| 34. Extração de Banners Desktop | v3.0 | 4/4 | Complete   | 2026-06-23 |
+| 30. Detecção de Engine SFCC & Wake | v3.0 | 3/3 | Complete | 2026-06-23 |
+| 31. Engine SFCC (Browser Público) | v3.0 | 3/3 | Complete | 2026-06-24 |
+| 32. Engine Wake Commerce — Richards | v3.0 | 3/3 | Complete | 2026-06-25 |
+| 33. Frete via Checkout nos Sites VTEX | v3.0 | 3/3 | Complete | 2026-06-26 |
+| 34. Extração de Banners Desktop | v3.0 | 4/4 | Complete | 2026-06-23 |
 | 35. Publicação de Banners no SharePoint | v3.0 | 0/? | Not started | - |
 | 36. Onboarding das Marcas Concorrentes Restantes | v3.0 | 3/3 | Complete (NO-GO) | 2026-06-25 |
-
-### Phase 36: Onboarding das Marcas Concorrentes Restantes — Lacoste (anti-bot) & Zara
-
-**Goal**: Habilitar a busca ao vivo da **Lacoste** (SFCC) — hoje cadastrada porém **inativa** por bloqueio anti-bot (HTTP direto 403 e "Access Denied" 296B mesmo no Playwright headless, na home e na busca) — por meio de uma estratégia anti-bot (browser stealth / proxy residencial / fingerprint real), iniciando por um **gate de viabilidade GO/NO-GO** antes de investir no fetcher completo; e **reavaliar** a viabilidade pública da **Zara/Inditex**. Entregar a Lacoste ativa com ≥1 produto (título + URL + preço) na busca OU registrar formalmente a inviabilidade com evidência.
-**Requirements**: COMP-03 (gap: Lacoste ao vivo — Hugo Boss já entregue como VTEX, Richards como Wake), COMP-FUT-03 (Zara/Inditex — reavaliar)
-**Depends on**: Phase 31 (SFCCEngine + correção double-www) e Phase 32 (padrão de onboarding por evidência). Ortogonal às Phases 33 (frete VTEX) e 35 (SharePoint).
-**Plans:** 3/3 plans complete
-**Success Criteria** (o que deve ser VERDADE):
-
-- Gate de viabilidade anti-bot da Lacoste com veredito **GO/NO-GO** documentado ANTES de qualquer investimento no fetcher completo (espelha o padrão spike-gate da Phase 32).
-- Em **GO**: Lacoste `is_active=True` e `search_all_brands("camisa", brands=["lacoste"])` retorna ≥1 produto com título + URL (domínio Lacoste) + preço; suíte de testes verde, sem regressão nos engines existentes.
-- Em **NO-GO**: inviabilidade registrada com evidência (resposta do anti-bot, técnicas testadas) e Lacoste permanece inativa com a decisão documentada.
-- Zara/Inditex reavaliada: caminho público validado (→ promover a requisito ativo) OU mantida deferida (COMP-FUT-03) com razão atualizada.
-- Escopo: catálogo + preço apenas; sem frete/checkout/estoque por CEP. Acesso restrito a dados públicos de catálogo (sem evasão para fins maliciosos).
-
-**Outcome (2026-06-25):** Lacoste `NO-GO` dentro do envelope permitido (baseline e stealth retornaram HTTP 403, 296B, `Access Denied`); `lacoste.is_active=false` permanece. Zara carregou home/search públicos e deve virar fase futura dedicada para validar contrato produto+preço antes de qualquer engine.
-
-Plans:
-
-- [x] 36-01-PLAN.md — Gate Lacoste/Zara executado: REPORT.md com Lacoste `NO-GO` e Zara `PROMOVER_REQUISITO_FUTURO`
-- [x] 36-02-PLAN.md — Skipped por gate: Lacoste `NO-GO`, nenhum SFCCAntiBotFetcher implementado
-- [x] 36-03-PLAN.md — Skipped por gate: sem ativação, `lacoste.is_active=false`
+| 37. Paridade de Atributos & Fundação SQLite | v4.0 | 0/? | Not started | - |
+| 38. UX de Busca & Monitoramento — Quick Wins | v4.0 | 0/? | Not started | - |
+| 39. Cobertura de Marcas — Hugo Boss & Zara | v4.0 | 0/? | Not started | - |
+| 40. Onboarding por URL & Workflows de Adição | v4.0 | 0/? | Not started | - |
+| 41. Abstração de Frete & Marcas Não-VTEX | v4.0 | 0/? | Not started | - |
+| 42. Frete para Marketplaces & Matriz Multi-Regional | v4.0 | 0/? | Not started | - |
+| 43. Violação de MAP & Selos de Promoção | v4.0 | 0/? | Not started | - |
+| 44. Ruptura de Estoque & Avaliações Reforçadas | v4.0 | 0/? | Not started | - |
+| 45. Análise de Sortimento | v4.0 | 0/? | Not started | - |
