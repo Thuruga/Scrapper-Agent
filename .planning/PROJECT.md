@@ -8,39 +8,33 @@ Um sistema robusto de web scraping focado em monitoramento de preços e descober
 
 Extração automatizada e resiliente de dados de mercado com mínima intervenção humana e alta fidelidade de dados.
 
-## Current Milestone: v3.0 Expansão Multi-Plataforma de Concorrentes & Frete VTEX
+## Current Milestone: v4.0 Paridade de Dados, Cobertura Total de Frete & Inteligência Competitiva
 
-**Goal:** Onboardar marcas concorrentes que rodam fora do VTEX, entregar o cálculo de frete VTEX pendente do v2.0 e automatizar a coleta dos banners desktop para publicação no SharePoint.
+**Goal:** Nivelar a extração de atributos entre todas as marcas, fechar lacunas de cobertura (Hugo Boss por categoria, Zara, frete universal) e adicionar camadas de inteligência competitiva (MAP, promoções, ruptura de estoque, sortimento, avaliações).
 
-**Target features:**
-- **Engine SFCC (browser público):** onboard de **Lacoste** e **HugoBoss** via extração browser-rendered (JSON-LD/OpenGraph) — catálogo + preço apenas.
-- **Engine Wake Commerce:** onboard de **Richards** via API GraphQL (`TCS-Access-Token` por loja), precedido de um spike de confirmação do token.
-- **Detecção de engine:** `detect_engine` reconhece e rotula `sfcc` e `wake` (hoje retornam `unknown`), liberando o cadastro com o engine certo.
-- **Frete VTEX (carregado do v2.0):** preço + prazo de frete via checkout nos sites de marca VTEX.
-- **Banners desktop:** extrair todos os slides de imagem do carrossel principal da primeira tela de cada marca ativa, preservando arquivos originais e metadados.
-- **Publicação no SharePoint:** enviar os banners extraídos para um destino configurável, com deduplicação e relatório por arquivo.
+**Target features (5 categorias):**
 
-**Key context:** O caminho SFCC validado por spike é **público via browser** — sem frete/checkout, estoque por CEP, OCAPI/SCAPI (exige credenciais) ou bypass de anti-bot. **Zara / Inditex IOP** (COMP-FUT-03) permanece deferido (sem caminho público validado). Auth segue API key compartilhada. O spike de banners validou 13/13 sites ativos e 37 imagens desktop; mobile, download de vídeos e execução agendada ficam fora deste milestone. A publicação no SharePoint depende de destino, credenciais e permissões fornecidos externamente.
+- **A — Paridade de Dados de Marca:** marcas que hoje trazem atributos incompletos (Levi's, Calvin Klein, Zapalla, Austral, Track & Field, Richards, Hugo Boss) devem extrair o mesmo conjunto de atributos das demais; normalização/enriquecimento do schema de produto.
+- **B — Cobertura de Marcas:** corrigir varredura e monitoramento por categoria da Hugo Boss; adicionar **Zara**; remover **Lacoste** das buscas.
+- **C — UX de Monitoramento & Busca:** responsividade no monitor e na varredura por categoria; lista de monitoramento exibindo valor de promoção; onboarding só-por-URL (scraper detecta a marca); ação "adicionar a monitoramento" em busca comparativa / por SKU / monitor de categoria; toggles ativar/desativar para marketplaces; histórico no canto superior direito (comparativa + SKU); busca por SKU aceitando só o padrão (`ML.05.0326046`) com CEP na mesma linha; auto-trigger do monitor de categoria ao selecionar a categoria.
+- **D — Frete (cobertura total):** cálculo de frete para as marcas restantes (não-VTEX + Buckman faltante) e para os marketplaces (Mercado Livre, Netshoes, Amazon); **Matriz de Frete Multi-Regional** com CEPs-chave por região do Brasil.
+- **E — Inteligência Competitiva (novas features):** Violação de MAP (preço mínimo permitido + vendedor infrator); condições de pagamento + selos de oferta ("Leve 3 pague 2", "15% OFF no Pix"); ruptura de estoque (% esgotado na varredura + profundidade via requisição de 999 unidades no carrinho); avaliações reforçadas (notas + comentários, todas as marcas); análise de sortimento (cron que contabiliza atributos do catálogo/categoria para identificar buracos).
+
+**Key context:** Carregado do v3.0 como cobertura de frete: VTEX já entrega frete via checkout (FRET-05, Phase 33). Banners desktop (BANNER-01..06) e publicação no SharePoint foram movidos para o backlog (fora do ciclo ativo). Lacoste permanece dormente (anti-bot Akamai por reputação de IP) e sai das buscas neste milestone. Zara/Inditex (COMP-FUT-03) entra no escopo de cobertura de marcas. Auth segue API key compartilhada.
 
 ## Requirements
 
 ### Active
 
-<!-- REQ-IDs canônicos e escopo detalhado vivem em .planning/REQUIREMENTS.md; o roadmap mapeia cada um a uma phase. -->
+<!-- REQ-IDs canônicos e escopo detalhado do v4.0 vivem em .planning/REQUIREMENTS.md (definidos após a pesquisa de domínio); o roadmap mapeia cada um a uma phase. As 5 categorias do v4.0 estão resumidas em "Current Milestone" acima. -->
 
-- [ ] **COMP-03**: Operador onboarda e busca produtos das marcas SFCC **Lacoste** e **HugoBoss** (catálogo + preço) via extração pública browser-rendered. (cumpre COMP-FUT-02)
-- [ ] **COMP-05**: `detect_engine` reconhece e rotula `sfcc` e `wake`, permitindo cadastrar essas marcas com o engine correto.
-- [ ] **FRET-05**: Preço e prazo de frete via checkout nos sites de marca VTEX (carregado do v2.0).
-- [ ] **BANNER-01**: Operador executa a coleta desktop nas marcas ativas e obtém todos os slides de imagem do carrossel principal da primeira tela.
-- [ ] **BANNER-02**: Cada banner é preservado no arquivo original com metadados de origem, apresentação e integridade.
-- [ ] **BANNER-03**: Slides lazy/ocultos são descobertos ao navegar o carrossel; vídeos são contabilizados sem serem tratados como imagens.
-- [ ] **BANNER-04**: Cada execução gera saídas auditáveis e isola falhas por site.
-- [ ] **BANNER-05**: Destino e credenciais do SharePoint são configuráveis sem segredos hardcoded.
-- [ ] **BANNER-06**: Banners e metadados são publicados no SharePoint de forma idempotente, com resultado por arquivo.
+_Requisitos v4.0 a serem definidos em REQUIREMENTS.md após a pesquisa de domínio._
 
 ### Validated (v3.0)
 
 - ✓ **COMP-04**: Operador onboarda e busca produtos da **Richards** (Wake Commerce) via GraphQL com `TCS-Access-Token` por loja; spike de confirmação retornou GO contra a Richards (5 produtos reais via GraphQL + token auto-extraído), `WakeEngine` plugado na `EngineFactory`. (Phase 32)
+- ✓ **COMP-05**: `detect_engine` reconhece e rotula `sfcc` e `wake` (probe Wake `fbitsstatic.net` + probe SFCC `demandware.static`/`edgesuite.net` last-resort), permitindo cadastrar essas marcas com o engine correto. (Phase 30)
+- ✓ **FRET-05**: Preço e prazo de frete via checkout nos sites de marca VTEX (frete sob demanda — CEP opcional, cálculo por produto), HUMAN-UAT confirmado pelo operador. (Phase 33)
 
 ### Validated (v2.0)
 
@@ -129,6 +123,8 @@ Extração automatizada e resiliente de dados de mercado com mínima intervenç�
 
 ### Upcoming / Backlog
 
+- [ ] **BANNER-01..06** (do v3.0): Extração de banners desktop do hero + publicação idempotente no SharePoint. Movido para backlog ao iniciar o v4.0; SharePoint ainda bloqueado por destino/credenciais/permissões.
+- [ ] **COMP-03 / Lacoste (SFCC)**: Engine SFCC corrigida e testada offline; ativação dormente — depende só de egress de IP limpo (anti-bot Akamai por reputação de IP). Lacoste sai das buscas no v4.0; reativar quando houver proxy residencial/móvel.
 - [ ] **Incremental Storage**: Migrar para escrita incremental no disco para grandes volumes.
 - [ ] **Price Trends**: Visualização avançada de tendências de 30/60/90 dias.
 - [ ] **API Rate Limiting**: Proteção contra brute-force e abuso de endpoints.
@@ -161,4 +157,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-25 — Phase 32 completa: COMP-04 validado (spike GO contra a Richards, `WakeEngine` plugado na `EngineFactory`).*
+*Last updated: 2026-06-26 — Início do milestone v4.0 (Paridade de Dados, Cobertura Total de Frete & Inteligência Competitiva). Banners/SharePoint e Lacoste movidos ao backlog; COMP-05/FRET-05 marcados como validados (v3.0).*

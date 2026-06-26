@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.0
-milestone_name: Expansão Multi-Plataforma de Concorrentes & Frete VTEX
-status: Ready to plan
-stopped_at: Completed 33-02-PLAN.md
-last_updated: "2026-06-26T14:19:32.218Z"
+milestone: v4.0
+milestone_name: Paridade de Dados, Cobertura Total de Frete & Inteligência Competitiva
+status: planning
+last_updated: "2026-06-26T14:40:13.746Z"
 last_activity: 2026-06-26
 progress:
-  total_phases: 7
-  completed_phases: 6
-  total_plans: 19
-  completed_plans: 19
-  percent: 86
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State: Intelligence Scraper
@@ -31,13 +30,10 @@ See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/sc
 
 ## Current Position
 
-Phase: 34
-Plan: Not started
-  Plan 01 (parser + modelo): COMPLETE — vtex_shipping.py puro, ShippingInfo estendida, shipping_options aditivo (2026-06-25)
-  Plan 02 (wiring HTTP): PENDING
-  Plan 03 (frontend): PENDING
-Next: 33-02 (wiring dos helpers no _fetch_shipping real + retry + CEP config endpoint)
-Last activity: 2026-06-26
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-06-26 — Milestone v4.0 started
 
 ## Performance Metrics
 
