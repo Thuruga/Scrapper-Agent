@@ -4,7 +4,7 @@ milestone: v4.0
 milestone_name: Paridade de Dados, Cobertura Total de Frete & Inteligência Competitiva
 status: Not started
 stopped_at: Phase 39 context gathered
-last_updated: "2026-06-26T18:39:10.190Z"
+last_updated: "2026-06-29T19:42:10.395Z"
 last_activity: 2026-06-26 — Roadmap v4.0 criado
 progress:
   total_phases: 9
