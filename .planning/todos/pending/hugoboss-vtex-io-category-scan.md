@@ -45,6 +45,18 @@ Mirror the Zara gate (Phase 39-02 spike): validate viability with a spike BEFORE
 wiring into `run_bulk_scrape`, and add a hermetic test proving leaf filtering
 (camisas ≠ polos) and `price_full > 0`.
 
+## Code-review findings to fold in (39-REVIEW.md)
+
+- **WR-01** `test_hugoboss_vtex_scan.py` leaks a real aiohttp `ClientSession`:
+  `VTEXEngine.search` calls `SessionManager.get_session()` before the mocked
+  `VtexApiClient.search`, so the global session is allocated and never closed
+  (contradicts the test's "zero rede" docstring). Fix: also patch
+  `SessionManager.get_session`, or close the session in teardown.
+- **WR-02** `onboard_hugoboss_categories.py` prints an overwrite warning but has
+  no early `[s/N]` overwrite gate like `onboard_brand` (persist is a destructive
+  replace via `update_mappings`). `print_and_confirm` does gate before persist,
+  but add an early overwrite guard for parity/safety.
+
 ## Secondary: auto_match accent collision
 
 `auto_match` (onboard_vtex_brands.py) mismatched canonical `calcas` →
