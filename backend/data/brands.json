@@ -9,6 +9,8 @@
     "engine": "vtex",
     "logo_url": null,
     "wake_access_token": null,
+    "search_url_template": null,
+    "proxy_url": null,
     "mappings": [],
     "is_active": true
   },
@@ -22,6 +24,8 @@
     "engine": "vtex",
     "logo_url": null,
     "wake_access_token": null,
+    "search_url_template": null,
+    "proxy_url": null,
     "mappings": [],
     "is_active": true
   },
@@ -35,6 +39,8 @@
     "engine": "vtex",
     "logo_url": null,
     "wake_access_token": null,
+    "search_url_template": null,
+    "proxy_url": null,
     "mappings": [],
     "is_active": true
   },
@@ -48,6 +54,8 @@
     "engine": "shopify",
     "logo_url": "https://www.ricardoalmeida.com.br/cdn/shop/files/logo_ricardo_almeida_preto_1_180x.png",
     "wake_access_token": null,
+    "search_url_template": null,
+    "proxy_url": null,
     "mappings": [],
     "is_active": true
   },
@@ -61,6 +69,8 @@
     "engine": "shopify",
     "logo_url": "",
     "wake_access_token": null,
+    "search_url_template": null,
+    "proxy_url": null,
     "mappings": [
       {
         "canonical_slug": "calcas",
@@ -90,6 +100,8 @@
     "engine": "vtex",
     "logo_url": "",
     "wake_access_token": null,
+    "search_url_template": null,
+    "proxy_url": null,
     "mappings": [],
     "is_active": true
   },
@@ -103,6 +115,8 @@
     "engine": "vtex",
     "logo_url": "",
     "wake_access_token": null,
+    "search_url_template": null,
+    "proxy_url": null,
     "mappings": [],
     "is_active": true
   },
@@ -116,6 +130,8 @@
     "engine": "vtex",
     "logo_url": null,
     "wake_access_token": null,
+    "search_url_template": null,
+    "proxy_url": null,
     "mappings": [],
     "is_active": true
   },
@@ -129,6 +145,8 @@
     "engine": "vtex",
     "logo_url": null,
     "wake_access_token": null,
+    "search_url_template": null,
+    "proxy_url": null,
     "mappings": [
       {
         "canonical_slug": "camisas",
@@ -178,6 +196,8 @@
     "engine": "vtex",
     "logo_url": null,
     "wake_access_token": null,
+    "search_url_template": null,
+    "proxy_url": null,
     "mappings": [
       {
         "canonical_slug": "camisas",
@@ -227,6 +247,8 @@
     "engine": "vtex",
     "logo_url": null,
     "wake_access_token": null,
+    "search_url_template": null,
+    "proxy_url": null,
     "mappings": [
       {
         "canonical_slug": "camisas",
@@ -276,6 +298,8 @@
     "engine": "vtex",
     "logo_url": null,
     "wake_access_token": null,
+    "search_url_template": null,
+    "proxy_url": null,
     "mappings": [
       {
         "canonical_slug": "camisas",
@@ -315,6 +339,8 @@
     "engine": "vtex",
     "logo_url": null,
     "wake_access_token": null,
+    "search_url_template": null,
+    "proxy_url": null,
     "mappings": [
       {
         "canonical_slug": "polos",
@@ -359,6 +385,8 @@
     "engine": "wake",
     "logo_url": null,
     "wake_access_token": "tcs_richa_35674061aaa44bc8ae2259bd37b4ae03",
+    "search_url_template": null,
+    "proxy_url": null,
     "mappings": [
       {
         "canonical_slug": "acessorios",
@@ -463,7 +491,45 @@
     "engine": "vtex",
     "logo_url": null,
     "wake_access_token": null,
-    "mappings": [],
+    "search_url_template": null,
+    "proxy_url": null,
+    "mappings": [
+      {
+        "canonical_slug": "camisas",
+        "vtex_fq_path": "/masculino/roupas/camisas",
+        "label": "Camisas"
+      },
+      {
+        "canonical_slug": "polos",
+        "vtex_fq_path": "/masculino/roupas/polos",
+        "label": "Polos"
+      },
+      {
+        "canonical_slug": "camisetas",
+        "vtex_fq_path": "/masculino/roupas/camisetas",
+        "label": "Camisetas"
+      },
+      {
+        "canonical_slug": "calcas",
+        "vtex_fq_path": "/masculino/roupas/calcas",
+        "label": "Calças"
+      },
+      {
+        "canonical_slug": "bermudas",
+        "vtex_fq_path": "/masculino/roupas/bermudas",
+        "label": "Bermudas"
+      },
+      {
+        "canonical_slug": "jaquetas",
+        "vtex_fq_path": "/masculino/roupas/jaquetas",
+        "label": "Jaquetas"
+      },
+      {
+        "canonical_slug": "infantil",
+        "vtex_fq_path": "/kids/menino",
+        "label": "Menino"
+      }
+    ],
     "is_active": true
   }
 }
