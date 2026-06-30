@@ -4,7 +4,13 @@ import json
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from core.models import RawProductBronze, StockDepthResult, StockRuptureSummary
+from core.models import (
+    RawProductBronze,
+    ReviewComment,
+    ReviewCommentsResult,
+    StockDepthResult,
+    StockRuptureSummary,
+)
 
 
 class _FakeCategoryEngine:
@@ -262,6 +268,63 @@ def test_stock_depth_endpoint_returns_stock_depth_payload(monkeypatch):
     )
 
     assert response.status_code == 200
+    assert response.json() == expected.model_dump(mode="json")
+
+
+def test_review_comments_request_model_contains_only_max_pages():
+    import api.routes_monitor as routes_monitor
+
+    assert set(routes_monitor.ReviewCommentsRequest.model_fields) == {"max_pages"}
+
+
+def test_review_comments_endpoint_caps_max_pages_and_returns_payload(monkeypatch):
+    import api.routes_monitor as routes_monitor
+
+    called = {}
+    expected = ReviewCommentsResult(
+        reviews_state="available",
+        comments=[
+            ReviewComment(
+                review_id="r1",
+                rating=5,
+                text="Bom",
+                source_provider="trustvox",
+            )
+        ],
+        rating=5,
+        review_count=1,
+        review_product_id="123",
+        source_provider="trustvox",
+        max_pages=2,
+    )
+
+    async def fake_fetch(monitor_id, scan_product_id, max_pages=None):
+        called["monitor_id"] = monitor_id
+        called["scan_product_id"] = scan_product_id
+        called["max_pages"] = max_pages
+        return expected
+
+    monkeypatch.setattr(routes_monitor.settings, "MAX_REVIEW_PAGES", 2)
+    monkeypatch.setattr(
+        routes_monitor,
+        "fetch_scan_product_review_comments",
+        fake_fetch,
+    )
+
+    app = FastAPI()
+    app.include_router(routes_monitor.router)
+
+    response = TestClient(app).post(
+        "/monitor/category/monitor-1/products/scan-product-1/reviews",
+        json={"max_pages": 99},
+    )
+
+    assert response.status_code == 200
+    assert called == {
+        "monitor_id": "monitor-1",
+        "scan_product_id": "scan-product-1",
+        "max_pages": 2,
+    }
     assert response.json() == expected.model_dump(mode="json")
 
 

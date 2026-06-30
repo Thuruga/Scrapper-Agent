@@ -225,3 +225,216 @@ def test_get_review_comments_returns_only_compact_comment_fields(monkeypatch):
     assert "raw_reviews" not in json.dumps(payload)
     assert "raw_payload" not in json.dumps(payload)
     assert "payload" not in payload
+
+
+def test_fetch_scan_product_review_comments_rejects_missing_identity(
+    tmp_path, monkeypatch
+):
+    import services.review_service as review_service
+
+    (tmp_path / "monitored_categories.json").write_text(
+        json.dumps(
+            [
+                {
+                    "id": "monitor-1",
+                    "brand": "aramis",
+                    "url": "https://www.aramis.com.br/camisas",
+                    "status": "active",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "monitored_products_monitor-1.json").write_text(
+        json.dumps(
+            [
+                {
+                    "scan_product_id": "scan-1",
+                    "url": "https://www.aramis.com.br/camisa/p",
+                    "raw_title": "Camisa",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    called = {"count": 0}
+
+    async def fake_get_review_comments(*args, **kwargs):
+        called["count"] += 1
+        raise AssertionError("provider should not be called")
+
+    monkeypatch.setattr(review_service, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(
+        review_service,
+        "get_review_comments",
+        fake_get_review_comments,
+    )
+
+    result = asyncio.run(
+        review_service.fetch_scan_product_review_comments("monitor-1", "scan-1")
+    )
+
+    assert result.reviews_state == "unsupported"
+    assert result.comments == []
+    assert called["count"] == 0
+
+
+def test_fetch_scan_product_review_comments_updates_only_matching_product(
+    tmp_path, monkeypatch
+):
+    import services.review_service as review_service
+
+    (tmp_path / "monitored_categories.json").write_text(
+        json.dumps(
+            [
+                {
+                    "id": "monitor-1",
+                    "brand": "aramis",
+                    "url": "https://www.aramis.com.br/camisas",
+                    "status": "active",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "monitored_products_monitor-1.json").write_text(
+        json.dumps(
+            [
+                {
+                    "scan_product_id": "scan-1",
+                    "review_product_id": "123",
+                    "url": "https://www.aramis.com.br/camisa/p",
+                    "raw_title": "Camisa",
+                },
+                {
+                    "scan_product_id": "scan-2",
+                    "review_product_id": "456",
+                    "url": "https://www.aramis.com.br/polo/p",
+                    "raw_title": "Polo",
+                },
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    async def fake_get_review_comments(brand_key, product_id, max_pages=None):
+        assert (brand_key, product_id, max_pages) == ("aramis", "123", 1)
+        return ReviewCommentsResult(
+            reviews_state="available",
+            comments=[
+                ReviewComment(
+                    review_id="r1",
+                    rating=5,
+                    text="Bom",
+                    source_provider="trustvox",
+                )
+            ],
+            rating=5,
+            review_count=1,
+            review_product_id=product_id,
+            source_provider="trustvox",
+            max_pages=1,
+        )
+
+    monkeypatch.setattr(review_service, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(
+        review_service,
+        "get_review_comments",
+        fake_get_review_comments,
+    )
+
+    result = asyncio.run(
+        review_service.fetch_scan_product_review_comments(
+            "monitor-1",
+            "scan-1",
+            max_pages=1,
+        )
+    )
+
+    assert result.reviews_state == "available"
+    products = json.loads(
+        (tmp_path / "monitored_products_monitor-1.json").read_text(encoding="utf-8")
+    )
+    assert products[0]["reviews_state"] == "available"
+    assert products[0]["rating"] == 5.0
+    assert products[0]["review_count"] == 1
+    assert products[0]["review_comments"] == [
+        {
+            "review_id": "r1",
+            "rating": 5.0,
+            "title": None,
+            "text": "Bom",
+            "author": None,
+            "created_at": None,
+            "source_provider": "trustvox",
+            "source_ref": None,
+        }
+    ]
+    assert "reviews_state" not in products[1]
+
+
+def test_vtex_parse_product_dict_sets_review_product_id(monkeypatch):
+    import services.vtex_api_scraper as vtex_module
+    from services.vtex_api_scraper import VtexApiClient
+    from test_vtex_api_client import _PRODUCT
+
+    async def fake_review(brand_key, product_id):
+        return (4.5, 12)
+
+    async def fake_color_family(domain, product_id):
+        return []
+
+    monkeypatch.setattr(vtex_module, "get_single_review", fake_review)
+    client = VtexApiClient(brand_name="Aramis")
+    monkeypatch.setattr(client, "_get_color_family", fake_color_family)
+
+    result = asyncio.run(
+        client.parse_product_dict(
+            _PRODUCT,
+            "https://www.aramis.com.br/camisa/p",
+            "www.aramis.com.br",
+        )
+    )
+
+    assert result.review_product_id == "12345"
+
+
+def test_vtex_search_sets_review_product_id_without_full_comment_fetch(monkeypatch):
+    import services.vtex_api_scraper as vtex_module
+    from services.vtex_api_scraper import VtexApiClient
+    from test_vtex_api_client import _PRODUCT
+
+    class _Brand:
+        brand_key = "aramis"
+        brand_name = "Aramis"
+        domain = "www.aramis.com.br"
+
+    async def fake_request_json(self, url):
+        if "_from=0" in url:
+            return [_PRODUCT]
+        return []
+
+    async def fake_reviews(brand_key, product_ids):
+        return {pid: (4.5, 12) for pid in product_ids}
+
+    monkeypatch.setattr(vtex_module.brand_service, "get_brand", lambda brand_key: _Brand())
+    monkeypatch.setattr(
+        vtex_module,
+        "resolve_query_to_vtex_category_path",
+        lambda query, brand_key: None,
+    )
+    monkeypatch.setattr(vtex_module, "get_bulk_reviews", fake_reviews)
+    monkeypatch.setattr(VtexApiClient, "_request_json", fake_request_json)
+
+    from services.engines.base_engine import BaseEngine
+
+    monkeypatch.setattr(
+        BaseEngine,
+        "filter_mens_fashion",
+        staticmethod(lambda products: products),
+    )
+
+    result = asyncio.run(VtexApiClient("Aramis").search("camisa", max_results=1))
+
+    assert result.products[0].review_product_id == "12345"
