@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Paridade de Dados, Cobertura Total de Frete & Inteligência Competitiva
 status: executing
-stopped_at: Phase 40 Plan 02 complete
-last_updated: "2026-06-30T13:02:43Z"
-last_activity: 2026-06-30 -- Phase 40 Plan 02 complete (POST /brands/identify + detect_engine tuple + infer_brand_name)
+stopped_at: Phase 40 Plan 03 complete
+last_updated: "2026-06-30T13:33:00Z"
+last_activity: 2026-06-30 -- Phase 40 Plan 03 complete (dedup-aware start_monitor + idempotent POST /monitor/start)
 progress:
   total_phases: 9
   completed_phases: 2
   total_plans: 16
-  completed_plans: 8
-  percent: 25
+  completed_plans: 9
+  percent: 28
 ---
 
 # Project State: Intelligence Scraper
@@ -32,9 +32,9 @@ See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/sc
 ## Current Position
 
 Phase: 40 (onboarding-por-url-workflows-de-adi-o-ao-monitoramento) — EXECUTING
-Plan: 3 of 5
-Status: Plan 02 complete — executing Phase 40
-Last activity: 2026-06-30 -- Phase 40 Plan 02 complete (POST /brands/identify dry-run + detect_engine tuple + infer_brand_name)
+Plan: 4 of 5
+Status: Plan 03 complete — executing Phase 40
+Last activity: 2026-06-30 -- Phase 40 Plan 03 complete (dedup-aware start_monitor + idempotent POST /monitor/start)
 
 ## Performance Metrics
 
@@ -90,6 +90,8 @@ Last activity: 2026-06-30 -- Phase 40 Plan 02 complete (POST /brands/identify dr
 
 ### Decisions
 
+- [40-03/dedup-return]: start_monitor retorna (PriceMonitorConfig, status_str) em todos os caminhos; status ∈ {created, already_active, reactivated}; POST /monitor/start retorna config.job_id (id canônico: existente ou novo) + campo status.
+- [40-03/lazy-import]: normalize_url importado dentro do corpo de start_monitor para evitar risco de import-cycle; espelha recomendação do PATTERNS.md.
 - [40-02/detect_engine-tuple]: detect_engine retorna tuple[str, str|None] em todos os caminhos. Steps 1-2 (API probes) retornam (engine, None). Step 3 salva html em _step3_html e cai para o browser probe quando nenhum marcador casa (evita bloquear detecção SFCC quando HTTP retorna página 403 sem marcadores). Step 7 carrega _step3_html para infer_brand_name.
 - [40-02/infer_brand_name-accepts-soup]: infer_brand_name aceita html como str | BeautifulSoup | None — o scaffold de test Wave-0 passa um objeto BeautifulSoup; aceitar ambos evita quebrar o scaffold enquanto mantém a assinatura pública str|None documentada.
 - [40-02/identify-dry-run]: POST /brands/identify nunca chama brand_service.add_brand (D-02); SSRF mitigation via stdlib ipaddress + scheme whitelist antes de qualquer fetch (T-40-SSRF); engine='unknown' emite warning mas não bloqueia onboarding (D-03).
@@ -185,9 +187,9 @@ Last activity: 2026-06-30 -- Phase 40 Plan 02 complete (POST /brands/identify dr
 
 ## Session Continuity
 
-Last session: 2026-06-30T13:02:43Z
-Stopped at: Phase 40 Plan 02 complete
-Resume file: .planning/phases/40-onboarding-por-url-workflows-de-adi-o-ao-monitoramento/40-03-PLAN.md
+Last session: 2026-06-30T13:33:00Z
+Stopped at: Phase 40 Plan 03 complete
+Resume file: .planning/phases/40-onboarding-por-url-workflows-de-adi-o-ao-monitoramento/40-04-PLAN.md
 
 ## Operator Next Steps
 

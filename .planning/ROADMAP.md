@@ -102,7 +102,7 @@ Plans:
   2. Da busca comparativa, da busca por SKU e do monitor de categoria, o operador consegue clicar em "Adicionar ao monitoramento" em qualquer produto — e o produto é adicionado ao monitor de preços sem duplicata (dedup por url + marca), independentemente da superfície de origem.
   3. Os marketplaces virtuais (Mercado Livre, Netshoes, Amazon) têm toggles de ativar/desativar visíveis na tela de configurações; desativá-los faz o `cross_marketplace_service` excluir o marketplace das buscas imediatamente na próxima execução.
 
-**Plans**: 5 (1/5 complete)
+**Plans**: 5 (3/5 complete)
 **UI hint**: yes
 
 ### Phase 41: Abstração de Frete & Marcas Não-VTEX
@@ -196,7 +196,7 @@ Phases ativas executam em ordem numérica: 37 → 38 → 39 → 40 → 41 → 42
 | 37. Paridade de Atributos & Fundação SQLite | v4.0 | 0/? | Not started | - |
 | 38. UX de Busca & Monitoramento — Quick Wins | v4.0 | 0/? | Not started | - |
 | 39. Cobertura de Marcas — Hugo Boss & Zara | v4.0 | 3/3 | Complete    | 2026-06-30 |
-| 40. Onboarding por URL & Workflows de Adição | v4.0 | 2/5 | Executing | - |
+| 40. Onboarding por URL & Workflows de Adição | v4.0 | 3/5 | Executing | - |
 | 41. Abstração de Frete & Marcas Não-VTEX | v4.0 | 0/? | Not started | - |
 | 42. Frete para Marketplaces & Matriz Multi-Regional | v4.0 | 0/? | Not started | - |
 | 43. Violação de MAP & Selos de Promoção | v4.0 | 0/? | Not started | - |

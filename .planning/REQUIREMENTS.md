@@ -98,7 +98,7 @@ Explicitamente excluído deste milestone, com motivo.
 | COMP-06 | Phase 39 | Complete |
 | COMP-07 | Phase 39 | Deferred (NO-GO → backlog) |
 | UX-03 | Phase 40 (P02 backend complete; P05 frontend pending) | Partial |
-| UX-04 | Phase 40 | Pending |
+| UX-04 | Phase 40 (P03 backend complete; P05 frontend pending) | Partial |
 | UX-05 | Phase 40 | Pending |
 | FRET-07 | Phase 41 | Pending |
 | FRET-08 | Phase 42 | Pending |
