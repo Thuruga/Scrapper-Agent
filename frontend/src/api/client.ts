@@ -4,6 +4,48 @@ const API_KEY = import.meta.env.VITE_API_KEY || 'dev-api-key';
 // Janela para o browser iniciar o download antes de liberar o blob URL (IN-03).
 const BLOB_REVOKE_DELAY_MS = 100;
 
+export type StockRuptureSummary = {
+  brand: string;
+  total_products: number;
+  in_stock_count: number;
+  out_of_stock_count: number;
+  unknown_stock_count: number;
+  verified_stock_count: number;
+  rupture_pct: number | null;
+  scan_id?: string | null;
+  monitor_id?: string | null;
+  scanned_at: string;
+};
+
+export type StockDepthResult = {
+  stock_depth_estimate?: number | null;
+  stock_depth_state: string;
+  stock_depth_checked_at?: string | null;
+  stock_depth_source?: string | null;
+  stock_depth_label?: string | null;
+};
+
+export type ReviewComment = {
+  review_id: string;
+  rating?: number | null;
+  title?: string | null;
+  text?: string | null;
+  author?: string | null;
+  created_at?: string | null;
+  source_provider: string;
+  source_ref?: string | null;
+};
+
+export type ReviewCommentsResult = {
+  reviews_state: string;
+  comments: ReviewComment[];
+  rating?: number | null;
+  review_count?: number | null;
+  review_product_id?: string | null;
+  source_provider?: string | null;
+  max_pages: number;
+};
+
 export class ApiClient {
 
   // ------------------------------------------------------------------
@@ -327,6 +369,30 @@ export class ApiClient {
 
   static getMonitoredCategoryProducts(monitorId: string) {
     return this.request<any[]>(`/monitor/category/${monitorId}/products`);
+  }
+
+  static getMonitoredCategoryStockSummary(monitorId: string) {
+    return this.request<StockRuptureSummary>(
+      `/monitor/category/${encodeURIComponent(monitorId)}/stock-summary`
+    );
+  }
+
+  static requestMonitoredProductStockDepth(monitorId: string, scanProductId: string) {
+    return this.request<StockDepthResult>(
+      `/monitor/category/${encodeURIComponent(monitorId)}/products/${encodeURIComponent(scanProductId)}/stock-depth`,
+      { method: 'POST' },
+    );
+  }
+
+  static requestMonitoredProductReviews(monitorId: string, scanProductId: string, maxPages?: number) {
+    const options: RequestInit = { method: 'POST' };
+    if (maxPages !== undefined) {
+      options.body = JSON.stringify({ max_pages: maxPages });
+    }
+    return this.request<ReviewCommentsResult>(
+      `/monitor/category/${encodeURIComponent(monitorId)}/products/${encodeURIComponent(scanProductId)}/reviews`,
+      options,
+    );
   }
 
   // ------------------------------------------------------------------
