@@ -4,6 +4,20 @@
     "url": "https://www.aramis.com.br/infantil",
     "brand": "aramis",
     "status": "active",
-    "last_scraped_at": "2026-06-26T16:29:39.077970+00:00"
+    "last_scraped_at": "2026-06-30T01:21:54.739463+00:00"
+  },
+  {
+    "id": "085c6139-320c-4b1b-b8f5-e31b11f51be6",
+    "url": "https://www.hugoboss.com.br/masculino/roupas/camisas",
+    "brand": "hugoboss",
+    "status": "active",
+    "last_scraped_at": "2026-06-30T01:27:22.042432+00:00"
+  },
+  {
+    "id": "d1ad9c71-3fa4-40e1-bb5b-e7148a507a2c",
+    "url": "https://www.hugoboss.com.br/masculino/roupas/camisetas",
+    "brand": "hugoboss",
+    "status": "active",
+    "last_scraped_at": "2026-06-30T01:27:29.679151+00:00"
   }
 ]

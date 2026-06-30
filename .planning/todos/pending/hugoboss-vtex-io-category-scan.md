@@ -2,16 +2,25 @@
 created: 2026-06-29
 area: backend (engine / vtex scraper)
 source: 39-01 checkpoint (operator decision: persist mappings + defer monitoring)
-priority: high
+priority: low
 resolves_phase:
 ---
 
 # Hugo Boss category-scan strategy for VTEX-IO / Intelligent Search storefronts
 
+> **STATUS: core work DONE (commit `35fe02f`, 2026-06-29).** A VTEX-IO DOM-tile scan
+> strategy was added to `scrape_category_paged`'s browser fallback; live E2E confirms
+> real per-category products, and 2 Hugo Boss monitors (camisas, camisetas) are active.
+> **Requires a backend restart** to take effect on the running scheduler.
+> Only the minor residual follow-ups below remain open.
+
+## Original problem (now solved)
+
 Phase 39-01 persisted Hugo Boss's category mappings (resolution works), but the
-**10-min category monitor returns 0 products** for Hugo Boss because the existing
-VTEX scraper (`VtexApiClient.scrape_category_paged` / `run_bulk_scrape`) drives the
+**10-min category monitor returned 0 products** for Hugo Boss because the existing
+VTEX scraper (`VtexApiClient.scrape_category_paged` / `run_bulk_scrape`) drove the
 legacy `catalog_system` category APIs, which Hugo Boss's storefront no longer serves.
+Fixed via the DOM-tile rendering strategy (see commit `35fe02f`).
 
 ## Evidence (probe matrix, 2026-06-29, live)
 

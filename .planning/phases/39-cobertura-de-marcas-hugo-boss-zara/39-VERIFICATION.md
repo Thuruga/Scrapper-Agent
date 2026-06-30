@@ -1,31 +1,11 @@
 ---
 phase: 39-cobertura-de-marcas-hugo-boss-zara
 verified: 2026-06-29T21:30:00Z
-status: gaps_found
-score: 2/4 must-haves verified
+status: passed
+score: 4/4 must-haves verified
 overrides_applied: 0
-gaps:
-  - truth: "Operator selects a Hugo Boss category in the category monitor and the scan returns real products (title + URL + price) with the canonical schema"
-    status: failed
-    reason: "Hugo Boss is a VTEX-IO/Intelligent-Search storefront; the existing run_bulk_scrape engine drives legacy catalog_system APIs that return 0 products for category browsing. No Hugo Boss entry exists in monitored_categories.json (only an aramis entry). Live category monitoring is blocked and was intentionally deferred."
-    artifacts:
-      - path: "backend/data/monitored_categories.json"
-        issue: "Contains only 1 entry (aramis/infantil). Zero Hugo Boss category monitor entries — the plan explicitly chose not to add one because the engine returns 0 products."
-      - path: "backend/services/category_monitor_service.py"
-        issue: "run_category_scan drives engine_factory.get_engine(brand).run_bulk_scrape which uses the legacy VTEX catalog_system category APIs that Hugo Boss's VTEX-IO storefront no longer serves. Returns 0 products for any Hugo Boss category URL."
-    missing:
-      - "A category monitor entry for Hugo Boss in monitored_categories.json"
-      - "A working category-scan strategy for VTEX-IO/GraphQL storefronts (tracked in .planning/todos/pending/hugoboss-vtex-io-category-scan.md)"
-
-  - truth: "The 10-min scheduler includes Hugo Boss and detects new products without false 'new product' positives on unchanged re-scans"
-    status: failed
-    reason: "No Hugo Boss entry in monitored_categories.json means the scheduler loop (category_monitor_job) never runs a scan for Hugo Boss. Criteria 2 is structurally unmet — even if false-positive behaviour is sound, the scheduler does not include Hugo Boss."
-    artifacts:
-      - path: "backend/data/monitored_categories.json"
-        issue: "Zero Hugo Boss entries; scheduler has nothing to scan."
-    missing:
-      - "At least one active Hugo Boss entry in monitored_categories.json"
-      - "Confirmed behaviour across 2 scheduler cycles on an unchanged category"
+re_verification: "2026-06-29 — initial gaps (criteria 1 & 2) CLOSED inline via the VTEX-IO category-scan engine strategy. See 'Gap Closure' section. Caveat: the running backend must be restarted to load the new engine code (commit 35fe02f)."
+gaps: []
 ---
 
 # Phase 39: Cobertura de Marcas — Hugo Boss & Zara Verification Report
@@ -43,12 +23,46 @@ gaps:
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| 1 | Operator selects a Hugo Boss category in the category monitor and the scan returns real products (title + URL + price) with the canonical schema | FAILED | No Hugo Boss entry in `monitored_categories.json`; `run_bulk_scrape` returns 0 products for any Hugo Boss category URL on its VTEX-IO storefront; documented in follow-up todo |
-| 2 | The 10-min scheduler includes Hugo Boss and detects new products without false "new product" positives on unchanged re-scans | FAILED | No Hugo Boss entry in `monitored_categories.json` — scheduler loop never runs a Hugo Boss scan; prerequisite for this criterion does not exist |
+| 1 | Operator selects a Hugo Boss category in the category monitor and the scan returns real products (title + URL + price) with the canonical schema | VERIFIED (gap closed) | VTEX-IO DOM-tile scan strategy added to `scrape_category_paged` (commit `35fe02f`). Live E2E: `run_bulk_scrape("/masculino/roupas/camisas")` yields real shirts with positive prices + valid `/p` URLs. 8 hermetic tests green. See Gap Closure. |
+| 2 | The 10-min scheduler includes Hugo Boss and detects new products without false "new product" positives on unchanged re-scans | VERIFIED (gap closed) | Two active Hugo Boss entries (camisas, camisetas) added to `monitored_categories.json` via `POST /monitor/category`. 2-cycle validation through the real `run_category_scan`: 36 vs 36 products, identical URL set, **0** false-positive "new" products, 0 dropped. Caveat: backend restart needed to load the new engine code. |
 | 3 | Zara: a documented GO/NO-GO spike validates public product+price extractability BEFORE any engine code; result recorded in spikes/010-zara-product-price/REPORT.md | VERIFIED | `REPORT.md` exists at `.planning/spikes/010-zara-product-price/REPORT.md`, contains explicit `NO-GO` verdict, 4 probes across 2 rounds (all HTTP 200 ~940KB challenge shells, 0 extractable products), plus adversarial reprobe at 403. All three extraction techniques (JSON-LD, network interception, HTML tiles) were attempted. Generated 2026-06-29T20:28:18Z. |
 | 4 | On Zara NO-GO: COMP-07 formally deferred to backlog with evidence and no incomplete engine committed | VERIFIED | No `backend/services/engines/inditex_engine.py` (glob confirms absent). No `zara` key in `brands.json` (grep confirms absent). No `inditex` branch in `factory.py`. Backlog todo exists at `.planning/todos/pending/zara-comp07-deferred.md` with spike evidence. 39-03-SUMMARY.md confirms 0 files created. |
 
-**Score:** 2/4 truths verified
+**Score:** 4/4 truths verified (criteria 1 & 2 closed inline — see Gap Closure)
+
+---
+
+## Gap Closure (re-verification 2026-06-29)
+
+The initial verification found criteria 1 & 2 unmet because Hugo Boss is a
+VTEX-IO / Intelligent-Search storefront the legacy `catalog_system` scraper can't
+browse. Per operator decision (Option A), the gap was closed inline:
+
+**Engine (criterion 1):** Added a VTEX-IO category-scan strategy to
+`VtexApiClient.scrape_category_paged`'s browser fallback (commit `35fe02f`):
+`_browser_fallback_products` (render 1 → legacy ROOT_QUERY; if empty, render 2 with
+`networkidle` → DOM tiles), `_parse_vtexio_tiles` (BeautifulSoup over
+`.vtex-product-summary-2-x-container`), `_parse_brl_price` (char-spaced
+`'R$ 1 . 460 , 00'`), `_extract_tile_image`. Zero regression (DOM path runs only when
+ROOT_QUERY is empty); per-product guard skips tiles missing the model invariants.
+- 8 hermetic tests in `backend/tests/test_vtex_browser_fallback.py`; full suite green.
+- **Live E2E:** `run_bulk_scrape` on `/masculino/roupas/camisas` returned real shirts
+  (e.g. "Camisa Formal De Ajuste Slim…" R$1460) with valid `/p` URLs.
+
+**Monitoring (criterion 2):** Added two active Hugo Boss monitors (camisas, camisetas)
+via `POST /monitor/category`. 2-cycle stability through the real `run_category_scan`
+(with `_save_local` patched off to avoid racing the live scheduler): **36 vs 36
+products, identical URL set, 0 false-positive "new" products, 0 dropped**.
+- polos is intentionally not monitored: `/masculino/roupas/polos` is an empty page on
+  HB's own site (0 product tiles) — a site data state, not an extraction failure.
+
+**Operational caveat (REQUIRED):** the backend process running at session time has the
+pre-fix engine code in memory. **Restart the backend** so the 10-min scheduler uses the
+new VTEX-IO scan strategy; until then the live Hugo Boss monitors scan with the old code.
+
+**Residual follow-ups** (non-blocking, in `.planning/todos/pending/hugoboss-vtex-io-category-scan.md`):
+test session-leak (WR-01), onboard-script overwrite gate (WR-02), `auto_match` accent
+collision. COMP-07 (Zara) remains deferred per the NO-GO gate.
 
 ---
 
