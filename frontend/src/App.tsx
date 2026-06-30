@@ -36,6 +36,8 @@ import {
   Square,
   MapPin,
   Truck,
+  Gauge,
+  MessageSquare,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -2534,6 +2536,9 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
   const [selectedMonitor, setSelectedMonitor] = useState<any | null>(null);
   const [monitorProducts, setMonitorProducts] = useState<any[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [selectedMonitorStockSummary, setSelectedMonitorStockSummary] = useState<any | null>(null);
+  const [stockDepthLoadingIds, setStockDepthLoadingIds] = useState<Set<string>>(new Set());
+  const [reviewLoadingIds, setReviewLoadingIds] = useState<Set<string>>(new Set());
 
   const fetchCategories = async () => {
     setLoading(true);
@@ -2624,14 +2629,72 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
   const handleViewProducts = async (monitor: any) => {
     setSelectedMonitor(monitor);
     setLoadingProducts(true);
+    setSelectedMonitorStockSummary(null);
     try {
       const prods = await ApiClient.getMonitoredCategoryProducts(monitor.id);
       setMonitorProducts(prods);
+      try {
+        const summary = await ApiClient.getMonitoredCategoryStockSummary(monitor.id);
+        setSelectedMonitorStockSummary(summary);
+      } catch (summaryErr: any) {
+        setSelectedMonitorStockSummary(null);
+        const message = summaryErr?.message || '';
+        if (!message.includes('404') && !message.includes('Resumo de estoque')) {
+          toast.error('Erro ao buscar resumo de estoque');
+        }
+      }
     } catch (err: any) {
       alert("Erro ao buscar produtos: " + err.message);
       setMonitorProducts([]);
+      setSelectedMonitorStockSummary(null);
     } finally {
       setLoadingProducts(false);
+    }
+  };
+
+  const mergeMonitorProductResult = (scanProductId: string, fields: any) => {
+    setMonitorProducts(prev => prev.map(product => (
+      product.scan_product_id === scanProductId
+        ? { ...product, ...fields }
+        : product
+    )));
+  };
+
+  const handleRequestStockDepth = async (product: any) => {
+    const scanProductId = product?.scan_product_id;
+    if (!selectedMonitor?.id || !scanProductId) return;
+    setStockDepthLoadingIds(prev => new Set(prev).add(scanProductId));
+    try {
+      const result = await ApiClient.requestMonitoredProductStockDepth(selectedMonitor.id, scanProductId);
+      mergeMonitorProductResult(scanProductId, result);
+      toast.success('Profundidade de estoque atualizada');
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao consultar profundidade de estoque');
+    } finally {
+      setStockDepthLoadingIds(prev => {
+        const next = new Set(prev);
+        next.delete(scanProductId);
+        return next;
+      });
+    }
+  };
+
+  const handleRequestReviewComments = async (product: any) => {
+    const scanProductId = product?.scan_product_id;
+    if (!selectedMonitor?.id || !scanProductId) return;
+    setReviewLoadingIds(prev => new Set(prev).add(scanProductId));
+    try {
+      const result = await ApiClient.requestMonitoredProductReviews(selectedMonitor.id, scanProductId);
+      mergeMonitorProductResult(scanProductId, result);
+      toast.success('Comentários de avaliação atualizados');
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao buscar comentários de avaliação');
+    } finally {
+      setReviewLoadingIds(prev => {
+        const next = new Set(prev);
+        next.delete(scanProductId);
+        return next;
+      });
     }
   };
 
@@ -2810,6 +2873,28 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
               <span className="badge" style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', marginRight: '8px' }}>{selectedMonitor.brand}</span>
               {selectedMonitor.url}
             </p>
+            {selectedMonitorStockSummary && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px', marginBottom: '16px' }}>
+                <div className="badge" style={{ justifyContent: 'space-between', padding: '8px', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)' }}>
+                  <span>Verificados</span>
+                  <strong>{selectedMonitorStockSummary.verified_stock_count}</strong>
+                </div>
+                <div className="badge" style={{ justifyContent: 'space-between', padding: '8px', background: 'rgba(148, 163, 184, 0.12)', color: 'var(--text-muted)' }}>
+                  <span>Nao verificados</span>
+                  <strong>{selectedMonitorStockSummary.unknown_stock_count}</strong>
+                </div>
+                <div className="badge" style={{ justifyContent: 'space-between', padding: '8px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)' }}>
+                  <span>Esgotados</span>
+                  <strong>{selectedMonitorStockSummary.out_of_stock_count}</strong>
+                </div>
+                {selectedMonitorStockSummary.rupture_pct !== null && (
+                  <div className="badge" style={{ justifyContent: 'space-between', padding: '8px', background: 'rgba(245, 158, 11, 0.12)', color: 'var(--warning)' }}>
+                    <span>Ruptura</span>
+                    <strong>{Math.round(selectedMonitorStockSummary.rupture_pct * 100)}%</strong>
+                  </div>
+                )}
+              </div>
+            )}
 
             {loadingProducts ? (
               <div style={{ padding: '2rem', textAlign: 'center' }}><RefreshCw className="animate-spin" /></div>
@@ -2855,9 +2940,64 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
                           <span className="price-current">R$ {p.price_full?.toFixed(2) || '0.00'}</span>
                         )}
                       </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '8px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                        {p.stock_availability === true && <span className="text-success">Em estoque</span>}
+                        {p.stock_availability === false && <span className="text-error">Esgotado</span>}
+                        {p.stock_availability == null && <span>Estoque nao verificado</span>}
+                        {p.stock_depth_state && (
+                          <span>
+                            Profundidade: {p.stock_depth_estimate ?? '-'} ({p.stock_depth_state})
+                          </span>
+                        )}
+                        {p.reviews_state && (
+                          <span>
+                            Avaliacoes: {p.review_count ?? 0} ({p.reviews_state})
+                          </span>
+                        )}
+                        {Array.isArray(p.comments) && p.comments.length > 0 && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
+                            {p.comments.slice(0, 2).map((comment: any) => (
+                              <span key={comment.review_id} title={comment.text || comment.title || ''}>
+                                {comment.rating ? `${comment.rating}/5 - ` : ''}{comment.title || comment.text || 'Comentario sem texto'}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    {p.url && (
-                      <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>
+                    {(p.url || p.scan_product_id) && (
+                      <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                        {p.scan_product_id && (
+                          <>
+                            <button
+                              type="button"
+                              className="btn-icon btn-sm"
+                              title="Consultar profundidade de estoque"
+                              disabled={stockDepthLoadingIds.has(p.scan_product_id)}
+                              onClick={async (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                await handleRequestStockDepth(p);
+                              }}
+                            >
+                              {stockDepthLoadingIds.has(p.scan_product_id) ? <RefreshCw className="animate-spin" size={14} /> : <Gauge size={14} />}
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-icon btn-sm"
+                              title="Buscar comentários de avaliação"
+                              disabled={reviewLoadingIds.has(p.scan_product_id)}
+                              onClick={async (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                await handleRequestReviewComments(p);
+                              }}
+                            >
+                              {reviewLoadingIds.has(p.scan_product_id) ? <RefreshCw className="animate-spin" size={14} /> : <MessageSquare size={14} />}
+                            </button>
+                          </>
+                        )}
+                        {p.url && (
                         <button
                           type="button"
                           className="btn-icon btn-sm"
@@ -2870,6 +3010,7 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
                         >
                           <Plus size={14} />
                         </button>
+                        )}
                       </div>
                     )}
                   </a>
