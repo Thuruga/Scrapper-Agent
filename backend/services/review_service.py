@@ -16,6 +16,7 @@ import asyncio
 import hashlib
 import logging
 import json
+from pathlib import Path
 from typing import Any, List, Dict, Tuple, Optional
 
 import aiohttp
@@ -23,6 +24,7 @@ import aiohttp
 from config import settings
 from core.models import ReviewComment, ReviewCommentsResult
 from services.brand_service import brand_service
+from services.category_monitor_service import DATA_DIR
 
 logger = logging.getLogger("ReviewService")
 
@@ -592,6 +594,112 @@ async def get_review_comments(
     result.review_product_id = result.review_product_id or product_id
     result.source_provider = result.source_provider or provider
     return result
+
+
+async def fetch_scan_product_review_comments(
+    monitor_id: str,
+    scan_product_id: str,
+    max_pages: Optional[int] = None,
+) -> ReviewCommentsResult:
+    monitor = _find_monitor(monitor_id)
+    brand_key = str(monitor.get("brand") or "").lower().strip()
+    if not brand_key:
+        raise ValueError("Monitor nao possui marca persistida.")
+
+    products = _load_products(monitor_id)
+    product_index, product = _find_scan_product(products, scan_product_id)
+    review_product_id = _safe_str(product.get("review_product_id"))
+    if not review_product_id:
+        result = _unsupported_result(
+            provider=None,
+            product_id=None,
+            max_pages=0,
+        )
+        products[product_index] = _apply_review_result(product, result)
+        _write_products(monitor_id, products)
+        return result
+
+    result = await get_review_comments(
+        brand_key,
+        review_product_id,
+        max_pages=max_pages,
+    )
+    products[product_index] = _apply_review_result(product, result)
+    _write_products(monitor_id, products)
+    return result
+
+
+def _find_monitor(monitor_id: str) -> dict[str, Any]:
+    monitors_file = DATA_DIR / "monitored_categories.json"
+    if not monitors_file.exists():
+        raise ValueError("Monitor de categoria nao encontrado.")
+    try:
+        monitors = json.loads(monitors_file.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as exc:
+        raise ValueError("Arquivo de monitores invalido.") from exc
+    for monitor in monitors if isinstance(monitors, list) else []:
+        if monitor.get("id") == monitor_id:
+            return monitor
+    raise ValueError("Monitor de categoria nao encontrado.")
+
+
+def _load_products(monitor_id: str) -> list[dict[str, Any]]:
+    products_file = _products_file(monitor_id)
+    if not products_file.exists():
+        raise ValueError("Produtos monitorados nao encontrados.")
+    try:
+        products = json.loads(products_file.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as exc:
+        raise ValueError("Arquivo de produtos monitorados invalido.") from exc
+    if not isinstance(products, list):
+        raise ValueError("Arquivo de produtos monitorados invalido.")
+    return [dict(product) for product in products if isinstance(product, dict)]
+
+
+def _find_scan_product(
+    products: list[dict[str, Any]],
+    scan_product_id: str,
+) -> tuple[int, dict[str, Any]]:
+    matches = [
+        (index, product)
+        for index, product in enumerate(products)
+        if product.get("scan_product_id") == scan_product_id
+    ]
+    if not matches:
+        raise ValueError("Produto do scan nao encontrado.")
+    if len(matches) > 1:
+        raise ValueError("Produto do scan duplicado.")
+    return matches[0]
+
+
+def _apply_review_result(
+    product: dict[str, Any],
+    result: ReviewCommentsResult,
+) -> dict[str, Any]:
+    updated = dict(product)
+    updated.update(
+        {
+            "reviews_state": result.reviews_state,
+            "review_comments": [
+                comment.model_dump(mode="json") for comment in result.comments
+            ],
+            "rating": result.rating,
+            "review_count": result.review_count,
+        }
+    )
+    return updated
+
+
+def _write_products(monitor_id: str, products: list[dict[str, Any]]) -> None:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    _products_file(monitor_id).write_text(
+        json.dumps(products, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+
+def _products_file(monitor_id: str) -> Path:
+    return DATA_DIR / f"monitored_products_{monitor_id}.json"
 
 
 async def get_bulk_reviews(

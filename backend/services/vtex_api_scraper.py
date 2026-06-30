@@ -408,6 +408,7 @@ class VtexApiClient(BaseScraper):
                 available_sizes=self._extract_sizes(p.items),
                 rating=rating,
                 review_count=count,
+                review_product_id=str(p.productId),
                 specifications=specs_dict,
                 image_url=image_url
             )
@@ -811,7 +812,8 @@ class VtexApiClient(BaseScraper):
                     stock_availability=True if price > 0 else False,
                     category=None, sub_category=None, composition=None,
                     available_colors=[], available_sizes=[], rating=None,
-                    review_count=None, specifications={}, image_url=image,
+                    review_count=None, review_product_id=str(p.get("productId")),
+                    specifications={}, image_url=image,
                 ))
             except ValidationError:
                 continue  # skip products missing price/image/title (model invariants)
@@ -1043,6 +1045,7 @@ class VtexApiClient(BaseScraper):
                             available=available,
                             rating=rating,
                             review_count=count,
+                            review_product_id=pid,
                             # Expostos para o cálculo de frete sob demanda (Phase 33.x)
                             sku_id=sku_id,
                             seller_id=seller_id,

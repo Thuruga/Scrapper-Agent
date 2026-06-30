@@ -8,6 +8,8 @@ from typing import List, Optional
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
 
+from config import settings
+from services.review_service import fetch_scan_product_review_comments
 from services.stock_depth_service import probe_scan_product_stock_depth
 from services.stock_summary_service import load_monitor_stock_summary
 
@@ -28,6 +30,12 @@ class CategoryMonitorResponse(BaseModel):
     brand: str
     status: str
     last_scraped_at: Optional[str] = None
+
+
+class ReviewCommentsRequest(BaseModel):
+    max_pages: Optional[int] = None
+
+    model_config = {"extra": "forbid"}
 
 
 def _load_local() -> list[dict]:
@@ -104,6 +112,24 @@ async def probe_monitored_product_stock_depth(
     return result.model_dump(mode="json")
 
 
+@router.post("/category/{monitor_id}/products/{scan_product_id}/reviews")
+async def fetch_monitored_product_reviews(
+    monitor_id: str,
+    scan_product_id: str,
+    data: ReviewCommentsRequest = ReviewCommentsRequest(),
+):
+    max_pages = _cap_review_pages(data.max_pages)
+    try:
+        result = await fetch_scan_product_review_comments(
+            monitor_id,
+            scan_product_id,
+            max_pages=max_pages,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return result.model_dump(mode="json")
+
+
 @router.get("/category/{monitor_id}/stock-summary")
 async def get_monitor_stock_summary(monitor_id: str):
     summary = load_monitor_stock_summary(monitor_id)
@@ -113,3 +139,10 @@ async def get_monitor_stock_summary(monitor_id: str):
             detail="Resumo de estoque nao encontrado.",
         )
     return summary.model_dump(mode="json")
+
+
+def _cap_review_pages(max_pages: Optional[int]) -> int:
+    configured_max = max(1, int(settings.MAX_REVIEW_PAGES))
+    if max_pages is None:
+        return configured_max
+    return min(max(1, int(max_pages)), configured_max)
