@@ -10,6 +10,7 @@ from curl_cffi.requests import AsyncSession
 
 from config import settings
 from core.models import RawProductBronze, BrandSearchResult, SearchProductResult, ShippingInfo
+from pydantic import ValidationError
 from core.vtex_schemas import VtexProduct, VtexItem
 from services.review_service import get_single_review, get_bulk_reviews
 from services.brand_service import brand_service
@@ -693,65 +694,11 @@ class VtexApiClient(BaseScraper):
                         if pagina == 0:
                             log("[WARNING] API Catalog System retornou vazio na primeira página. Acionando Fallback VTEX IO (Browser)...")
                             try:
-                                from core.browser_manager import browser_manager
-                                html_content = await browser_manager.fetch_html(category_url)
-                                match = re.search(r'<script>(\{"ROOT_QUERY.*?)</script>', html_content)
-                                if match:
-                                    data = json.loads(match.group(1))
-                                    products = [v for k, v in data.items() if isinstance(v, dict) and v.get("productId") and v.get("productName")]
-                                    log(f"[OK] Fallback VTEX IO extraiu {len(products)} produtos!")
-                                    
-                                    for p in products:
-                                        pid = p.get("productId")
-                                        name = p.get("productName")
-                                        link_text = p.get("linkText", "")
-                                        link = p.get("link", f"/{link_text}/p" if link_text else "")
-                                        full_url = self._sanitize_product_url(f"https://{domain}{link}", domain) if link else category_url
-                                        
-                                        price = 0.0
-                                        image = None
-                                        
-                                        items_refs = p.get("items", [])
-                                        for ref in items_refs:
-                                            if isinstance(ref, dict) and "id" in ref:
-                                                item_obj = data.get(ref["id"], {})
-                                                imgs_refs = item_obj.get("images", [])
-                                                for ir in imgs_refs:
-                                                    if isinstance(ir, dict) and "id" in ir:
-                                                        img_obj = data.get(ir["id"], {})
-                                                        if not image and img_obj.get("imageUrl"):
-                                                            image = img_obj.get("imageUrl")
-                                                sellers_refs = item_obj.get("sellers", [])
-                                                for sr in sellers_refs:
-                                                    if isinstance(sr, dict) and "id" in sr:
-                                                        seller_obj = data.get(sr["id"], {})
-                                                        comm_refs = seller_obj.get("commertialOffer", {})
-                                                        if isinstance(comm_refs, dict) and "id" in comm_refs:
-                                                            offer_obj = data.get(comm_refs["id"], {})
-                                                            if offer_obj.get("Price") and offer_obj.get("Price") > 0:
-                                                                price = offer_obj.get("Price")
-                                                                break
-                                                if price > 0:
-                                                    break
-                                                    
-                                        yield RawProductBronze(
-                                            url=full_url,
-                                            brand=self.brand_name,
-                                            raw_title=name,
-                                            raw_description=p.get("description", "Sem descrição"),
-                                            price_full=price,
-                                            price_discount=None,
-                                            stock_availability=True if price > 0 else False,
-                                            category=None,
-                                            sub_category=None,
-                                            composition=None,
-                                            available_colors=[],
-                                            available_sizes=[],
-                                            rating=None,
-                                            review_count=None,
-                                            specifications={},
-                                            image_url=image
-                                        )
+                                fallback_products = await self._browser_fallback_products(category_url, domain)
+                                if fallback_products:
+                                    log(f"[OK] Fallback VTEX IO extraiu {len(fallback_products)} produtos!")
+                                for prod in fallback_products:
+                                    yield prod
                             except Exception as e:
                                 log(f"[ERROR] Fallback VTEX IO falhou: {e}")
                         
@@ -802,6 +749,161 @@ class VtexApiClient(BaseScraper):
             await asyncio.sleep(0.5) # Respeito ao rate limit VTEX
             
         log(f"[DONE] Extração concluída!")
+
+    async def _browser_fallback_products(self, category_url: str, domain: str) -> List[RawProductBronze]:
+        """Render a category page in a browser and extract products when the
+        catalog_system Search API returns empty (multi-level / VTEX-IO storefronts).
+
+        Two strategies, zero regression to the legacy path:
+          1) Legacy VTEX IO ROOT_QUERY Apollo blob (fast default render).
+          2) VTEX-IO / Intelligent-Search rendered product-summary DOM tiles
+             (e.g. Hugo Boss), which need a fuller render and carry no ROOT_QUERY blob.
+        Returns a list of RawProductBronze (possibly empty). (#39 gap closure.)
+        """
+        html_content = await browser_manager.fetch_html(category_url)
+        products = self._parse_root_query(html_content, domain, category_url)
+        if products:
+            return products
+        html_rendered = await browser_manager.fetch_html(
+            category_url, wait_until="networkidle", extra_sleep=4.0, timeout=45000
+        )
+        return self._parse_vtexio_tiles(html_rendered, domain)
+
+    def _parse_root_query(self, html_content: str, domain: str, category_url: str) -> List[RawProductBronze]:
+        """Extract products from a legacy VTEX IO ROOT_QUERY Apollo cache blob."""
+        products: List[RawProductBronze] = []
+        match = re.search(r'<script>(\{"ROOT_QUERY.*?)</script>', html_content)
+        if not match:
+            return products
+        data = json.loads(match.group(1))
+        raw = [v for k, v in data.items() if isinstance(v, dict) and v.get("productId") and v.get("productName")]
+        for p in raw:
+            name = p.get("productName")
+            link_text = p.get("linkText", "")
+            link = p.get("link", f"/{link_text}/p" if link_text else "")
+            full_url = self._sanitize_product_url(f"https://{domain}{link}", domain) if link else category_url
+            price = 0.0
+            image = None
+            for ref in p.get("items", []):
+                if isinstance(ref, dict) and "id" in ref:
+                    item_obj = data.get(ref["id"], {})
+                    for ir in item_obj.get("images", []):
+                        if isinstance(ir, dict) and "id" in ir:
+                            img_obj = data.get(ir["id"], {})
+                            if not image and img_obj.get("imageUrl"):
+                                image = img_obj.get("imageUrl")
+                    for sr in item_obj.get("sellers", []):
+                        if isinstance(sr, dict) and "id" in sr:
+                            seller_obj = data.get(sr["id"], {})
+                            comm_refs = seller_obj.get("commertialOffer", {})
+                            if isinstance(comm_refs, dict) and "id" in comm_refs:
+                                offer_obj = data.get(comm_refs["id"], {})
+                                if offer_obj.get("Price") and offer_obj.get("Price") > 0:
+                                    price = offer_obj.get("Price")
+                                    break
+                    if price > 0:
+                        break
+            try:
+                products.append(RawProductBronze(
+                    url=full_url, brand=self.brand_name, raw_title=name,
+                    raw_description=p.get("description", "Sem descrição"),
+                    price_full=price, price_discount=None,
+                    stock_availability=True if price > 0 else False,
+                    category=None, sub_category=None, composition=None,
+                    available_colors=[], available_sizes=[], rating=None,
+                    review_count=None, specifications={}, image_url=image,
+                ))
+            except ValidationError:
+                continue  # skip products missing price/image/title (model invariants)
+        return products
+
+    def _parse_vtexio_tiles(self, html_content: str, domain: str) -> List[RawProductBronze]:
+        """Extract products from rendered VTEX-IO product-summary DOM tiles.
+
+        For Intelligent-Search storefronts (e.g. Hugo Boss) whose category listings
+        render client-side. Title from the productBrand/name node, URL from the tile
+        product anchor, price from the sellingPrice node (digits are char-spaced in
+        the DOM, e.g. 'R$ 1 . 460 , 00'). (#39 gap closure.)
+        """
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(html_content, "html.parser")
+        products: List[RawProductBronze] = []
+        seen = set()
+        for tile in soup.select(".vtex-product-summary-2-x-container"):
+            anchor = tile.find("a", href=re.compile(r"/p(\?|$)")) or tile.find("a", href=True)
+            href = anchor.get("href", "") if anchor else ""
+            if href.startswith("/"):
+                href = f"https://{domain}{href}"
+            if href:
+                href = self._sanitize_product_url(href, domain)
+            title_el = (
+                tile.select_one("[class*=productBrand]")
+                or tile.select_one("[class*=productNameContainer]")
+                or tile.select_one("[class*=productName]")
+            )
+            title = title_el.get_text(" ", strip=True) if title_el else ""
+            if not title and anchor:
+                title = (anchor.get("aria-label") or anchor.get_text(" ", strip=True) or "").strip()
+            price_el = (
+                tile.select_one("[class*=sellingPriceValue]")
+                or tile.select_one("[class*=sellingPrice]")
+                or tile.select_one("[class*=currencyContainer]")
+            )
+            price_full = self._parse_brl_price(price_el.get_text(" ", strip=True)) if price_el else 0.0
+            image = self._extract_tile_image(tile)
+            # Skip tiles missing the model's hard invariants (title/url/price/image)
+            # so one incomplete tile never aborts the whole category scan.
+            if not title or not href or href in seen or price_full <= 0 or not image:
+                continue
+            seen.add(href)
+            try:
+                products.append(RawProductBronze(
+                    url=href, brand=self.brand_name, raw_title=title,
+                    raw_description="Sem descrição", price_full=price_full,
+                    price_discount=None, stock_availability=True,
+                    category=None, sub_category=None, composition=None,
+                    available_colors=[], available_sizes=[], rating=None,
+                    review_count=None, specifications={}, image_url=image,
+                ))
+            except ValidationError:
+                continue
+        return products
+
+    @staticmethod
+    def _parse_brl_price(text: str) -> float:
+        """Parse a BRL price string, tolerating a char-spaced render ('R$ 1 . 460 , 00')."""
+        if not text:
+            return 0.0
+        compact = re.sub(r"\s+", "", text)
+        m = re.search(r"R\$?\s*([\d.]+,\d{2})", compact) or re.search(r"([\d.]+,\d{2})", compact)
+        if not m:
+            return 0.0
+        num = m.group(1).replace(".", "").replace(",", ".")
+        try:
+            return float(num)
+        except ValueError:
+            return 0.0
+
+    @staticmethod
+    def _extract_tile_image(tile) -> Optional[str]:
+        """Best-effort product image URL from a VTEX product-summary tile (handles lazy-load)."""
+        img = tile.find("img")
+        if img:
+            for attr in ("src", "data-src", "data-original"):
+                v = img.get(attr)
+                if v and v.strip() and not v.strip().startswith("data:"):
+                    return v.strip()
+            srcset = img.get("srcset") or img.get("data-srcset")
+            if srcset:
+                first = srcset.split(",")[0].strip().split(" ")[0].strip()
+                if first and not first.startswith("data:"):
+                    return first
+        source = tile.find("source")
+        if source and source.get("srcset"):
+            first = source.get("srcset").split(",")[0].strip().split(" ")[0].strip()
+            if first and not first.startswith("data:"):
+                return first
+        return None
 
     async def search(
         self,
