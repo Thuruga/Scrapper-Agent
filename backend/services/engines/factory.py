@@ -80,9 +80,12 @@ class EngineFactory:
         if brands:
             target_brands = brands
         else:
-            # Default search includes only active stored brands PLUS the virtual marketplaces (D-08)
+            # Single source of truth: list_brands(active_only=True) includes the 3
+            # marketplace brand_keys (mercado_livre, netshoes, amazon) now that they
+            # live in brands.json as real entries (Plan 04 / D-10).
+            # Deactivating a marketplace via PATCH /brands/{key}/active automatically
+            # excludes it from the next search — no hardcoded bypass (T-40-06).
             target_brands = [b.brand_key for b in brand_service.list_brands(active_only=True)]
-            target_brands.extend(["mercado_livre", "netshoes", "amazon"])
 
         target_brands = [b.lower() for b in target_brands]
 

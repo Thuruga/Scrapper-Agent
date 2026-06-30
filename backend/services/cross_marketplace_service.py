@@ -9,8 +9,20 @@ from services.engines.mercado_livre_engine import MercadoLivreEngine
 from services.engines.netshoes_engine import NetshoesEngine
 from services.engines.amazon_engine import AmazonEngine
 from services.engines.seller_extraction import is_marketplace_default
+from services.brand_service import brand_service
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Module-level engine map: engine_key → (display_name, EngineClass)
+# Engines are stateless singletons — each opens its own AsyncSession per method
+# call and holds no mutable session state on the instance (T-40-07: verified safe).
+# ---------------------------------------------------------------------------
+_ENGINE_MAP: Dict[str, tuple] = {
+    "mercadolivre": ("Mercado Livre", MercadoLivreEngine),
+    "netshoes":     ("Netshoes",      NetshoesEngine),
+    "amazon":       ("Amazon",        AmazonEngine),
+}
 
 
 def passes_brand_gate(titulo: str, official_title: str, enabled: bool) -> bool:
@@ -151,10 +163,29 @@ def apply_visual_tiebreak(
 
 class CrossMarketplaceService:
     def __init__(self):
-        self.engines = {
-            "Mercado Livre": MercadoLivreEngine(),
-            "Netshoes": NetshoesEngine(),
-            "Amazon": AmazonEngine(),
+        # Singleton engine instances — safe for concurrent reuse because each engine
+        # opens its own AsyncSession per method call (T-40-07, verified stateless).
+        self._engine_instances: Dict[str, Any] = {
+            key: cls() for key, (_, cls) in _ENGINE_MAP.items()
+        }
+        # Display-name → engine instance map for _enrich_pdp_and_shipping lookup (Pitfall 5).
+        self._by_display: Dict[str, Any] = {
+            display_name: self._engine_instances[key]
+            for key, (display_name, _) in _ENGINE_MAP.items()
+        }
+
+    def _active_engines(self) -> Dict[str, Any]:
+        """Returns {display_name: engine} for all marketplace engines whose brand_key
+        is currently active in brands.json.  Called per-request so deactivating a
+        marketplace via PATCH /brands/{key}/active takes effect on the very next search
+        (D-11) without a server restart.
+        """
+        active_brands = brand_service.list_brands(active_only=True)
+        active_keys = {b.brand_key for b in active_brands}
+        return {
+            display_name: self._engine_instances[engine_key]
+            for engine_key, (display_name, _) in _ENGINE_MAP.items()
+            if engine_key in active_keys
         }
 
 
@@ -319,7 +350,7 @@ class CrossMarketplaceService:
                 return name, [], str(e)
 
         raw_results = await asyncio.gather(
-            *(fetch(name, engine) for name, engine in self.engines.items())
+            *(fetch(name, engine) for name, engine in self._active_engines().items())
         )
 
         todos_produtos = []
@@ -449,8 +480,8 @@ class CrossMarketplaceService:
         """
         async def fetch_pdp_seller_and_shipping(p):
             plat = p["plataforma"]
-            if plat in self.engines:
-                engine = self.engines[plat]
+            if plat in self._by_display:
+                engine = self._by_display[plat]
                 # 1. Fetch Seller + preço autoritativo da PDP
                 try:
                     details = await engine.get_product_details(p["url"])

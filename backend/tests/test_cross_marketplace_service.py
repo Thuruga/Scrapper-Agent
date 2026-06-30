@@ -8,8 +8,10 @@ nenhum teste end-to-end do pipeline. Estes testes sao a rede de seguranca: o
 refactor deve mante-los verdes sem mudar nenhuma assercao.
 
 Estrategia (deterministico, zero rede / zero IA):
-  - ``self.engines`` substituido por ``FakeEngine`` (search / get_product_details
-    / calculate_shipping assincronos e controlados).
+  - Engines injetados via _inject_engines(service, engines_dict): seta _by_display
+    (usado por _enrich_pdp_and_shipping) e substitui _active_engines() para
+    retornar o mesmo dict (usado por _fetch_all_engines). Nao depende de brands.json
+    no disco — testes hermeticos.
   - ``target_sku=None`` => caminho text-only (vision_active=False): VTEXEngine e
     image_ai_service NUNCA sao importados/usados (estao dentro do ``if target_sku``).
   - ``nlp_service.calculate_text_score`` e ``brand_is_present`` monkeypatchados
@@ -27,8 +29,11 @@ Casos:
      mas com final >= CROSS_SIMILAR_MIN_SCORE vira ``is_similar``; o buybox e o
      cheapest_price ficam RESTRITOS ao match estrito (o nucleo do comportamento S1).
   3. Excecao de motor: vira entrada em ``errors`` sem derrubar o pipeline.
+  4. Inactive marketplace excluded (UX-05/D-11): marketplace marcado is_active=False
+     nao entra em _active_engines() e portanto nao aparece na busca.
 """
 import asyncio
+import unittest.mock
 
 from config import relevance_settings
 from services.cross_marketplace_service import CrossMarketplaceService
@@ -57,6 +62,20 @@ class FakeEngine:
 
     async def calculate_shipping(self, p, zipcode):
         return self._shipping.get(p.get("url"))
+
+
+def _inject_engines(service: CrossMarketplaceService, engines_dict: dict) -> CrossMarketplaceService:
+    """Inject a {display_name: FakeEngine} dict into a CrossMarketplaceService for testing.
+
+    Sets _by_display (for _enrich_pdp_and_shipping) and monkey-patches _active_engines
+    to return the same dict (for _fetch_all_engines).  Tests remain hermetic — they do
+    not touch brands.json on disk or the real brand_service singleton.
+
+    Returns the service for chaining convenience.
+    """
+    service._by_display = dict(engines_dict)
+    service._active_engines = lambda: dict(engines_dict)  # type: ignore[method-assign]
+    return service
 
 
 def _prod(plataforma, titulo, preco, url, imagem="http://img/x.jpg", seller="Loja"):
@@ -105,8 +124,7 @@ class TestCompareProductCharacterization:
         amz_title = "Camisa Polo Aramis Preta"
         _patch_nlp(monkeypatch, {net_title: 0.92, amz_title: 0.85})
 
-        service = CrossMarketplaceService()
-        service.engines = {
+        service = _inject_engines(CrossMarketplaceService(), {
             "Mercado Livre": FakeEngine([]),  # vazio -> erro
             "Netshoes": FakeEngine(
                 [_prod("Netshoes", net_title, 100.0, "http://net/1")],
@@ -115,7 +133,7 @@ class TestCompareProductCharacterization:
             "Amazon": FakeEngine(
                 [_prod("Amazon", amz_title, 80.0, "http://amz/1")]
             ),  # sem frete -> None
-        }
+        })
 
         result = asyncio.run(
             service.compare_product(
@@ -176,12 +194,11 @@ class TestCompareProductCharacterization:
         # Netshoes final 90 (>=70 estrito); Amazon final 30 (<70 estrito, >=15 similar)
         _patch_nlp(monkeypatch, {net_title: 0.90, amz_title: 0.30})
 
-        service = CrossMarketplaceService()
-        service.engines = {
+        service = _inject_engines(CrossMarketplaceService(), {
             "Mercado Livre": FakeEngine([]),  # vazio
             "Netshoes": FakeEngine([_prod("Netshoes", net_title, 100.0, "http://net/1")]),
             "Amazon": FakeEngine([_prod("Amazon", amz_title, 50.0, "http://amz/1")]),
-        }
+        })
 
         result = asyncio.run(
             service.compare_product(
@@ -215,12 +232,11 @@ class TestCompareProductCharacterization:
         net_title = "Camisa Polo Aramis Azul"
         _patch_nlp(monkeypatch, {net_title: 0.90})
 
-        service = CrossMarketplaceService()
-        service.engines = {
+        service = _inject_engines(CrossMarketplaceService(), {
             "Mercado Livre": FakeEngine([]),
             "Netshoes": FakeEngine([_prod("Netshoes", net_title, 100.0, "http://net/1")]),
             "Amazon": FakeEngine([], raise_exc=RuntimeError("boom")),
-        }
+        })
 
         result = asyncio.run(
             service.compare_product(
@@ -262,15 +278,14 @@ class TestSellerPrecedence:
         url = "http://net/1"
         details = {"seller": pdp_seller} if pdp_seller is not None else None
 
-        service = CrossMarketplaceService()
-        service.engines = {
+        service = _inject_engines(CrossMarketplaceService(), {
             "Mercado Livre": FakeEngine([]),
             "Amazon": FakeEngine([]),
             "Netshoes": FakeEngine(
                 [_prod("Netshoes", self.TITLE, 100.0, url, seller=listing_seller)],
                 details_by_url={url: details} if details is not None else {},
             ),
-        }
+        })
 
         result = asyncio.run(
             service.compare_product(
@@ -305,14 +320,13 @@ class TestSellerPrecedence:
             async def get_product_details(self, u):
                 raise RuntimeError("pdp offline")
 
-        service = CrossMarketplaceService()
-        service.engines = {
+        service = _inject_engines(CrossMarketplaceService(), {
             "Mercado Livre": FakeEngine([]),
             "Amazon": FakeEngine([]),
             "Netshoes": RaisingEngine(
                 [_prod("Netshoes", self.TITLE, 100.0, url, seller="Loja Da Listagem")],
             ),
-        }
+        })
 
         result = asyncio.run(
             service.compare_product(
@@ -331,3 +345,126 @@ class TestSellerPrecedence:
         """PDP retorna seller real e listagem tinha o default → seller final = o da PDP (caso comum)."""
         seller = self._run(monkeypatch, listing_seller="Netshoes", pdp_seller="Shoestime")
         assert seller == "Shoestime"
+
+
+class TestInactiveMarketplaceExcluded:
+    """UX-05 / D-11: deactivating a marketplace excludes it from the NEXT search.
+
+    Testa que _active_engines() exclui engines cujo brand_key esta inativo em
+    brands.json, e inclui apenas os ativos — sem restart de servidor (per-request).
+    """
+
+    STRICT = "Camisa Polo Aramis Masculina"
+    BROAD = "camisa polo"
+
+    def test_inactive_marketplace_excluded(self, monkeypatch):
+        """Marketplace marcado is_active=False nao aparece na busca cross-marketplace.
+
+        Estrategia: patch brand_service.list_brands para retornar apenas 'mercadolivre'
+        e 'netshoes' como ativos (amazon inativo). Verifica que _active_engines() nao
+        retorna a engine Amazon e que compare_product nao produz resultados da Amazon.
+        """
+        _pin_settings(monkeypatch)
+        net_title = "Camisa Polo Aramis Azul"
+        _patch_nlp(monkeypatch, {net_title: 0.90})
+
+        # Simula brands.json com amazon marcado is_active=False
+        from core.models import DynamicBrand
+        from services import cross_marketplace_service as cms_module
+
+        fake_active_brands = [
+            DynamicBrand(
+                brand_key="mercadolivre",
+                brand_name="Mercado Livre",
+                domain="mercadolivre.com.br",
+                engine="mercadolivre",
+                is_active=True,
+            ),
+            DynamicBrand(
+                brand_key="netshoes",
+                brand_name="Netshoes",
+                domain="netshoes.com.br",
+                engine="netshoes",
+                is_active=True,
+            ),
+            # amazon OMITIDA → is_active=False
+        ]
+
+        # Patch brand_service.list_brands dentro do modulo cross_marketplace_service
+        monkeypatch.setattr(
+            cms_module.brand_service,
+            "list_brands",
+            lambda active_only=False: fake_active_brands if active_only else fake_active_brands,
+        )
+
+        service = CrossMarketplaceService()
+
+        # _active_engines() deve retornar apenas Mercado Livre e Netshoes
+        active = service._active_engines()
+        assert "Mercado Livre" in active, "_active_engines deve incluir Mercado Livre (ativo)"
+        assert "Netshoes" in active, "_active_engines deve incluir Netshoes (ativo)"
+        assert "Amazon" not in active, "_active_engines NAO deve incluir Amazon (inativo)"
+
+        # Substitui as instancias reais por FakeEngines controlaveis p/ a busca
+        service._engine_instances["mercadolivre"] = FakeEngine([])  # ML sem resultados
+        service._engine_instances["netshoes"] = FakeEngine(
+            [_prod("Netshoes", net_title, 100.0, "http://net/1")]
+        )
+        service._engine_instances["amazon"] = FakeEngine(
+            [_prod("Amazon", "Camisa Polo Aramis", 90.0, "http://amz/1")]
+        )
+        # Reconstroi _by_display apos trocar instancias
+        service._by_display = {
+            display: service._engine_instances[key]
+            for key, (display, _) in cms_module._ENGINE_MAP.items()
+        }
+
+        result = asyncio.run(
+            service.compare_product(
+                broad_query=self.BROAD,
+                strict_query=self.STRICT,
+                target_sku=None,
+                min_score=70.0,
+                zipcode="01001000",
+            )
+        )
+
+        marketplaces_in_results = {r["marketplace"] for r in result["results"]}
+        assert "Amazon" not in marketplaces_in_results, (
+            f"Amazon (inativa) nao deve aparecer nos resultados. Obtidos: {marketplaces_in_results}"
+        )
+        assert "Netshoes" in marketplaces_in_results, (
+            f"Netshoes (ativa) deve aparecer nos resultados. Obtidos: {marketplaces_in_results}"
+        )
+
+    def test_active_marketplace_included(self, monkeypatch):
+        """Marketplace marcado is_active=True aparece na busca (nao e excluido).
+
+        Confirmacao positiva: quando todos os 3 marketplaces estao ativos,
+        _active_engines() retorna todos os 3 engines.
+        """
+        from core.models import DynamicBrand
+        from services import cross_marketplace_service as cms_module
+
+        fake_all_active = [
+            DynamicBrand(
+                brand_key=key,
+                brand_name=display,
+                domain=f"{key}.com.br",
+                engine=key,
+                is_active=True,
+            )
+            for key, (display, _) in cms_module._ENGINE_MAP.items()
+        ]
+
+        monkeypatch.setattr(
+            cms_module.brand_service,
+            "list_brands",
+            lambda active_only=False: fake_all_active,
+        )
+
+        service = CrossMarketplaceService()
+        active = service._active_engines()
+
+        assert len(active) == 3, f"Esperado 3 engines ativos, obtido {len(active)}: {list(active)}"
+        assert set(active.keys()) == {"Mercado Livre", "Netshoes", "Amazon"}
