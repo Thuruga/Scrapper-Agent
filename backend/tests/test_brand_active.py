@@ -13,6 +13,10 @@ Cobertura:
   - TestBrandRouteReturnsInactive: integracao SC-4
       7. GET /brands/ retorna marca inativa (active_only=False por padrao)
          (pode passar hoje — guarda contra regressao futura)
+  - TestMarketplacesInBrandsJson: Phase 40 Plan 04 (UX-05 / D-10)
+      8. Os 3 marketplaces (mercado_livre, netshoes, amazon) estao em brands.json
+         com is_active=True e engine correto — proves that GET /brands/ returns them
+         from the file, not from runtime injection (which was removed in Plan 02).
 
 Estes testes devem coletar sem erros de importacao e FALHAR (RED) contra o
 codigo atual enquanto as implementacoes de Wave 2 nao existirem.
@@ -160,6 +164,71 @@ class TestSetActive:
 # ---------------------------------------------------------------------------
 # TestBrandRouteReturnsInactive — integracao SC-4 / D-08
 # ---------------------------------------------------------------------------
+
+class TestMarketplacesInBrandsJson:
+    """Phase 40 Plan 04: marketplaces as real brands.json entries (UX-05 / D-10).
+
+    Verifica que os 3 marketplaces (mercado_livre, netshoes, amazon) existem em
+    brands.json como entradas reais com is_active=True e engine correto.
+
+    Usa brand_service real (lê brands.json) — confirma que GET /brands/ os retornaria
+    via arquivo, sem runtime injection (removida em Plan 02).
+    """
+
+    _EXPECTED = {
+        "mercado_livre": "mercadolivre",
+        "netshoes":      "netshoes",
+        "amazon":        "amazon",
+    }
+
+    def test_marketplaces_in_brands_json(self):
+        """Os 3 marketplace brand_keys estao em brands.json com is_active=True e engine correto."""
+        from services.brand_service import brand_service
+
+        all_brands = brand_service.list_brands()
+        brands_by_key = {b.brand_key: b for b in all_brands}
+
+        for brand_key, expected_engine in self._EXPECTED.items():
+            assert brand_key in brands_by_key, (
+                f"'{brand_key}' nao encontrado em brands.json. "
+                f"Keys presentes: {sorted(brands_by_key.keys())}"
+            )
+            brand = brands_by_key[brand_key]
+            assert brand.is_active is True, (
+                f"'{brand_key}' deve ter is_active=True, got {brand.is_active}"
+            )
+            assert brand.engine == expected_engine, (
+                f"'{brand_key}' deve ter engine='{expected_engine}', got '{brand.engine}'"
+            )
+
+    def test_marketplaces_returned_by_active_only_filter(self):
+        """Os marketplaces aparecem em list_brands(active_only=True) (entradas ativas no arquivo)."""
+        from services.brand_service import brand_service
+
+        active_brands = brand_service.list_brands(active_only=True)
+        active_keys = {b.brand_key for b in active_brands}
+
+        for brand_key in self._EXPECTED:
+            assert brand_key in active_keys, (
+                f"'{brand_key}' deveria aparecer em list_brands(active_only=True). "
+                f"Keys ativas: {sorted(active_keys)}"
+            )
+
+    def test_no_runtime_injection_in_list_brands_route(self):
+        """GET /brands/ retorna os marketplaces do arquivo (sem brands.append na rota).
+
+        Confirma que routes_brands.list_brands() nao tem logica de injecao —
+        apenas delega para brand_service.list_brands(). Se routes_brands.py contiver
+        'brands.append', este teste sinaliza a regressao.
+        """
+        import inspect
+        import api.routes_brands as routes_brands_module
+
+        source = inspect.getsource(routes_brands_module.list_brands)
+        assert "brands.append" not in source, (
+            "list_brands() nao deve conter 'brands.append' — marketplaces devem vir de brands.json"
+        )
+
 
 class TestBrandRouteReturnsInactive:
     """Guarda contra Pitfall-6 (MGMT-01 SC-4 / D-08).

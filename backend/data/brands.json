@@ -531,5 +531,50 @@
       }
     ],
     "is_active": true
+  },
+  "mercado_livre": {
+    "brand_key": "mercado_livre",
+    "brand_name": "Mercado Livre",
+    "domain": "mercadolivre.com.br",
+    "review_provider": "none",
+    "review_store_id": null,
+    "vtex_account": null,
+    "engine": "mercadolivre",
+    "logo_url": null,
+    "wake_access_token": null,
+    "search_url_template": null,
+    "proxy_url": null,
+    "mappings": [],
+    "is_active": true
+  },
+  "netshoes": {
+    "brand_key": "netshoes",
+    "brand_name": "Netshoes",
+    "domain": "netshoes.com.br",
+    "review_provider": "none",
+    "review_store_id": null,
+    "vtex_account": null,
+    "engine": "netshoes",
+    "logo_url": null,
+    "wake_access_token": null,
+    "search_url_template": null,
+    "proxy_url": null,
+    "mappings": [],
+    "is_active": true
+  },
+  "amazon": {
+    "brand_key": "amazon",
+    "brand_name": "Amazon",
+    "domain": "amazon.com.br",
+    "review_provider": "none",
+    "review_store_id": null,
+    "vtex_account": null,
+    "engine": "amazon",
+    "logo_url": null,
+    "wake_access_token": null,
+    "search_url_template": null,
+    "proxy_url": null,
+    "mappings": [],
+    "is_active": true
   }
 }
