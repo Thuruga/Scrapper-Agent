@@ -31,7 +31,7 @@ Phases 19-36 pertencem a milestones CONCLUÍDOS (v1.10-v3.0). As phases ativas d
 - [ ] **Phase 41: Abstração de Frete & Marcas Não-VTEX** - Camada de abstração de frete por engine (BaseShipping + implementações Wake/Shopify), fechamento do gap de frete do Buckman (VTEX) e VTEX permanece no VtexApiClient (FRET-07)
 - [ ] **Phase 42: Frete para Marketplaces & Matriz Multi-Regional** - Cálculo de frete para Mercado Livre, Netshoes e Amazon; Matriz de Frete Multi-Regional com CEPs-chave das 5 regiões do Brasil, on-demand com throttle e cache (FRET-08, FRET-09)
 - [ ] **Phase 43: Violação de MAP & Selos de Promoção** - Regras de preço mínimo (MAP) por produto/marca/categoria com sinalização de vendedores infratores; extração estruturada de selos de oferta e condições de pagamento (MAP-01, PROMO-01)
-- [ ] **Phase 44: Ruptura de Estoque & Avaliações Reforçadas** - Percentual de produtos esgotados por marca na varredura; profundidade de estoque via cart-probe de 999 unidades (sessões efêmeras + throttle); notas e comentários reforçados para todas as marcas com paginação e dedup (STOCK-01, STOCK-02, REVW-01)
+- [x] **Phase 44: Ruptura de Estoque & Avaliações Reforçadas** - Percentual de produtos esgotados por marca na varredura; profundidade de estoque via cart-probe de 999 unidades (sessões efêmeras + throttle); notas e comentários reforçados para todas as marcas com paginação e dedup (STOCK-01, STOCK-02, REVW-01) (completed 2026-06-30)
 - [ ] **Phase 45: Análise de Sortimento** - Cron que varre categorias e contabiliza produtos por atributo canônico, gerando snapshots para identificar buracos no catálogo; depende dos atributos canônicos (PARID) e da persistência SQLite (SORT-01)
 
 ## Phase Details
@@ -56,7 +56,7 @@ Plans:
 - [x] 44-02-PLAN.md - Scheduled and manual category scan rupture summary wiring
 - [x] 44-03-PLAN.md - Explicit monitor-product stock-depth cart-probe action
 - [x] 44-04-PLAN.md - On-demand compact review comments and provider states
-- [ ] 44-05-PLAN.md - Monitor modal stock/review operator actions
+- [x] 44-05-PLAN.md - Monitor modal stock/review operator actions
 
 **UI hint**: yes
 
@@ -200,5 +200,5 @@ Phases ativas executam em ordem numérica: 37 → 38 → 39 → 40 → 41 → 42
 | 41. Abstração de Frete & Marcas Não-VTEX | v4.0 | 0/? | Not started | - |
 | 42. Frete para Marketplaces & Matriz Multi-Regional | v4.0 | 0/? | Not started | - |
 | 43. Violação de MAP & Selos de Promoção | v4.0 | 0/? | Not started | - |
-| 44. Ruptura de Estoque & Avaliações Reforçadas | v4.0 | 4/5 | In Progress|  |
+| 44. Ruptura de Estoque & Avaliações Reforçadas | v4.0 | 5/5 | Complete   | 2026-06-30 |
 | 45. Análise de Sortimento | v4.0 | 0/? | Not started | - |

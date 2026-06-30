@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Paridade de Dados, Cobertura Total de Frete & Inteligência Competitiva
-status: executing
-stopped_at: Completed 44-04-PLAN.md
-last_updated: "2026-06-30T23:21:57.124Z"
+status: verifying
+stopped_at: Completed 44-05-PLAN.md
+last_updated: "2026-06-30T23:35:59.496Z"
 last_activity: 2026-06-30 -- Phase 44 execution started
 progress:
   total_phases: 9
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 16
-  completed_plans: 15
-  percent: 94
+  completed_plans: 16
+  percent: 44
 ---
 
 # Project State: Intelligence Scraper
@@ -27,13 +27,13 @@ See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/sc
 
 **Goal:** Nivelar a extração de atributos entre todas as marcas, fechar lacunas de cobertura (Hugo Boss por categoria, Zara, frete universal) e adicionar camadas de inteligência competitiva (MAP, promoções, ruptura de estoque, sortimento, avaliações).
 **Phases:** 9 (37-45)
-**Progress:** [█████████░] 94%
+**Progress:** [██████████] 100%
 
 ## Current Position
 
 Phase: 44 (Ruptura de Estoque & Avaliações Reforçadas) — EXECUTING
 Plan: 5 of 5
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-30 -- Phase 44 execution started
 
 ## Performance Metrics
@@ -85,6 +85,7 @@ Last activity: 2026-06-30 -- Phase 44 execution started
 | Phase 44 P02 | 11 min | 2 tasks | 6 files |
 | Phase 44 P03 | 9 min | 3 tasks | 9 files |
 | Phase 44 P04 | 68 min | 3 tasks | 7 files |
+| Phase 44 P05 | 12 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -175,6 +176,9 @@ Last activity: 2026-06-30 -- Phase 44 execution started
 - [Phase ?]: [44-04/provider-audit-explicit] — Aramis remains the only Trustvox-supported brand with store_id 78800 and recorded evidence; every other registered brand is review_provider='none' with unsupported rationale unless future evidence proves support.
 - [Phase ?]: [44-04/compact-comments] — Provider responses are normalized to ReviewComment fields and deduped before persistence; no raw provider payload fields are introduced.
 - [Phase ?]: [44-04/scan-product-identity] — Review comments resolve brand/product identity from persisted monitor artifacts and review_product_id; the route accepts no provider, domain, URL, product_id override, or raw payload.
+- [Phase ?]: [44-05/modal-only-actions] — Stock-depth and full review comment calls are wired only from the monitored category product modal, never from normal search/export flows.
+- [Phase ?]: [44-05/typecheck-tdd] — Frontend has no test runner, so TDD coverage uses a committed TypeScript compile-time contract file plus npm run build.
+- [Phase ?]: [44-05/client-boundary] — Phase 44 frontend methods accept only monitor_id, scan_product_id, and optional max_pages; no URL/domain/provider/quantity payload is exposed.
 
 ### Pending Todos
 
@@ -209,8 +213,8 @@ Last activity: 2026-06-30 -- Phase 44 execution started
 
 ## Session Continuity
 
-Last session: 2026-06-30T23:21:39.110Z
-Stopped at: Completed 44-04-PLAN.md
+Last session: 2026-06-30T23:35:34.101Z
+Stopped at: Completed 44-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
