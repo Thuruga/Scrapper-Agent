@@ -231,41 +231,90 @@ async def create_brand(brand_data: DynamicBrandCreate):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@router.post("/brands/identify", response_model=IdentifyResponse)
+async def identify_brand(request: IdentifyRequest) -> IdentifyResponse:
+    """Dry-run: detecta o motor e infere o nome da marca para uma URL fornecida.
+
+    NÃO persiste nada (D-02). Permite que o operador confirme os dados antes de
+    chamar POST /brands/ (create_brand).
+
+    Security (T-40-SSRF / ASVS V5): rejeita schemes fora de {http, https} e
+    hosts que resolvam para IPs privados/loopback/link-local/reservados ou
+    'localhost' antes de qualquer fetch de rede.
+    """
+    # 1. Parse URL and extract domain
+    parsed = urlparse(request.url.strip())
+    # Support bare domains passed without scheme (urlparse puts them in path)
+    scheme = parsed.scheme.lower() if parsed.scheme else ""
+    host = parsed.netloc or parsed.path.split("/")[0]
+    # Normalise: strip port, strip trailing slash
+    host = host.split(":")[0].rstrip("/").lower()
+
+    # 2. SSRF / input validation (T-40-SSRF, ASVS V5)
+    # Reject non-http(s) schemes when an explicit scheme was provided
+    if scheme and scheme not in ("http", "https"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Scheme não suportado: '{scheme}'. Apenas http e https são permitidos.",
+        )
+
+    # Reject localhost unconditionally
+    if host in ("localhost", ""):
+        raise HTTPException(
+            status_code=400,
+            detail="Host inválido: 'localhost' não é permitido (SSRF).",
+        )
+
+    # Reject IP literals that fall in private/loopback/link-local/reserved ranges
+    try:
+        ip = ipaddress.ip_address(host)
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Host inválido: endereço IP '{host}' está em um range privado/reservado (SSRF).",
+            )
+    except ValueError:
+        # Not an IP literal — hostname is acceptable (domain name)
+        pass
+
+    # domain is the host as-is (preserve www — detect_engine uses it as passed, Pitfall 8)
+    domain = host
+
+    # 3. Engine detection (reuses home HTML for name inference — no second fetch, D-01)
+    try:
+        engine, home_html = await detect_engine(domain)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Erro ao acessar o domínio: {exc}",
+        )
+
+    # 4. Brand name inference (D-01 precedence: JSON-LD → OG → title → domain)
+    inferred_name = infer_brand_name(home_html, domain)
+
+    # 5. Warning for unknown engine (D-03) — does NOT block onboarding
+    warning: str | None = None
+    if engine == "unknown":
+        warning = (
+            "Motor de plataforma não identificado automaticamente. "
+            "Selecione o motor manualmente antes de cadastrar a marca."
+        )
+        logger.info(
+            "identify_brand: engine 'unknown' para '%s' — aviso emitido (D-03)", domain
+        )
+
+    return IdentifyResponse(
+        engine=engine,
+        inferred_name=inferred_name,
+        domain=domain,
+        warning=warning,
+    )
+
+
 @router.get("/brands/", response_model=List[DynamicBrand])
 async def list_brands():
     """Lista todas as marcas cadastradas."""
-    brands = brand_service.list_brands()
-    
-    # Inject virtual marketplaces so they appear in the UI filters
-    brands.append(
-        DynamicBrand(
-            brand_key="mercado_livre",
-            brand_name="Mercado Livre",
-            domain="mercadolivre.com.br",
-            engine="mercadolivre",
-            mappings=[]
-        )
-    )
-    brands.append(
-        DynamicBrand(
-            brand_key="netshoes",
-            brand_name="Netshoes",
-            domain="netshoes.com.br",
-            engine="netshoes",
-            mappings=[]
-        )
-    )
-    brands.append(
-        DynamicBrand(
-            brand_key="amazon",
-            brand_name="Amazon",
-            domain="amazon.com.br",
-            engine="amazon",
-            mappings=[]
-        )
-    )
-
-    return brands
+    return brand_service.list_brands()
 
 
 @router.get("/brands/{brand_key}/discover")
