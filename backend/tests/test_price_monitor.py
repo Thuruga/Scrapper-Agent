@@ -98,3 +98,68 @@ async def test_price_monitor_no_change():
     
     assert len(config.history) == 0
     assert config.last_price == 100.0
+
+
+@pytest.mark.asyncio
+async def test_dedup_active():
+    """Adicionar um monitor para (url+brand) que já está ativo é no-op: retorna 'already_active'
+    sem criar nova entrada em service.monitors."""
+    service = PriceMonitorService()
+    existing_id = "existing-job-active"
+    config = PriceMonitorConfig(
+        job_id=existing_id,
+        url="https://www.example.com/produto/camisa?utm_source=google",
+        brand="TestBrand",
+        interval_minutes=10,
+        duration_hours=24,
+        active=True,
+    )
+    service.monitors[existing_id] = config
+
+    # Mesma URL normalizada (tracking param removido, www. removido) + mesma brand
+    with patch("services.price_monitor_service.asyncio.create_task") as mock_task, \
+         patch.object(service, "_save_monitors"):
+        result, status = await service.start_monitor(
+            job_id="new-job-id",
+            url="https://example.com/produto/camisa",
+            brand="testbrand",
+            interval=10,
+            duration=24,
+        )
+
+    assert status == "already_active"
+    assert len(service.monitors) == 1, "Nenhum novo monitor deve ter sido criado"
+    assert "new-job-id" not in service.monitors
+    mock_task.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_dedup_reactivate():
+    """Adicionar um monitor para (url+brand) já parado deve reativar o monitor existente
+    e retornar 'reactivated', sem criar nova entrada."""
+    service = PriceMonitorService()
+    existing_id = "existing-job-stopped"
+    config = PriceMonitorConfig(
+        job_id=existing_id,
+        url="https://example.com/produto/polo",
+        brand="TestBrand",
+        interval_minutes=10,
+        duration_hours=24,
+        active=False,
+    )
+    service.monitors[existing_id] = config
+
+    with patch("services.price_monitor_service.asyncio.create_task"), \
+         patch.object(service, "_save_monitors"):
+        result, status = await service.start_monitor(
+            job_id="new-job-id-2",
+            url="https://www.example.com/produto/polo",
+            brand="TestBrand",
+            interval=10,
+            duration=24,
+        )
+
+    assert status == "reactivated"
+    assert len(service.monitors) == 1, "Nenhum novo monitor deve ter sido criado"
+    assert "new-job-id-2" not in service.monitors
+    assert service.monitors[existing_id].active is True
