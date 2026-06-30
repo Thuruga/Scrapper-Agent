@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Paridade de Dados, Cobertura Total de Frete & Inteligência Competitiva
 status: executing
-stopped_at: Phase 40 Plan 04 complete
-last_updated: "2026-06-30T17:13:30.191Z"
-last_activity: 2026-06-30
+stopped_at: Completed 44-01-PLAN.md
+last_updated: "2026-06-30T18:08:40.842Z"
+last_activity: 2026-06-30 -- Phase 44 execution started
 progress:
   total_phases: 9
-  completed_phases: 2
-  total_plans: 13
-  completed_plans: 8
-  percent: 22
+  completed_phases: 3
+  total_plans: 16
+  completed_plans: 12
+  percent: 33
 ---
 
 # Project State: Intelligence Scraper
@@ -21,20 +21,20 @@ progress:
 See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/scrapper/.planning/PROJECT.md) (updated 2026-06-26)
 
 **Core value:** Extração automatizada e resiliente de dados de mercado com mínima intervenção humana e alta fidelidade de dados.
-**Current focus:** Phase 40 — onboarding-por-url-workflows-de-adi-o-ao-monitoramento
+**Current focus:** Phase 44 — Ruptura de Estoque & Avaliações Reforçadas
 
 ## Current Milestone: v4.0 Paridade de Dados, Cobertura Total de Frete & Inteligência Competitiva
 
 **Goal:** Nivelar a extração de atributos entre todas as marcas, fechar lacunas de cobertura (Hugo Boss por categoria, Zara, frete universal) e adicionar camadas de inteligência competitiva (MAP, promoções, ruptura de estoque, sortimento, avaliações).
 **Phases:** 9 (37-45)
-**Progress:** [__________] 0%
+**Progress:** [████████░░] 75%
 
 ## Current Position
 
-Phase: 44
-Plan: Not started
-Status: Plan 04 complete — executing Phase 40
-Last activity: 2026-06-30
+Phase: 44 (Ruptura de Estoque & Avaliações Reforçadas) — EXECUTING
+Plan: 2 of 5
+Status: Ready to execute
+Last activity: 2026-06-30 -- Phase 44 execution started
 
 ## Performance Metrics
 
@@ -81,6 +81,7 @@ Last activity: 2026-06-30
 | 39 | 3 | - | - |
 | Phase 40 P04 | 25m | 2 tasks | 5 files |
 | 40 | 5 | - | - |
+| Phase 44 P01 | 9 min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -157,6 +158,10 @@ Last activity: 2026-06-30
 - [28-02/Padrao 2]: signal spread as ...(signal ? { signal } : {}) — undefined signal never passed to fetch options
 - [Phase ?]: [28-03/Task2]: CrossMarketplacePage error handling consolidated to toast.error in store action — replaces legacy alert(); intentional unification with Comparativa's error pattern
 - [Phase ?]: [28-03/UAT]: Manual UAT (Task 3) deferred by user — 5 behavioral verification procedures PENDING (criteria #1 tab-switch, #2 cross-tab toast, #3 no-double-fetch, #4 WS cleanup reconfirm, D-11 preloadedJobId regression)
+- [Phase ?]: 44-01/persistence-reality: backend/data/analytics.db, backend/services/*analytics*.py, and Phase 37 artifacts were absent; Plan 44-01 used JSON/local helpers and did not create SQLite schema.
+- [Phase ?]: 44-01/stock-summary-input: compute_stock_summary consumes only normalized product-level stock_availability; SKU/item/variant arrays are intentionally ignored.
+- [Phase ?]: 44-01/shopify-d04: Shopify availability now derives from variants[].available when variants are exposed; suggest.json without variants preserves the prior default available=True.
+- [Phase ?]: 44-01/non-vtex-variation-audit: Wake, SFCC, and Zara scan paths currently expose scalar/text stock signals rather than variation arrays; no D-04 parser change was made for those engines.
 
 ### Pending Todos
 
@@ -191,9 +196,9 @@ Last activity: 2026-06-30
 
 ## Session Continuity
 
-Last session: 2026-06-30T14:27:37Z
-Stopped at: Phase 40 Plan 04 complete
-Resume file: .planning/phases/40-onboarding-por-url-workflows-de-adi-o-ao-monitoramento/40-05-PLAN.md
+Last session: 2026-06-30T18:07:57.365Z
+Stopped at: Completed 44-01-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 

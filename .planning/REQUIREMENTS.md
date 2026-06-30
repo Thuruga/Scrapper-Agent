@@ -42,9 +42,9 @@ Requisitos comprometidos para este milestone. Cada um mapeia para uma phase no R
 
 - [ ] **MAP-01**: Operador define um preço mínimo permitido (MAP) por produto/marca/categoria e o sistema sinaliza produtos anunciados abaixo dele, identificando o vendedor infrator (compara o campo de preço anunciado correto).
 - [ ] **PROMO-01**: O sistema extrai selos de oferta e condições de pagamento ("Leve 3 pague 2", "15% OFF no Pix", parcelamento) em um campo estruturado de promoções, preservando o texto bruto quando não parseável.
-- [ ] **STOCK-01**: Na varredura por categoria, o sistema registra a porcentagem de produtos esgotados por marca.
-- [ ] **STOCK-02**: O sistema captura a profundidade de estoque via requisição de 999 unidades no carrinho, rotulada como "máximo observado/estimativa". _Guard-rails: só em varreduras controladas (nunca em busca), sessões efêmeras isoladas + cleanup, throttle._
-- [ ] **REVW-01**: Extração de notas e comentários reforçada para todas as marcas registradas (por provider — Trustvox/VTEX native/etc.), com paginação limitada e dedup.
+- [x] **STOCK-01**: Na varredura por categoria, o sistema registra a porcentagem de produtos esgotados por marca.
+- [x] **STOCK-02**: O sistema captura a profundidade de estoque via requisição de 999 unidades no carrinho, rotulada como "máximo observado/estimativa". _Guard-rails: só em varreduras controladas (nunca em busca), sessões efêmeras isoladas + cleanup, throttle._
+- [x] **REVW-01**: Extração de notas e comentários reforçada para todas as marcas registradas (por provider — Trustvox/VTEX native/etc.), com paginação limitada e dedup.
 - [ ] **SORT-01**: Um cron de análise de sortimento varre a categoria/site e contabiliza produtos por atributo canônico (ex.: polos por cor/tecido), gerando snapshots por execução para identificar buracos no catálogo (depende de PARID).
 
 ## Future Requirements
@@ -105,9 +105,9 @@ Explicitamente excluído deste milestone, com motivo.
 | FRET-09 | Phase 42 | Pending |
 | MAP-01 | Phase 43 | Pending |
 | PROMO-01 | Phase 43 | Pending |
-| STOCK-01 | Phase 44 | Pending |
-| STOCK-02 | Phase 44 | Pending |
-| REVW-01 | Phase 44 | Pending |
+| STOCK-01 | Phase 44 | Complete |
+| STOCK-02 | Phase 44 | Complete |
+| REVW-01 | Phase 44 | Complete |
 | SORT-01 | Phase 45 | Pending |
 
 **Coverage:**
