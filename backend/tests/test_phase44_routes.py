@@ -1,5 +1,6 @@
 import asyncio
 import json
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -11,6 +12,9 @@ from core.models import (
     StockDepthResult,
     StockRuptureSummary,
 )
+
+
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
 
 class _FakeCategoryEngine:
@@ -329,9 +333,9 @@ def test_review_comments_endpoint_caps_max_pages_and_returns_payload(monkeypatch
 
 
 def test_stock_depth_route_does_not_involve_search_routes():
-    from pathlib import Path
-
-    routes_search = Path("backend/api/routes_search.py").read_text(encoding="utf-8")
+    routes_search = (BACKEND_ROOT / "api" / "routes_search.py").read_text(
+        encoding="utf-8"
+    )
     assert "probe_scan_product_stock_depth" not in routes_search
     assert "stock_depth_service" not in routes_search
     assert "cart_probe" not in routes_search

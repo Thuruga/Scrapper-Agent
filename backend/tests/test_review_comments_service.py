@@ -6,7 +6,8 @@ from core.models import DynamicBrand, ReviewComment, ReviewCommentsResult
 from services.brand_service import BrandDatabase
 
 
-BRANDS_PATH = Path("backend/data/brands.json")
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+BRANDS_PATH = BACKEND_ROOT / "data" / "brands.json"
 
 
 def _load_brand_rows() -> dict:
