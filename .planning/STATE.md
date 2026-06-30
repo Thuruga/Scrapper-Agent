@@ -4,14 +4,14 @@ milestone: v4.0
 milestone_name: Paridade de Dados, Cobertura Total de Frete & Inteligência Competitiva
 status: executing
 stopped_at: Phase 40 Plan 04 complete
-last_updated: "2026-06-30T14:27:37Z"
-last_activity: 2026-06-30 -- Phase 40 Plan 04 complete (marketplace toggles UX-05: brands.json entries + per-request CrossMarketplaceService enforcement)
+last_updated: "2026-06-30T17:13:30.191Z"
+last_activity: 2026-06-30
 progress:
   total_phases: 9
   completed_phases: 2
-  total_plans: 16
-  completed_plans: 10
-  percent: 31
+  total_plans: 13
+  completed_plans: 8
+  percent: 22
 ---
 
 # Project State: Intelligence Scraper
@@ -31,10 +31,10 @@ See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/sc
 
 ## Current Position
 
-Phase: 40 (onboarding-por-url-workflows-de-adi-o-ao-monitoramento) — EXECUTING
-Plan: 5 of 5
+Phase: 44
+Plan: Not started
 Status: Plan 04 complete — executing Phase 40
-Last activity: 2026-06-30 -- Phase 40 Plan 04 complete (marketplace toggles UX-05: brands.json entries + per-request CrossMarketplaceService enforcement)
+Last activity: 2026-06-30
 
 ## Performance Metrics
 
@@ -80,6 +80,7 @@ Last activity: 2026-06-30 -- Phase 40 Plan 04 complete (marketplace toggles UX-0
 | 33 | 3 | - | - |
 | 39 | 3 | - | - |
 | Phase 40 P04 | 25m | 2 tasks | 5 files |
+| 40 | 5 | - | - |
 
 ## Accumulated Context
 

@@ -25,9 +25,9 @@ Requisitos comprometidos para este milestone. Cada um mapeia para uma phase no R
 
 - [ ] **UX-01**: Monitor de categoria e varredura por categoria são responsivos em viewports menores.
 - [ ] **UX-02**: Lista de monitoramento exibe o valor da promoção (`price_discount`) além do preço cheio.
-- [ ] **UX-03**: Operador cadastra uma marca colando **apenas a URL**; o sistema detecta marca + engine (`detect_engine` + inferência de nome) e apresenta para confirmação antes de salvar, com override manual disponível.
-- [ ] **UX-04**: Operador adiciona um produto ao monitoramento direto da busca comparativa, da busca por SKU e do monitor de categoria; criação idempotente (dedup por url+marca).
-- [ ] **UX-05**: Toggles de ativar/desativar disponíveis também para os marketplaces virtuais (Mercado Livre, Netshoes, Amazon), respeitados pelo `cross_marketplace_service`.
+- [x] **UX-03**: Operador cadastra uma marca colando **apenas a URL**; o sistema detecta marca + engine (`detect_engine` + inferência de nome) e apresenta para confirmação antes de salvar, com override manual disponível.
+- [x] **UX-04**: Operador adiciona um produto ao monitoramento direto da busca comparativa, da busca por SKU e do monitor de categoria; criação idempotente (dedup por url+marca).
+- [x] **UX-05**: Toggles de ativar/desativar disponíveis também para os marketplaces virtuais (Mercado Livre, Netshoes, Amazon), respeitados pelo `cross_marketplace_service`.
 - [ ] **UX-06**: Histórico de busca fica no canto superior direito, tanto na busca comparativa quanto na busca por SKU.
 - [ ] **UX-07**: Busca por SKU aceita somente o padrão de SKU (ex.: `ML.05.0326046`, validado) e o campo de CEP fica na mesma linha do input do SKU (igual à comparativa).
 - [ ] **UX-08**: Selecionar uma categoria no monitor dispara automaticamente a primeira varredura e exibe a lista de produtos, sem trigger manual.
@@ -99,7 +99,7 @@ Explicitamente excluído deste milestone, com motivo.
 | COMP-07 | Phase 39 | Deferred (NO-GO → backlog) |
 | UX-03 | Phase 40 (P02 backend complete; P05 frontend pending) | Partial |
 | UX-04 | Phase 40 (P03 backend complete; P05 frontend pending) | Partial |
-| UX-05 | Phase 40 | Pending |
+| UX-05 | Phase 40 | Complete |
 | FRET-07 | Phase 41 | Pending |
 | FRET-08 | Phase 42 | Pending |
 | FRET-09 | Phase 42 | Pending |
