@@ -49,6 +49,16 @@ class PriceMonitorService:
 
 
     async def start_monitor(self, job_id: str, url: str, brand: str, interval: int, duration: int):
+        from services.url_utils import normalize_url
+        norm_url = normalize_url(url)
+        for existing_id, config in self.monitors.items():
+            if normalize_url(config.url) == norm_url and config.brand.lower() == brand.lower():
+                if config.active:
+                    return config, "already_active"
+                else:
+                    await self.resume_monitor(existing_id)
+                    return self.monitors[existing_id], "reactivated"
+
         config = PriceMonitorConfig(
             job_id=job_id,
             url=url,
@@ -59,11 +69,11 @@ class PriceMonitorService:
         )
         self.monitors[job_id] = config
         self._save_monitors()
-        
+
         # Inicia a task de background
         task = asyncio.create_task(self._monitor_loop(job_id))
         self.tasks[job_id] = task
-        return config
+        return config, "created"
 
     async def stop_monitor(self, job_id: str):
         if job_id in self.tasks:
