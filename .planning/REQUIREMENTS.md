@@ -17,8 +17,8 @@ Requisitos comprometidos para este milestone. Cada um mapeia para uma phase no R
 
 ### B — Cobertura de Marcas
 
-- [ ] **COMP-06**: Varredura por categoria e monitoramento por categoria da **Hugo Boss** funcionam (de/para de categorias VTEX, mirando o padrão VALID_SLUGS-from-RAW; sem novo engine).
-- [ ] **COMP-07**: Operador onboarda e busca produtos da **Zara** (catálogo + preço). _Gated por um spike de viabilidade GO/NO-GO sobre extração pública de produto+preço (Inditex); se NO-GO, vira backlog sem construir o engine._ (cumpre COMP-FUT-03)
+- [x] **COMP-06**: Varredura por categoria e monitoramento por categoria da **Hugo Boss** funcionam (de/para de categorias VTEX, mirando o padrão VALID_SLUGS-from-RAW; sem novo engine).
+- [ ] **COMP-07**: Operador onboarda e busca produtos da **Zara** (catálogo + preço). _Gated por um spike de viabilidade GO/NO-GO sobre extração pública de produto+preço (Inditex); se NO-GO, vira backlog sem construir o engine._ (cumpre COMP-FUT-03) — **DEFERIDO ao backlog** (Phase 39 spike 010 = NO-GO, anti-bot; ver `.planning/todos/pending/zara-comp07-deferred.md`). Não entregue; gate cumprido.
 - [ ] **COMP-08**: **Lacoste** não aparece como alvo selecionável em nenhuma superfície de busca (comparativa, SKU, categoria, scheduler, export); garantido no chokepoint `list_brands(active_only=True)` + teste de regressão.
 
 ### C — UX de Monitoramento & Busca
@@ -95,8 +95,8 @@ Explicitamente excluído deste milestone, com motivo.
 | UX-06 | Phase 38 | Pending |
 | UX-07 | Phase 38 | Pending |
 | UX-08 | Phase 38 | Pending |
-| COMP-06 | Phase 39 | Pending |
-| COMP-07 | Phase 39 | Pending |
+| COMP-06 | Phase 39 | Complete |
+| COMP-07 | Phase 39 | Deferred (NO-GO → backlog) |
 | UX-03 | Phase 40 | Pending |
 | UX-04 | Phase 40 | Pending |
 | UX-05 | Phase 40 | Pending |

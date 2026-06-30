@@ -26,7 +26,7 @@ Phases 19-36 pertencem a milestones CONCLUÍDOS (v1.10-v3.0). As phases ativas d
 
 - [ ] **Phase 37: Paridade de Atributos & Fundação SQLite** - Vocabulário canônico único, normalização/aliasing de atributos em todos os engines, relatório de cobertura por marca e introdução do SQLite para dados analíticos (PARID-01, PARID-02, PARID-03, PARID-04)
 - [ ] **Phase 38: UX de Busca & Monitoramento — Quick Wins** - Responsividade do monitor/varredura, promoção na lista de monitoramento, histórico no canto superior direito, padrão de SKU + CEP inline, auto-trigger do monitor de categoria e remoção da Lacoste de todas as superfícies de busca (UX-01, UX-02, UX-06, UX-07, UX-08, COMP-08)
-- [ ] **Phase 39: Cobertura de Marcas — Hugo Boss & Zara** - Varredura e monitoramento por categoria da Hugo Boss funcionando; spike-gated onboarding da Zara (GO/NO-GO antes do engine) (COMP-06, COMP-07)
+- [x] **Phase 39: Cobertura de Marcas — Hugo Boss & Zara** - Varredura e monitoramento por categoria da Hugo Boss funcionando; spike-gated onboarding da Zara (GO/NO-GO antes do engine) (COMP-06, COMP-07) (completed 2026-06-30)
 - [ ] **Phase 40: Onboarding por URL & Workflows de Adição ao Monitoramento** - Cadastro de marca só pela URL, detecção automática de engine + nome, botão "adicionar ao monitoramento" nas três superfícies de busca e toggles de ativar/desativar para marketplaces virtuais (UX-03, UX-04, UX-05)
 - [ ] **Phase 41: Abstração de Frete & Marcas Não-VTEX** - Camada de abstração de frete por engine (BaseShipping + implementações Wake/Shopify), fechamento do gap de frete do Buckman (VTEX) e VTEX permanece no VtexApiClient (FRET-07)
 - [ ] **Phase 42: Frete para Marketplaces & Matriz Multi-Regional** - Cálculo de frete para Mercado Livre, Netshoes e Amazon; Matriz de Frete Multi-Regional com CEPs-chave das 5 regiões do Brasil, on-demand com throttle e cache (FRET-08, FRET-09)
@@ -42,18 +42,22 @@ Phases 19-36 pertencem a milestones CONCLUÍDOS (v1.10-v3.0). As phases ativas d
 **Depends on**: Nothing (fase fundacional do v4.0; opera sobre engines e parsers existentes)
 **Requirements**: PARID-01, PARID-02, PARID-03, PARID-04
 **Success Criteria** (what must be TRUE):
+
   1. Existe um vocabulário canônico de atributos documentado e centralizado (`attribute_normalizer.py`) que todos os engines chamam antes de popular `RawProductBronze.specifications`.
   2. Para marcas hoje deficientes (Levi's, Calvin Klein, Zapalla, Austral, Track & Field, Richards, Hugo Boss), os campos canônicos (ex.: `color`, `fit`, `material`) aparecem preenchidos nos resultados de busca quando a fonte os contém — sem sobrescrever o `specifications` bruto original.
   3. Nomes de atributos divergentes entre engines (ex.: `Cor2`, `Corte`, `Composição do produto`) são normalizados/aliasados para as chaves canônicas de forma aditiva, verificável por teste unitário por alias.
   4. O operador acessa um relatório de cobertura de atributos (endpoint ou log estruturado) que distingue "campo canônico não extraído" de "campo ausente na fonte" para cada marca.
   5. Dados analíticos e de série temporal (snapshots de atributos, contagens futuras de sortimento) são persistidos em SQLite (`backend/data/analytics.db`) — configuração inicial e schema validados; JSON permanece para config.
+
 **Plans**: 5 plans
 Plans:
+
 - [ ] 44-01-PLAN.md - Shared Phase 44 contracts, config, and rupture summary helper
 - [ ] 44-02-PLAN.md - Scheduled and manual category scan rupture summary wiring
 - [ ] 44-03-PLAN.md - Explicit monitor-product stock-depth cart-probe action
 - [ ] 44-04-PLAN.md - On-demand compact review comments and provider states
 - [ ] 44-05-PLAN.md - Monitor modal stock/review operator actions
+
 **UI hint**: yes
 
 ### Phase 38: UX de Busca & Monitoramento — Quick Wins
@@ -62,12 +66,14 @@ Plans:
 **Depends on**: Nothing (mudanças de frontend e chokepoint de marcas; independente das fases de atributos e cobertura)
 **Requirements**: UX-01, UX-02, UX-06, UX-07, UX-08, COMP-08
 **Success Criteria** (what must be TRUE):
+
   1. Em viewport de 768px (tablet), o monitor de categoria e a varredura por categoria exibem todo o conteúdo sem overflow horizontal ou elementos sobrepostos.
   2. Na lista de monitoramento de preços, cada produto exibe o valor da promoção (`price_discount`) quando disponível, além do preço cheio — sem nova chamada de rede.
   3. O histórico de buscas (comparativa e por SKU) está acessível por um ícone/botão no canto superior direito em ambas as abas de busca.
   4. Na busca por SKU, o campo aceita somente strings no padrão `ML.05.XXXXXXX` (validado no frontend) e o campo de CEP fica na mesma linha do input do SKU, igual ao layout da busca comparativa.
   5. Ao selecionar uma categoria no monitor de categoria, a primeira varredura dispara automaticamente sem necessidade de clique em "iniciar" — e os resultados aparecem na lista.
   6. A Lacoste não aparece como opção selecionável em nenhuma superfície (busca comparativa, busca por SKU, varredura por categoria, scheduler, export) — garantido pelo chokepoint `list_brands(active_only=True)` e coberto por teste de regressão.
+
 **Plans**: TBD
 **UI hint**: yes
 
@@ -77,10 +83,12 @@ Plans:
 **Depends on**: Phase 37 (atributos canônicos disponíveis para testar paridade nas novas categorias da Hugo Boss)
 **Requirements**: COMP-06, COMP-07
 **Success Criteria** (what must be TRUE):
+
   1. O operador consegue selecionar uma categoria da Hugo Boss no monitor de categoria e a varredura retorna produtos reais (título + URL + preço) com o mesmo schema canônico das demais marcas VTEX.
   2. O scheduler de 10 minutos inclui a Hugo Boss nas categorias monitoradas e detecta novos produtos corretamente — sem falso positivo de "produto novo" em re-execuções de categoria inalterada.
   3. Para a Zara: um spike documentado (GO/NO-GO) valida se produto + preço são extraíveis publicamente antes de qualquer código de engine; resultado registrado em `spikes/010-zara-product-price/REPORT.md`.
   4. Em GO da Zara: operador onboarda a Zara e a busca retorna produtos reais (título + URL + preço); em NO-GO: COMP-07 é formalmente deferido para backlog com evidência e nenhum engine incompleto é commitado.
+
 **Plans**: TBD
 
 ### Phase 40: Onboarding por URL & Workflows de Adição ao Monitoramento
@@ -89,9 +97,11 @@ Plans:
 **Depends on**: Phase 38 (UX base estável antes de adicionar novos fluxos de interação)
 **Requirements**: UX-03, UX-04, UX-05
 **Success Criteria** (what must be TRUE):
+
   1. Ao colar uma URL de marca no campo de onboarding, o sistema chama `POST /brands/identify`, detecta o engine via `detect_engine` e infere o nome da marca (domínio / título / JSON-LD) — apresentando um formulário pré-preenchido para confirmação antes de salvar, com campo de override manual disponível.
   2. Da busca comparativa, da busca por SKU e do monitor de categoria, o operador consegue clicar em "Adicionar ao monitoramento" em qualquer produto — e o produto é adicionado ao monitor de preços sem duplicata (dedup por url + marca), independentemente da superfície de origem.
   3. Os marketplaces virtuais (Mercado Livre, Netshoes, Amazon) têm toggles de ativar/desativar visíveis na tela de configurações; desativá-los faz o `cross_marketplace_service` excluir o marketplace das buscas imediatamente na próxima execução.
+
 **Plans**: TBD
 **UI hint**: yes
 
@@ -101,10 +111,12 @@ Plans:
 **Depends on**: Phase 37 (schema canônico estável para campos de frete), Phase 40 (onboarding de marcas estável)
 **Requirements**: FRET-07
 **Success Criteria** (what must be TRUE):
+
   1. Existe uma abstração `BaseShipping` com implementações por engine (`WakeShipping`, `ShopifyShipping`) em `services/shipping/`; o resolver seleciona a implementação pelo engine da marca sem lógica espalhada nos callers.
   2. Uma busca por produto na Richards (Wake) retorna `shipping_cost` e `shipping_time` preenchidos quando o CEP padrão está configurado — campos que hoje ficam nulos para marcas não-VTEX.
   3. O frete do Buckman (VTEX) está calculado e exibido na busca por SKU, fechando o gap identificado no v3.0.
   4. O caminho de frete VTEX existente (`VtexApiClient`) permanece inalterado e continua funcionando para todas as marcas VTEX — garantido por testes de regressão.
+
 **Plans**: TBD
 
 ### Phase 42: Frete para Marketplaces & Matriz Multi-Regional
@@ -113,10 +125,12 @@ Plans:
 **Depends on**: Phase 41 (abstração de frete estável antes de adicionar novos providers)
 **Requirements**: FRET-08, FRET-09
 **Success Criteria** (what must be TRUE):
+
   1. Uma busca cruzada nos marketplaces (Mercado Livre, Netshoes, Amazon) retorna `shipping_cost` e `shipping_time` preenchidos quando o CEP padrão está configurado — cobrindo os três marketplaces.
   2. O operador consegue solicitar a Matriz de Frete Multi-Regional para um produto e receber o custo/prazo para CEPs-chave de todas as 5 regiões do Brasil (Sul, Sudeste, Centro-Oeste, Nordeste, Norte).
   3. A matriz de frete usa uma lista curada de CEPs configuráveis (`backend/data/cep_matrix.json`), aplica throttle entre requisições e armazena cache por `(sku, cep)` — a segunda solicitação para o mesmo par é servida do cache sem nova requisição.
   4. O cálculo da matriz nunca é executado inline durante uma varredura ou busca ao vivo — apenas on-demand ou em batch controlado — garantido por guard na chamada e coberto por teste.
+
 **Plans**: TBD
 
 ### Phase 43: Violação de MAP & Selos de Promoção
@@ -125,10 +139,12 @@ Plans:
 **Depends on**: Phase 37 (atributos canônicos e schema de produto estáveis), Phase 41 (frete calculado para contexto de preço total)
 **Requirements**: MAP-01, PROMO-01
 **Success Criteria** (what must be TRUE):
+
   1. O operador define uma regra MAP (preço mínimo) para um produto ou categoria via UI ou endpoint — persistida em `backend/data/map_rules.json` — e nos resultados de busca produtos abaixo do MAP são sinalizados com badge de violação e nome do vendedor infrator.
   2. A comparação de violação usa o campo de preço anunciado correto (preço de venda, não preço cheio/riscado) — evitando falsos positivos com preços promocionais legítimos.
   3. Produtos de marcas que expõem selos de oferta ("Leve 3 pague 2", "15% OFF no Pix", parcelamento) retornam o campo `promotions` estruturado (lista com tipo + valor + texto bruto) — com o texto bruto preservado quando não parseável.
   4. O campo `promotions` é aditivo ao schema existente — produtos sem selos retornam lista vazia, sem quebrar engines que não suportam extração de promoções.
+
 **Plans**: TBD
 
 ### Phase 44: Ruptura de Estoque & Avaliações Reforçadas
@@ -137,10 +153,12 @@ Plans:
 **Depends on**: Phase 37 (schema canônico para campos de estoque), Phase 39 (Hugo Boss por categoria funcional para testar ruptura)
 **Requirements**: STOCK-01, STOCK-02, REVW-01
 **Success Criteria** (what must be TRUE):
+
   1. Após uma varredura por categoria, o relatório por marca inclui a porcentagem de produtos com `in_stock=False` — distinguindo "esgotado" de "não verificado" — para cada marca varrida.
   2. O operador consegue solicitar a profundidade de estoque de um produto específico em uma varredura controlada; o resultado é rotulado como "máximo observado (estimativa via cart-probe)" com o valor retornado pelo endpoint de carrinho.
   3. O cart-probe usa sessões Playwright efêmeras e isoladas com cleanup garantido, aplica throttle e nunca é invocado durante buscas ao vivo — apenas em varreduras controladas explícitas.
   4. Para todas as marcas com provider de avaliações identificado (Trustvox, VTEX native, etc.), a busca por produto retorna `rating` (nota média), `review_count` e pelo menos uma página de comentários — com dedup por ID de review e paginação limitada a N páginas configurável.
+
 **Plans**: TBD
 
 ### Phase 45: Análise de Sortimento
@@ -149,10 +167,12 @@ Plans:
 **Depends on**: Phase 37 (atributos canônicos confiáveis + SQLite schema), Phase 39 (cobertura de categorias completa incluindo Hugo Boss)
 **Requirements**: SORT-01
 **Success Criteria** (what must be TRUE):
+
   1. Um cron agendado (configurável, independente do scheduler de monitoramento de 10 min) varre categorias selecionadas e persiste snapshots de contagem por atributo canônico no SQLite — sem bloquear buscas ao vivo.
   2. O operador acessa um relatório de sortimento que mostra, para uma categoria e período, os atributos com menor cobertura (ex.: "polo azul: 2 SKUs vs. polo branco: 12 SKUs") — identificando buracos no catálogo.
   3. Dois snapshots consecutivos da mesma categoria podem ser comparados, mostrando atributos que desapareceram ou surgiram entre execuções.
   4. O cron é seguro para múltiplas execuções concorrentes: SQLite com writes transacionais, sem race condition com o scheduler de categoria existente.
+
 **Plans**: TBD
 
 ## Progress
@@ -175,7 +195,7 @@ Phases ativas executam em ordem numérica: 37 → 38 → 39 → 40 → 41 → 42
 | 36. Onboarding das Marcas Concorrentes Restantes | v3.0 | 3/3 | Complete (NO-GO) | 2026-06-25 |
 | 37. Paridade de Atributos & Fundação SQLite | v4.0 | 0/? | Not started | - |
 | 38. UX de Busca & Monitoramento — Quick Wins | v4.0 | 0/? | Not started | - |
-| 39. Cobertura de Marcas — Hugo Boss & Zara | v4.0 | 0/? | Not started | - |
+| 39. Cobertura de Marcas — Hugo Boss & Zara | v4.0 | 3/3 | Complete    | 2026-06-30 |
 | 40. Onboarding por URL & Workflows de Adição | v4.0 | 0/? | Not started | - |
 | 41. Abstração de Frete & Marcas Não-VTEX | v4.0 | 0/? | Not started | - |
 | 42. Frete para Marketplaces & Matriz Multi-Regional | v4.0 | 0/? | Not started | - |
