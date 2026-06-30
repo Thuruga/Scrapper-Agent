@@ -317,6 +317,36 @@ def test_probe_scan_product_updates_only_matching_record(tmp_path, monkeypatch):
     assert result.stock_depth_label == "maximo observado/estimativa via cart-probe"
 
 
+def test_probe_scan_product_persists_non_estimated_state_without_estimate(
+    tmp_path,
+    monkeypatch,
+):
+    import services.stock_depth_service as stock_depth_service
+    from services.brand_service import brand_service
+
+    provider = _RecordingProvider(state="blocked", estimate=99)
+    monkeypatch.setattr(stock_depth_service, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(stock_depth_service, "_PROBE_GUARDS", {})
+    monkeypatch.setattr(brand_service, "get_brand", lambda key: _brand("vtex", "www.aramis.com.br"))
+    monkeypatch.setattr(stock_depth_service, "resolve_stock_depth_provider", lambda brand: provider)
+    _write_monitors(tmp_path, [{"id": "monitor-1", "brand": "aramis"}])
+    _write_products(
+        tmp_path,
+        "monitor-1",
+        [{"scan_product_id": "p1", "url": "https://www.aramis.com.br/p1"}],
+    )
+
+    result = asyncio.run(
+        stock_depth_service.probe_scan_product_stock_depth("monitor-1", "p1")
+    )
+
+    [persisted] = _read_products(tmp_path, "monitor-1")
+    assert result.stock_depth_state == "blocked"
+    assert result.stock_depth_estimate is None
+    assert persisted["stock_depth_state"] == "blocked"
+    assert persisted["stock_depth_estimate"] is None
+
+
 class _FakePlaywright:
     def __init__(self, goto_error=None, evaluate_result=None):
         self.page = _FakePage(goto_error=goto_error, evaluate_result=evaluate_result)
