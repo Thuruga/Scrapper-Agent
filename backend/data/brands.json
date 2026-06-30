@@ -576,5 +576,56 @@
     "proxy_url": null,
     "mappings": [],
     "is_active": true
+  },
+  "zara": {
+    "brand_key": "zara",
+    "brand_name": "Zara",
+    "domain": "www.zara.com",
+    "review_provider": "none",
+    "review_store_id": null,
+    "vtex_account": null,
+    "engine": "zara",
+    "logo_url": null,
+    "wake_access_token": null,
+    "search_url_template": "https://www.zara.com/br/pt/search?searchTerm={query}&section=MAN",
+    "proxy_url": null,
+    "mappings": [
+      {
+        "canonical_slug": "camisas",
+        "vtex_fq_path": "/br/pt/man-shirts-l737.html",
+        "label": "Camisas"
+      },
+      {
+        "canonical_slug": "polos",
+        "vtex_fq_path": "/br/pt/man-polos-l733.html",
+        "label": "Polos"
+      },
+      {
+        "canonical_slug": "camisetas",
+        "vtex_fq_path": "/br/pt/man-tshirts-l855.html",
+        "label": "Camisetas"
+      },
+      {
+        "canonical_slug": "calcas",
+        "vtex_fq_path": "/br/pt/man-trousers-l838.html",
+        "label": "Calcas"
+      },
+      {
+        "canonical_slug": "bermudas",
+        "vtex_fq_path": "/br/pt/man-bermudas-l592.html",
+        "label": "Bermudas"
+      },
+      {
+        "canonical_slug": "jaquetas",
+        "vtex_fq_path": "/br/pt/man-jackets-l640.html",
+        "label": "Jaquetas"
+      },
+      {
+        "canonical_slug": "infantil",
+        "vtex_fq_path": "/br/pt/kids-boy-l173.html",
+        "label": "Menino 6-14"
+      }
+    ],
+    "is_active": true
   }
 }

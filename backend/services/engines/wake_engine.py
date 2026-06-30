@@ -52,6 +52,8 @@ import aiohttp
 from core.models import BrandSearchResult, SearchProductResult
 from core.session_manager import SessionManager
 from services.engines.base_engine import BaseEngine
+from services.shipping.base import ShippingCalculation, apply_shipping_calculation
+from services.shipping.resolver import resolve_shipping_provider
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +87,9 @@ query WakeSearch($q: String!, $first: Int!) {
         node {
           productName
           aliasComplete
+          productId
+          productVariantId
+          sku
           prices {
             price
           }
@@ -111,6 +116,9 @@ query WakeHotsite($url: String!, $first: Int!) {
         node {
           productName
           aliasComplete
+          productId
+          productVariantId
+          sku
           prices {
             price
           }
@@ -271,6 +279,9 @@ class WakeEngine(BaseEngine):
             prices = node.get("prices") or {}
             price_raw = prices.get("price")
             price_full = float(price_raw) if price_raw is not None else None
+            product_id = node.get("productId")
+            product_variant_id = node.get("productVariantId")
+            sku = node.get("sku")
             # Armadilha 3: images is a list (confirmed in spike 007)
             images = node.get("images") or []
             image_url = images[0].get("url") if images else None
@@ -289,6 +300,9 @@ class WakeEngine(BaseEngine):
                     "brand": brand_name,
                     "raw_description": "",
                     "stock_availability": bool(available),
+                    "shipping_product_id": str(product_id) if product_id is not None else None,
+                    "shipping_variant_id": str(product_variant_id) if product_variant_id is not None else None,
+                    "shipping_sku": str(sku) if sku is not None else None,
                 }
             )
 
@@ -306,8 +320,14 @@ class WakeEngine(BaseEngine):
                         price_full=validated_dict.get("price_full"),
                         image_url=validated_dict.get("image_url"),
                         available=validated_dict.get("stock_availability"),
+                        shipping_product_id=validated_dict.get("shipping_product_id"),
+                        shipping_variant_id=validated_dict.get("shipping_variant_id"),
+                        shipping_sku=validated_dict.get("shipping_sku"),
                     )
                 )
+
+        if include_shipping and zipcode and validated:
+            await self._populate_shipping(validated, zipcode)
 
         logger.info(
             "[Wake] search brand=%s query=%r -> %d products (after quality gates)",
@@ -414,9 +434,28 @@ class WakeEngine(BaseEngine):
 
     async def calculate_shipping(
         self, product: Any, zipcode: str
-    ) -> Optional[Dict[str, Any]]:
-        """Return None — no public checkout; prevents false 'Frete Gratis' badge."""
-        return None
+    ) -> Optional[ShippingCalculation]:
+        from services.brand_service import brand_service
+
+        brand = brand_service.get_brand(self.brand_key)
+        if not brand:
+            return None
+        provider = resolve_shipping_provider(brand)
+        return await provider.calculate(product, zipcode, brand)
+
+    async def _populate_shipping(self, products: List[SearchProductResult], zipcode: str) -> None:
+        semaphore = asyncio.Semaphore(3)
+
+        async def _one(product: SearchProductResult) -> None:
+            async with semaphore:
+                try:
+                    calculation = await self.calculate_shipping(product, zipcode)
+                    if calculation is not None:
+                        apply_shipping_calculation(product, calculation)
+                except Exception:
+                    return
+
+        await asyncio.gather(*(_one(product) for product in products))
 
     async def discover_categories(self) -> List[Dict[str, Any]]:
         """Categorias da marca derivadas do de/para (`brand.mappings`).

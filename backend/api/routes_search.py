@@ -20,10 +20,12 @@ from pydantic import BaseModel, Field
 
 from config import settings
 from services.brand_service import brand_service
-from core.models import ComparisonResult
+from core.models import ComparisonResult, SearchProductResult, ShippingInfo
 from services.engines.factory import engine_factory
 from services.cross_marketplace_service import cross_marketplace_service
 from services.search_history_service import search_history_service
+from services.shipping.base import apply_shipping_calculation, is_url_allowed_for_brand
+from services.shipping.resolver import resolve_shipping_provider
 
 router = APIRouter(prefix="/search", tags=["search"])
 
@@ -106,6 +108,23 @@ class CalculateVtexShippingRequest(BaseModel):
     sku_id: str = Field(..., min_length=1, description="itemId do SKU (vem do produto da busca).")
     seller_id: str = Field(default="1", description="ID do seller do SKU.")
     zipcode: str = Field(..., pattern=r"^\d{5}-?\d{3}$", description="CEP de destino.")
+
+
+class CalculateBrandShippingRequest(BaseModel):
+    """Calculo de frete sob demanda para marcas nao-VTEX."""
+
+    brand_key: str = Field(..., min_length=1, description="Chave da marca.")
+    product_url: str = Field(..., min_length=1, description="URL do produto na marca.")
+    zipcode: str = Field(..., pattern=r"^\d{5}-?\d{3}$", description="CEP de destino.")
+
+
+class CalculateBrandShippingResponse(BaseModel):
+    state: str
+    shipping_options: List[ShippingInfo] = Field(default_factory=list)
+    shipping: Optional[ShippingInfo] = None
+    shipping_price: Optional[float] = None
+    is_free_shipping: bool = False
+    message: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -640,3 +659,52 @@ async def calculate_shipping_vtex(request: CalculateVtexShippingRequest):
         "state": result["state"],
         "shipping_options": [opt.model_dump(mode="json") for opt in result["shipping_options"]],
     }
+
+
+@router.post(
+    "/calculate-shipping-brand",
+    response_model=CalculateBrandShippingResponse,
+    summary="Calculo de frete nao-VTEX sob demanda",
+    description=(
+        "Calcula frete para marcas Wake/Shopify usando o resolver nao-VTEX. "
+        "VTEX permanece no endpoint /calculate-shipping-vtex."
+    ),
+)
+async def calculate_shipping_brand(request: CalculateBrandShippingRequest):
+    brand_key = request.brand_key.lower()
+    brand = brand_service.get_brand(brand_key)
+    if not brand:
+        raise HTTPException(status_code=404, detail=f"Marca '{brand_key}' nao encontrada.")
+
+    engine = getattr(brand, "engine", "vtex")
+    if engine == "vtex":
+        raise HTTPException(
+            status_code=400,
+            detail="Use /search/calculate-shipping-vtex para marcas VTEX.",
+        )
+
+    if not is_url_allowed_for_brand(request.product_url, brand):
+        raise HTTPException(
+            status_code=400,
+            detail="URL do produto nao pertence ao dominio da marca.",
+        )
+
+    clean_zipcode = request.zipcode.replace("-", "")
+    product = SearchProductResult(
+        brand=brand_key,
+        product_name="Produto",
+        url=request.product_url,
+        price_full=None,
+    )
+    provider = resolve_shipping_provider(brand)
+    calculation = await provider.calculate(product, clean_zipcode, brand)
+    apply_shipping_calculation(product, calculation)
+
+    return CalculateBrandShippingResponse(
+        state=calculation.state,
+        shipping_options=product.shipping_options,
+        shipping=product.shipping,
+        shipping_price=product.shipping_price,
+        is_free_shipping=product.is_free_shipping,
+        message=calculation.message,
+    )

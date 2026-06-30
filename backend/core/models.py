@@ -143,6 +143,18 @@ class SearchProductResult(BaseModel):
         default=None,
         description="ID do seller do SKU selecionado — usado no cálculo de frete on-demand.",
     )
+    shipping_product_id: Optional[str] = Field(
+        default=None,
+        description="ID do produto usado por providers nao-VTEX para cotacao de frete.",
+    )
+    shipping_variant_id: Optional[str] = Field(
+        default=None,
+        description="ID da variante usado por providers nao-VTEX para cotacao de frete.",
+    )
+    shipping_sku: Optional[str] = Field(
+        default=None,
+        description="SKU externo usado por providers nao-VTEX para cotacao de frete.",
+    )
     shipping: ShippingInfo | None = None
     shipping_options: List[ShippingInfo] = Field(
         default_factory=list,

@@ -377,22 +377,25 @@ def test_stock_summary_ignores_unknown():
 | A2 | Raw provider payload persistence is tempting because it is faster than schema normalization. | Common Pitfalls | Planner may overbuild storage and violate D-14. |
 | A3 | Provider-specific comment endpoint shapes for Trustvox are not fully verified from official docs in this session. | Open Questions | Planner should include a provider spike before locking exact Trustvox comment URL/fields. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Has Phase 37 actually created SQLite schema/services?**
    - What we know: State says v4.0 analytics migrate to SQLite stdlib, but no Phase 37 directory exists in this workspace. [CITED: .planning/STATE.md] [VERIFIED: filesystem]
    - What's unclear: Whether implementation already exists in dirty files, another worktree, or not yet. [VERIFIED: git status]
    - Recommendation: Planner should start with a persistence checkpoint and choose JSON fallback only if SQLite is absent. [VERIFIED: codebase grep]
+   - **RESOLVED:** Plan `44-01` starts with a persistence reality check and uses JSON/local helpers when Phase 37 SQLite artifacts are absent; if a valid SQLite service exists during execution, the executor uses it through a thin adapter without inventing tables or schema pushes.
 
 2. **Which providers truly expose comment pages for current brands?**
    - What we know: `brands.json` has `trustvox` configured only for `aramis`; most brands have `review_provider="none"`. [VERIFIED: codebase grep]
    - What's unclear: Exact comment endpoint and stable ID fields for Trustvox and any VTEX-native brand after provider audit. [ASSUMED]
    - Recommendation: Add a short provider coverage task before implementation locks URL/field mappings. [ASSUMED]
+   - **RESOLVED:** Plan `44-04` begins with a `backend/data/brands.json` provider coverage audit/configuration task: supported providers require recorded evidence, and brands without supported-provider evidence get explicit `review_provider="none"` plus unsupported rationale.
 
 3. **Should cart-probe first target VTEX only?**
    - What we know: Existing shipping simulation and SKU/seller selection are strongest for VTEX; non-VTEX stock-depth providers are not established in code. [VERIFIED: codebase grep]
    - What's unclear: Whether Wake/Shopify/SFCC public cart APIs can return capped quantity safely within the phase. [ASSUMED]
    - Recommendation: Plan a provider interface with VTEX implementation first and explicit `unsupported` for others unless a spike proves support. [VERIFIED: codebase grep]
+   - **RESOLVED:** Plans use a stock-depth provider interface with VTEX as the first supported implementation and explicit `unsupported` states for other engines unless execution evidence proves support within the phase guardrails.
 
 ## Environment Availability
 

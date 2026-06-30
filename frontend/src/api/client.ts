@@ -101,6 +101,13 @@ export class ApiClient {
     });
   }
 
+  static calculateShippingBrand(payload: { brand_key: string; product_url: string; zipcode: string }) {
+    return this.request<{ state: string; shipping_options: any[]; shipping?: any; shipping_price?: number | null; is_free_shipping?: boolean; message?: string }>('/search/calculate-shipping-brand', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
   static search(payload: { query: string; brands?: string[]; max_per_brand?: number; sort?: string; only_in_stock?: boolean; zipcode?: string; include_shipping?: boolean }, signal?: AbortSignal) {
     return this.request<any>('/search', {
       method: 'POST',

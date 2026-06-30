@@ -56,6 +56,10 @@ class EngineFactory:
             from services.engines.wake_engine import WakeEngine  # noqa: PLC0415
             return WakeEngine(brand_key)
 
+        if engine_type == "zara":
+            from services.engines.zara_engine import ZaraEngine  # noqa: PLC0415
+            return ZaraEngine(brand_key)
+
         return VTEXEngine(brand_key)
 
     async def search_all_brands(

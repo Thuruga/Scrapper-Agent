@@ -1184,7 +1184,7 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
   // pendingCalc: o que calcular assim que o usuário confirmar o CEP no modal.
   const [pendingCalc, setPendingCalc] = useState<
     | { type: 'all' }
-    | { type: 'one'; brandKey: string; sku: string; seller: string; key: string }
+    | { type: 'one'; brandKey: string; product: any; key: string }
     | null
   >(null);
   const [loadingShipping, setLoadingShipping] = useState<Record<string, boolean>>({});
@@ -1317,22 +1317,23 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
   // Frete sob demanda (modal de CEP + cálculo por produto VTEX)
   // -------------------------------------------------------------------------
 
-  // Achata todos os produtos VTEX (com sku) dos resultados atuais.
-  const vtexProductsInResults = (): Array<{ brandKey: string; p: any }> => {
+  // Achata todos os produtos com frete sob demanda suportado nos resultados atuais.
+  const shippingProductsInResults = (): Array<{ brandKey: string; p: any }> => {
     const out: Array<{ brandKey: string; p: any }> = [];
     const rows = results && Array.isArray(results.results) ? results.results : [];
     for (const row of rows) {
       const meta = brands.find(b => b.brand_key === row.brand_key);
-      if (meta?.engine !== 'vtex') continue;
+      const engine = meta?.engine;
       for (const p of (row.products || [])) {
-        if (p.sku_id) out.push({ brandKey: row.brand_key, p });
+        if (engine === 'vtex' && p.sku_id) out.push({ brandKey: row.brand_key, p });
+        if (engine === 'shopify' || engine === 'wake') out.push({ brandKey: row.brand_key, p });
       }
     }
     return out;
   };
 
   // Aplica o resultado da simulação de frete a um produto (por url) dentro de search.results.
-  const applyShippingToProduct = (productUrl: string, data: { state: string; shipping_options: any[] }) => {
+  const applyShippingToProduct = (productUrl: string, data: { state: string; shipping_options: any[]; shipping?: any; shipping_price?: number | null; is_free_shipping?: boolean }) => {
     const cur = useSearchStore.getState().search.results;
     if (!cur || !Array.isArray(cur.results)) return;
     const newResults = cur.results.map((row: any) => ({
@@ -1345,24 +1346,31 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
           ...p,
           _shipping_state: data.state,
           shipping_options: opts,
-          shipping: primary,
-          shipping_price: primary ? primary.price : null,
-          is_free_shipping: primary ? primary.is_free_shipping : false,
+          shipping: primary || data.shipping || null,
+          shipping_price: primary ? primary.price : (data.shipping_price ?? null),
+          is_free_shipping: primary ? primary.is_free_shipping : (data.is_free_shipping ?? false),
         };
       }),
     }));
     setSearch({ results: { ...cur, results: newResults } });
   };
 
-  const runCalcOne = async (brandKey: string, sku: string, seller: string, key: string, zip: string) => {
+  const runCalcOne = async (brandKey: string, product: any, key: string, zip: string) => {
     setLoadingShipping(prev => ({ ...prev, [key]: true }));
     try {
-      const data = await ApiClient.calculateVtexShipping({
-        brand_key: brandKey,
-        sku_id: sku,
-        seller_id: seller || '1',
-        zipcode: zip,
-      });
+      const meta = brands.find(b => b.brand_key === brandKey);
+      const data = meta?.engine === 'vtex'
+        ? await ApiClient.calculateVtexShipping({
+          brand_key: brandKey,
+          sku_id: product.sku_id,
+          seller_id: product.seller_id || '1',
+          zipcode: zip,
+        })
+        : await ApiClient.calculateShippingBrand({
+          brand_key: brandKey,
+          product_url: product.url,
+          zipcode: zip,
+        });
       applyShippingToProduct(key, data);
       setExpandedShipping(prev => ({ ...prev, [key]: true }));
     } catch (err: any) {
@@ -1373,23 +1381,23 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
   };
 
   const runCalcAll = async (zip: string) => {
-    const targets = vtexProductsInResults();
+    const targets = shippingProductsInResults();
     if (targets.length === 0) {
-      toast.info('Nenhum produto VTEX para calcular o frete.');
+      toast.info('Nenhum produto com frete suportado para calcular.');
       return;
     }
     await Promise.all(
       targets.map(({ brandKey, p }) =>
-        runCalcOne(brandKey, p.sku_id, p.seller_id || '1', p.url, zip)
+        runCalcOne(brandKey, p, p.url, zip)
       )
     );
   };
 
   // Abre o modal de CEP ou calcula direto se o CEP da sessão já é válido.
-  const requestCalc = (calc: { type: 'all' } | { type: 'one'; brandKey: string; sku: string; seller: string; key: string }) => {
+  const requestCalc = (calc: { type: 'all' } | { type: 'one'; brandKey: string; product: any; key: string }) => {
     const zip = zipcode.replace(/\D/g, '');
     if (zip.length === 8) {
-      if (calc.type === 'one') runCalcOne(calc.brandKey, calc.sku, calc.seller, calc.key, zip);
+      if (calc.type === 'one') runCalcOne(calc.brandKey, calc.product, calc.key, zip);
       else runCalcAll(zip);
       return;
     }
@@ -1412,14 +1420,14 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
     setCepError(null);
     const pc = pendingCalc;
     setPendingCalc(null);
-    if (pc?.type === 'one') runCalcOne(pc.brandKey, pc.sku, pc.seller, pc.key, zip);
+    if (pc?.type === 'one') runCalcOne(pc.brandKey, pc.product, pc.key, zip);
     else if (pc?.type === 'all') runCalcAll(zip);
   };
 
   // Expandir / recolher todos os fretes já calculados.
   const setAllExpanded = (value: boolean) => {
     const next: Record<string, boolean> = {};
-    for (const { p } of vtexProductsInResults()) {
+    for (const { p } of shippingProductsInResults()) {
       if (p._shipping_state || (Array.isArray(p.shipping_options) && p.shipping_options.length > 0)) {
         next[p.url] = value;
       }
@@ -1570,15 +1578,15 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
             ? selectedBrands
             : (Array.isArray(results.results) ? results.results.map((r: any) => r.brand_key) : brands.map(b => b.brand_key));
 
-          const vtexProds = vtexProductsInResults();
-          const anyCalculated = vtexProds.some(({ p }) =>
+          const shippingProds = shippingProductsInResults();
+          const anyCalculated = shippingProds.some(({ p }) =>
             p._shipping_state || (Array.isArray(p.shipping_options) && p.shipping_options.length > 0) || p.shipping
           );
 
           return (
             <>
               {/* Barra de controle: calcular frete de todos + expandir/recolher (só quando há produtos VTEX) */}
-              {vtexProds.length > 0 && (
+              {shippingProds.length > 0 && (
                 <div className="shipping-controls-bar">
                   <button
                     type="button"
@@ -1601,6 +1609,7 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
             const brandRes = Array.isArray(results.results) ? results.results.find((r: any) => r.brand_key === brandKey) : null;
             const products = brandRes?.products || [];
             const isVtex = brand?.engine === 'vtex';
+            const isBrandShippingSupported = brand?.engine === 'shopify' || brand?.engine === 'wake';
 
             return (
               <div key={brandKey} className="brand-column">
@@ -1657,7 +1666,7 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
 
                           // Ainda não calculado → botão sob demanda (VTEX com sku apenas)
                           if (!calculated) {
-                            if (!isVtex || !p.sku_id) return null;
+                            if (!(isBrandShippingSupported || (isVtex && p.sku_id))) return null;
                             return (
                               <div className="shipping-section">
                                 <button
@@ -1666,7 +1675,7 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    requestCalc({ type: 'one', brandKey, sku: p.sku_id, seller: p.seller_id || '1', key: p.url });
+                                    requestCalc({ type: 'one', brandKey, product: p, key: p.url });
                                   }}
                                 >
                                   <Truck size={14} aria-hidden="true" /> Calcular Frete
@@ -1747,14 +1756,14 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
                                 <div className={`shipping-state-row ${isFailure ? 'shipping-state-warning' : 'shipping-state-unavailable'}`}>
                                   {isFailure ? <AlertTriangle size={13} aria-hidden="true" /> : <MapPin size={13} aria-hidden="true" />}
                                   <span>{stateText}</span>
-                                  {isFailure && isVtex && p.sku_id && (
+                                  {isFailure && (isBrandShippingSupported || (isVtex && p.sku_id)) && (
                                     <button
                                       type="button"
                                       className="shipping-retry"
                                       onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        requestCalc({ type: 'one', brandKey, sku: p.sku_id, seller: p.seller_id || '1', key: p.url });
+                                        requestCalc({ type: 'one', brandKey, product: p, key: p.url });
                                       }}
                                     >
                                       Tentar novamente

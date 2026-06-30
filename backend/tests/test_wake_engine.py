@@ -229,15 +229,16 @@ class TestWakeEngineSearch:
                 "aliasComplete must be prefixed with the store domain, not the GraphQL endpoint"
             )
 
-    def test_calculate_shipping_returns_none(self):
-        """SC-4 / D-08: calculate_shipping returns None — no false 'Frete Grátis' badge."""
+    def test_calculate_shipping_invalid_product_is_not_free(self):
+        """Phase 41: invalid Wake product identity yields explicit non-free state."""
         from services.engines.wake_engine import WakeEngine
+        from services.shipping.base import ShippingState
 
         engine = WakeEngine("richards")
         result = asyncio.run(engine.calculate_shipping(product={}, zipcode="01310-000"))
-        assert result is None, (
-            f"calculate_shipping must return None (D-08), got: {result}"
-        )
+        assert result is not None
+        assert result.state in {ShippingState.UNSUPPORTED, ShippingState.TEMPORARY_FAILURE}
+        assert result.shipping_options == []
 
     def test_search_graphql_errors_in_200(self):
         """CR-01 / SC-2: GraphQL errors arrive as HTTP 200 + {"errors": [...], "data": null}.

@@ -6,7 +6,7 @@ Aplicação local para busca, comparação e monitoramento de produtos. O projet
 
 - `backend/`: FastAPI, motores, serviços, testes e dados locais.
 - `frontend/`: interface React/Vite.
-- `backend/data/brands.json`: fonte única das 13 marcas cadastradas.
+- `backend/data/brands.json`: fonte única das marcas cadastradas.
 
 ## Preparação
 
