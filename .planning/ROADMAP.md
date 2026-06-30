@@ -102,7 +102,7 @@ Plans:
   2. Da busca comparativa, da busca por SKU e do monitor de categoria, o operador consegue clicar em "Adicionar ao monitoramento" em qualquer produto — e o produto é adicionado ao monitor de preços sem duplicata (dedup por url + marca), independentemente da superfície de origem.
   3. Os marketplaces virtuais (Mercado Livre, Netshoes, Amazon) têm toggles de ativar/desativar visíveis na tela de configurações; desativá-los faz o `cross_marketplace_service` excluir o marketplace das buscas imediatamente na próxima execução.
 
-**Plans**: TBD
+**Plans**: 5 (1/5 complete)
 **UI hint**: yes
 
 ### Phase 41: Abstração de Frete & Marcas Não-VTEX
