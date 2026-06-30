@@ -144,6 +144,179 @@ def test_vtex_provider_closes_page_context_and_browser_on_exception():
     assert fake.browser.closed is True
 
 
+def test_probe_scan_product_rejects_missing_monitor_product_file(tmp_path, monkeypatch):
+    import services.stock_depth_service as stock_depth_service
+
+    monkeypatch.setattr(stock_depth_service, "DATA_DIR", tmp_path)
+    _write_monitors(tmp_path, [{"id": "monitor-1", "brand": "aramis"}])
+
+    try:
+        asyncio.run(
+            stock_depth_service.probe_scan_product_stock_depth(
+                "monitor-1",
+                "scan-product-1",
+            )
+        )
+    except ValueError as exc:
+        assert "Produtos monitorados nao encontrados" in str(exc)
+    else:
+        raise AssertionError("Expected missing product artifact to be rejected")
+
+
+def test_probe_scan_product_rejects_unknown_scan_product_id(tmp_path, monkeypatch):
+    import services.stock_depth_service as stock_depth_service
+
+    monkeypatch.setattr(stock_depth_service, "DATA_DIR", tmp_path)
+    _write_monitors(tmp_path, [{"id": "monitor-1", "brand": "aramis"}])
+    _write_products(
+        tmp_path,
+        "monitor-1",
+        [{"scan_product_id": "known", "url": "https://www.aramis.com.br/a"}],
+    )
+
+    try:
+        asyncio.run(
+            stock_depth_service.probe_scan_product_stock_depth(
+                "monitor-1",
+                "missing",
+            )
+        )
+    except ValueError as exc:
+        assert "Produto do scan nao encontrado" in str(exc)
+    else:
+        raise AssertionError("Expected unknown scan product id to be rejected")
+
+
+def test_probe_scan_product_validates_url_before_provider(tmp_path, monkeypatch):
+    import services.stock_depth_service as stock_depth_service
+    from services.brand_service import brand_service
+
+    provider = _RecordingProvider()
+    monkeypatch.setattr(stock_depth_service, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(brand_service, "get_brand", lambda key: _brand("vtex", "www.aramis.com.br"))
+    monkeypatch.setattr(stock_depth_service, "resolve_stock_depth_provider", lambda brand: provider)
+    _write_monitors(tmp_path, [{"id": "monitor-1", "brand": "aramis"}])
+    _write_products(
+        tmp_path,
+        "monitor-1",
+        [
+            {
+                "scan_product_id": "scan-product-1",
+                "url": "https://evil.example/produto",
+                "raw_title": "Produto",
+            }
+        ],
+    )
+
+    try:
+        asyncio.run(
+            stock_depth_service.probe_scan_product_stock_depth(
+                "monitor-1",
+                "scan-product-1",
+            )
+        )
+    except ValueError as exc:
+        assert "URL do produto nao pertence ao dominio da marca" in str(exc)
+    else:
+        raise AssertionError("Expected foreign product URL to be rejected")
+
+    assert provider.calls == []
+
+
+def test_probe_scan_product_enforces_throttle_and_run_cap_without_sleep(
+    tmp_path,
+    monkeypatch,
+):
+    import services.stock_depth_service as stock_depth_service
+    from services.brand_service import brand_service
+
+    provider = _RecordingProvider()
+    clock = _FakeClock([100.0, 101.0, 103.5, 106.0])
+    monkeypatch.setattr(stock_depth_service, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(stock_depth_service.settings, "STOCK_PROBE_THROTTLE_SECONDS", 2.0)
+    monkeypatch.setattr(stock_depth_service.settings, "MAX_STOCK_DEPTH_PROBES_PER_BRAND", 2)
+    monkeypatch.setattr(stock_depth_service, "_now_monotonic", clock)
+    monkeypatch.setattr(stock_depth_service, "_PROBE_GUARDS", {})
+    monkeypatch.setattr(brand_service, "get_brand", lambda key: _brand("vtex", "www.aramis.com.br"))
+    monkeypatch.setattr(stock_depth_service, "resolve_stock_depth_provider", lambda brand: provider)
+    _write_monitors(tmp_path, [{"id": "monitor-1", "brand": "aramis"}])
+    _write_products(
+        tmp_path,
+        "monitor-1",
+        [
+            {"scan_product_id": "p1", "url": "https://www.aramis.com.br/p1"},
+            {"scan_product_id": "p2", "url": "https://www.aramis.com.br/p2"},
+            {"scan_product_id": "p3", "url": "https://www.aramis.com.br/p3"},
+        ],
+    )
+
+    asyncio.run(stock_depth_service.probe_scan_product_stock_depth("monitor-1", "p1"))
+    try:
+        asyncio.run(stock_depth_service.probe_scan_product_stock_depth("monitor-1", "p2"))
+    except ValueError as exc:
+        assert "Throttle" in str(exc)
+    else:
+        raise AssertionError("Expected throttle to reject immediate second probe")
+
+    asyncio.run(stock_depth_service.probe_scan_product_stock_depth("monitor-1", "p2"))
+    try:
+        asyncio.run(stock_depth_service.probe_scan_product_stock_depth("monitor-1", "p3"))
+    except ValueError as exc:
+        assert "Limite de probes" in str(exc)
+    else:
+        raise AssertionError("Expected per-brand/run cap to reject third probe")
+
+    assert [call["product"]["scan_product_id"] for call in provider.calls] == ["p1", "p2"]
+
+
+def test_probe_scan_product_updates_only_matching_record(tmp_path, monkeypatch):
+    import services.stock_depth_service as stock_depth_service
+    from services.brand_service import brand_service
+
+    checked_at = "2026-06-30T18:30:00+00:00"
+    provider = _RecordingProvider(state="estimated", estimate=7)
+    monkeypatch.setattr(stock_depth_service, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(stock_depth_service, "_utc_now_iso", lambda: checked_at)
+    monkeypatch.setattr(stock_depth_service, "_PROBE_GUARDS", {})
+    monkeypatch.setattr(brand_service, "get_brand", lambda key: _brand("vtex", "www.aramis.com.br"))
+    monkeypatch.setattr(stock_depth_service, "resolve_stock_depth_provider", lambda brand: provider)
+    _write_monitors(tmp_path, [{"id": "monitor-1", "brand": "aramis"}])
+    original_products = [
+        {
+            "scan_product_id": "p1",
+            "url": "https://www.aramis.com.br/p1",
+            "raw_title": "Produto 1",
+            "stock_availability": True,
+        },
+        {
+            "scan_product_id": "p2",
+            "url": "https://www.aramis.com.br/p2",
+            "raw_title": "Produto 2",
+            "stock_availability": False,
+        },
+    ]
+    _write_products(tmp_path, "monitor-1", original_products)
+
+    result = asyncio.run(
+        stock_depth_service.probe_scan_product_stock_depth("monitor-1", "p2")
+    )
+
+    persisted = _read_products(tmp_path, "monitor-1")
+    assert persisted[0] == original_products[0]
+    assert persisted[1] == {
+        **original_products[1],
+        "stock_depth_estimate": 7,
+        "stock_depth_state": "estimated",
+        "stock_depth_checked_at": checked_at,
+        "stock_depth_source": "vtex-cart-probe",
+        "stock_depth_label": "maximo observado/estimativa via cart-probe",
+    }
+    assert result.stock_depth_estimate == 7
+    assert result.stock_depth_state == "estimated"
+    assert result.stock_depth_checked_at == checked_at
+    assert result.stock_depth_label == "maximo observado/estimativa via cart-probe"
+
+
 class _FakePlaywright:
     def __init__(self, goto_error=None, evaluate_result=None):
         self.page = _FakePage(goto_error=goto_error, evaluate_result=evaluate_result)
@@ -176,6 +349,63 @@ class _FakeBrowser:
 
     def close(self):
         self.closed = True
+
+
+class _RecordingProvider:
+    def __init__(self, state="estimated", estimate=5):
+        self._state = state
+        self._estimate = estimate
+        self.calls = []
+
+    async def probe(self, product, brand, quantity):
+        from core.models import StockDepthResult
+
+        self.calls.append({"product": dict(product), "brand": brand, "quantity": quantity})
+        return StockDepthResult(
+            stock_depth_estimate=self._estimate if self._state == "estimated" else None,
+            stock_depth_state=self._state,
+            stock_depth_source="vtex-cart-probe",
+        )
+
+
+class _FakeClock:
+    def __init__(self, values):
+        self._values = list(values)
+
+    def __call__(self):
+        if not self._values:
+            raise AssertionError("Fake clock exhausted")
+        return self._values.pop(0)
+
+
+def _write_monitors(tmp_path, rows):
+    import json
+
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    (tmp_path / "monitored_categories.json").write_text(
+        json.dumps(rows, indent=2),
+        encoding="utf-8",
+    )
+
+
+def _write_products(tmp_path, monitor_id, rows):
+    import json
+
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    (tmp_path / f"monitored_products_{monitor_id}.json").write_text(
+        json.dumps(rows, indent=2),
+        encoding="utf-8",
+    )
+
+
+def _read_products(tmp_path, monitor_id):
+    import json
+
+    return json.loads(
+        (tmp_path / f"monitored_products_{monitor_id}.json").read_text(
+            encoding="utf-8"
+        )
+    )
 
 
 class _FakeContext:
