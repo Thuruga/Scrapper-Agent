@@ -1220,6 +1220,24 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
   };
 
   // -------------------------------------------------------------------------
+  // Adicionar ao monitoramento
+  // -------------------------------------------------------------------------
+  const handleAddToMonitor = async (url: string, brand: string) => {
+    try {
+      const result = await ApiClient.addToMonitor(url, brand);
+      if (result.status === 'already_active') {
+        toast.info('Produto já está em monitoramento');
+      } else if (result.status === 'reactivated') {
+        toast.success('Monitor reativado');
+      } else {
+        toast.success('Adicionado ao monitoramento');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao adicionar ao monitoramento');
+    }
+  };
+
+  // -------------------------------------------------------------------------
   // Frete sob demanda (modal de CEP + cálculo por produto VTEX)
   // -------------------------------------------------------------------------
 
@@ -1687,6 +1705,20 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
                           return null;
                         })()}
                       </div>
+                      <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>
+                        <button
+                          type="button"
+                          className="btn-icon btn-sm"
+                          title="Adicionar ao monitoramento"
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            await handleAddToMonitor(p.url, brandKey);
+                          }}
+                        >
+                          <Plus size={14} />
+                        </button>
+                      </div>
                     </a>
                   ))}
                   {products.length === 0 && (
@@ -1804,6 +1836,28 @@ const CrossMarketplacePage = ({ preloadedJobId, onClearPreloadedJob, onReopen }:
       setCross({ selectedItems: new Set() });
     } else {
       setCross({ selectedItems: new Set(allItems.map((i: any) => i.url)) });
+    }
+  };
+
+  // Marketplace brand_key lookup map (D-07 / Pitfall 6)
+  const MARKETPLACE_BRAND_KEY: Record<string, string> = {
+    'Mercado Livre': 'mercado_livre',
+    'Netshoes': 'netshoes',
+    'Amazon': 'amazon',
+  };
+
+  const handleAddToMonitor = async (url: string, brand: string) => {
+    try {
+      const result = await ApiClient.addToMonitor(url, brand);
+      if (result.status === 'already_active') {
+        toast.info('Produto já está em monitoramento');
+      } else if (result.status === 'reactivated') {
+        toast.success('Monitor reativado');
+      } else {
+        toast.success('Adicionado ao monitoramento');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao adicionar ao monitoramento');
     }
   };
 
@@ -2225,6 +2279,21 @@ const CrossMarketplacePage = ({ preloadedJobId, onClearPreloadedJob, onReopen }:
                               <span>R$ {item.price.toFixed(2)} (Produto) + R$ {(item.shipping_price || 0).toFixed(2)} (Frete)</span>
                             )}
                           </div>
+                          <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>
+                            <button
+                              type="button"
+                              className="btn-icon btn-sm"
+                              title="Adicionar ao monitoramento"
+                              onClick={async (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                const brandKey = MARKETPLACE_BRAND_KEY[marketplace] || marketplace.toLowerCase().replace(/\s+/g, '_');
+                                await handleAddToMonitor(item.url, brandKey);
+                              }}
+                            >
+                              <Plus size={14} />
+                            </button>
+                          </div>
                         </a>
                       ))}
                     </div>
@@ -2313,14 +2382,141 @@ const SettingsPage = ({ brands, onRefresh }: { brands: any[], onRefresh: () => v
     }
   };
 
-  const VIRTUAL = ['mercado_livre', 'netshoes', 'amazon'];
+  // --- Onboarding por URL ---
+  const ENGINE_OPTIONS = ['vtex', 'shopify', 'wake', 'sfcc', 'mercadolivre', 'netshoes', 'amazon', 'unknown'];
+
+  const [onboardUrl, setOnboardUrl] = useState('');
+  const [identifying, setIdentifying] = useState(false);
+  const [identifyResult, setIdentifyResult] = useState<{
+    engine: string; inferred_name: string; domain: string; warning?: string;
+  } | null>(null);
+  const [confirmForm, setConfirmForm] = useState<{
+    brand_name: string; domain: string; engine: string;
+  } | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const handleIdentify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!onboardUrl.trim()) return;
+    setIdentifying(true);
+    setIdentifyResult(null);
+    setConfirmForm(null);
+    try {
+      const result = await ApiClient.identifyBrand(onboardUrl.trim());
+      setIdentifyResult(result);
+      setConfirmForm({
+        brand_name: result.inferred_name,
+        domain: result.domain,
+        engine: result.engine,
+      });
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao identificar marca');
+    } finally {
+      setIdentifying(false);
+    }
+  };
+
+  const handleConfirmSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!confirmForm) return;
+    setSaving(true);
+    try {
+      // Never pass engine='auto' — always use the confirmed engine value (Pitfall 7)
+      await ApiClient.saveBrand({
+        brand_name: confirmForm.brand_name,
+        domain: confirmForm.domain,
+        engine: confirmForm.engine,
+      });
+      toast.success(`Marca "${confirmForm.brand_name}" cadastrada com sucesso`);
+      setOnboardUrl('');
+      setIdentifyResult(null);
+      setConfirmForm(null);
+      onRefresh();
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao salvar marca');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="page-content">
+        <GlassCard title="Adicionar Marca por URL" subtitle="Cole a URL de qualquer loja para detectar automaticamente o nome e a plataforma.">
+          <form onSubmit={handleIdentify} style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+            <div style={{ flex: 1, minWidth: '240px' }}>
+              <input
+                type="url"
+                className="input"
+                placeholder="https://www.hugoboss.com.br"
+                value={onboardUrl}
+                onChange={e => { setOnboardUrl(e.target.value); setIdentifyResult(null); setConfirmForm(null); }}
+                required
+              />
+            </div>
+            <button type="submit" className="btn btn-primary" disabled={identifying || !onboardUrl.trim()}>
+              {identifying ? <RefreshCw size={16} className="animate-spin" /> : <Search size={16} />}
+              {identifying ? 'Identificando…' : 'Identificar'}
+            </button>
+          </form>
+
+          {identifyResult && confirmForm && (
+            <form onSubmit={handleConfirmSave} style={{ marginTop: '20px', background: 'rgba(255,255,255,0.04)', borderRadius: '12px', padding: '16px', border: '1px solid rgba(255,255,255,0.1)' }}>
+              {identifyResult.warning && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', padding: '10px 14px', background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: '8px', color: '#fbbf24', fontSize: '13px' }}>
+                  <AlertTriangle size={15} />
+                  <span>{identifyResult.warning}</span>
+                </div>
+              )}
+              <div className="form-stack">
+                <div className="form-group">
+                  <label className="label">Nome da Marca</label>
+                  <input
+                    type="text"
+                    className="input"
+                    value={confirmForm.brand_name}
+                    onChange={e => setConfirmForm(f => f ? { ...f, brand_name: e.target.value } : f)}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="label">Domínio</label>
+                  <input
+                    type="text"
+                    className="input"
+                    value={confirmForm.domain}
+                    onChange={e => setConfirmForm(f => f ? { ...f, domain: e.target.value } : f)}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="label">Engine (plataforma detectada)</label>
+                  <select
+                    className="input"
+                    style={{ height: '48px', appearance: 'auto' }}
+                    value={confirmForm.engine}
+                    onChange={e => setConfirmForm(f => f ? { ...f, engine: e.target.value } : f)}
+                    required
+                  >
+                    {ENGINE_OPTIONS.map(opt => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                <button type="button" className="btn btn-outline" onClick={() => { setIdentifyResult(null); setConfirmForm(null); }} style={{ flex: 1 }}>Cancelar</button>
+                <button type="submit" className="btn btn-primary" disabled={saving} style={{ flex: 1 }}>
+                  {saving ? <RefreshCw size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                  {saving ? 'Salvando…' : 'Confirmar e Salvar'}
+                </button>
+              </div>
+            </form>
+          )}
+        </GlassCard>
+
         <GlassCard title="Gerenciar Marcas">
           <div className="brand-list">
             {brands.map(b => {
-              const canToggle = !VIRTUAL.includes(b.brand_key);
               return (
                 <div key={b.brand_key} className="brand-item">
                   <div className="brand-info" style={b.is_active === false ? { opacity: 0.55 } : undefined}>
@@ -2342,18 +2538,16 @@ const SettingsPage = ({ brands, onRefresh }: { brands: any[], onRefresh: () => v
                     </div>
                   </div>
                   <div className="brand-actions">
-                    {canToggle && (
-                      <button
-                        type="button"
-                        className="btn-icon"
-                        style={{ color: b.is_active !== false ? 'var(--primary)' : 'var(--text-muted)' }}
-                        onClick={() => handleToggleActive(b)}
-                        aria-label={`${b.is_active !== false ? 'Desativar' : 'Ativar'} marca ${b.brand_name}`}
-                        aria-pressed={b.is_active !== false}
-                      >
-                        <Power size={18} />
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      className="btn-icon"
+                      style={{ color: b.is_active !== false ? 'var(--primary)' : 'var(--text-muted)' }}
+                      onClick={() => handleToggleActive(b)}
+                      aria-label={`${b.is_active !== false ? 'Desativar' : 'Ativar'} marca ${b.brand_name}`}
+                      aria-pressed={b.is_active !== false}
+                    >
+                      <Power size={18} />
+                    </button>
                     <button
                       type="button"
                       className="btn-icon text-error"
@@ -2483,6 +2677,21 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
       setMonitorProducts([]);
     } finally {
       setLoadingProducts(false);
+    }
+  };
+
+  const handleAddToMonitor = async (url: string, brand: string) => {
+    try {
+      const result = await ApiClient.addToMonitor(url, brand);
+      if (result.status === 'already_active') {
+        toast.info('Produto já está em monitoramento');
+      } else if (result.status === 'reactivated') {
+        toast.success('Monitor reativado');
+      } else {
+        toast.success('Adicionado ao monitoramento');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao adicionar ao monitoramento');
     }
   };
 
@@ -2692,6 +2901,22 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
                         )}
                       </div>
                     </div>
+                    {p.url && (
+                      <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>
+                        <button
+                          type="button"
+                          className="btn-icon btn-sm"
+                          title="Adicionar ao monitoramento"
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            await handleAddToMonitor(p.url, selectedMonitor.brand);
+                          }}
+                        >
+                          <Plus size={14} />
+                        </button>
+                      </div>
+                    )}
                   </a>
                 ))}
               </div>
