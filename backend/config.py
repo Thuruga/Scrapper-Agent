@@ -130,6 +130,28 @@ class Settings(BaseSettings):
         description="CEP padrão usado como fallback no cálculo de frete.",
     )
 
+    # Phase 44 - Ruptura de estoque, cart-probe controlado e reviews sob demanda
+    MAX_REVIEW_PAGES: int = Field(
+        default=2,
+        description="Limite conservador de paginas de comentarios buscadas sob demanda.",
+    )
+    STOCK_PROBE_QUANTITY: int = Field(
+        default=999,
+        description="Quantidade usada no cart-probe controlado de profundidade de estoque.",
+    )
+    STOCK_PROBE_THROTTLE_SECONDS: float = Field(
+        default=2.0,
+        description="Throttle fixo entre probes de profundidade de estoque.",
+    )
+    STOCK_PROBE_TIMEOUT_SECONDS: int = Field(
+        default=8,
+        description="Timeout curto para cada probe controlado de profundidade de estoque.",
+    )
+    MAX_STOCK_DEPTH_PROBES_PER_BRAND: int = Field(
+        default=3,
+        description="Limite conservador de probes de profundidade por marca/execucao.",
+    )
+
     model_config = {
         "env_file": BASE_DIR / ".env",
         "env_file_encoding": "utf-8",

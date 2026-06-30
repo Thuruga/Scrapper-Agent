@@ -47,6 +47,56 @@ class ShippingInfo(BaseModel):
     )
 
 
+class ReviewComment(BaseModel):
+    """Comentario de avaliacao normalizado e compacto."""
+
+    review_id: str
+    rating: Optional[float] = None
+    title: Optional[str] = None
+    text: Optional[str] = None
+    author: Optional[str] = None
+    created_at: Optional[str] = None
+    source_provider: str
+    source_ref: Optional[str] = None
+
+
+class ReviewCommentsResult(BaseModel):
+    """Resultado sob demanda de comentarios de avaliacao."""
+
+    reviews_state: str = "unsupported"
+    comments: List[ReviewComment] = Field(default_factory=list)
+    rating: Optional[float] = None
+    review_count: Optional[int] = None
+    review_product_id: Optional[str] = None
+
+
+class StockDepthResult(BaseModel):
+    """Resultado sob demanda de profundidade de estoque."""
+
+    stock_depth_estimate: Optional[int] = None
+    stock_depth_state: str
+    stock_depth_checked_at: Optional[str] = None
+    stock_depth_source: Optional[str] = None
+    stock_depth_label: Optional[str] = None
+
+
+class StockRuptureSummary(BaseModel):
+    """Resumo serializavel de ruptura de estoque por varredura."""
+
+    brand: str
+    total_products: int
+    in_stock_count: int
+    out_of_stock_count: int
+    unknown_stock_count: int
+    verified_stock_count: int
+    rupture_pct: Optional[float] = None
+    scan_id: Optional[str] = None
+    monitor_id: Optional[str] = None
+    scanned_at: str = Field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
+
+
 class RawProductBronze(BaseModel):
     """Dado bruto de um produto concorrente, sem transformações."""
 
@@ -64,6 +114,15 @@ class RawProductBronze(BaseModel):
     available_sizes: List[str] = Field(default_factory=list)
     rating: Optional[float] = None
     review_count: Optional[int] = None
+    scan_product_id: Optional[str] = None
+    stock_depth_estimate: Optional[int] = None
+    stock_depth_state: Optional[str] = None
+    stock_depth_checked_at: Optional[str] = None
+    stock_depth_source: Optional[str] = None
+    stock_depth_label: Optional[str] = None
+    reviews_state: Optional[str] = None
+    review_comments: List[ReviewComment] = Field(default_factory=list)
+    review_product_id: Optional[str] = None
     specifications: Dict[str, str] = Field(default_factory=dict)
     image_url: Optional[str] = None
     shipping: ShippingInfo | None = None
@@ -130,6 +189,15 @@ class SearchProductResult(BaseModel):
     available: Optional[bool] = None
     rating: Optional[float] = None
     review_count: Optional[int] = None
+    scan_product_id: Optional[str] = None
+    stock_depth_estimate: Optional[int] = None
+    stock_depth_state: Optional[str] = None
+    stock_depth_checked_at: Optional[str] = None
+    stock_depth_source: Optional[str] = None
+    stock_depth_label: Optional[str] = None
+    reviews_state: Optional[str] = None
+    review_comments: List[ReviewComment] = Field(default_factory=list)
+    review_product_id: Optional[str] = None
     available_colors: List[str] = Field(default_factory=list)
     available_sizes: List[str] = Field(default_factory=list)
     seller: Optional[str] = None
