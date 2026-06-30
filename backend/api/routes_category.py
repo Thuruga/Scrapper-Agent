@@ -26,6 +26,7 @@ from services.category_mapping import (
     resolve_category_for_brands,
     get_category_preview,
 )
+from services.stock_summary_service import load_category_job_stock_summaries
 
 
 
@@ -130,7 +131,8 @@ async def scrape_category(request: ScrapeCategoryRequest, background_tasks: Back
                 marca=request.brand, 
                 url_categoria=url, 
                 log_callback=log_wrapper, 
-                cancel_event=cancel_event
+                cancel_event=cancel_event,
+                job_id=job_id,
             )
         finally:
             JOB_CANCEL_FLAGS.pop(job_id, None)
@@ -143,6 +145,15 @@ async def scrape_category(request: ScrapeCategoryRequest, background_tasks: Back
 # ---------------------------------------------------------------------------
 # Endpoints — Multi-Marca (novos)
 # ---------------------------------------------------------------------------
+@router.get("/scrape-category/{job_id}/stock-summary")
+async def get_category_job_stock_summary(job_id: str):
+    summaries = load_category_job_stock_summaries(job_id)
+    return {
+        "job_id": job_id,
+        "summaries": [summary.model_dump(mode="json") for summary in summaries],
+    }
+
+
 @router.get("/canonical-categories")
 async def list_canonical_categories():
     """Retorna todas as categorias canônicas agrupadas para o frontend."""

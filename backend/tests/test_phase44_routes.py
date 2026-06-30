@@ -11,7 +11,7 @@ class _FakeCategoryEngine:
     def __init__(self, products):
         self._products = products
 
-    async def run_bulk_scrape(self, category_url: str):
+    async def run_bulk_scrape(self, category_url: str, **kwargs):
         for product in self._products:
             yield product
 

@@ -11,7 +11,23 @@ from typing import Optional, Callable
 
 import pandas as pd
 
+from services.stock_summary_service import (
+    compute_stock_summary,
+    ensure_scan_product_ids,
+    persist_category_job_stock_summaries,
+)
+
 logger = logging.getLogger("Orchestrator")
+
+
+def _product_dict(product):
+    if isinstance(product, dict):
+        return dict(product)
+    if hasattr(product, "model_dump"):
+        return product.model_dump(mode="json")
+    if hasattr(product, "dict"):
+        return product.dict()
+    return dict(vars(product))
 
 
 async def run_orchestrator(
@@ -19,6 +35,7 @@ async def run_orchestrator(
     url_categoria: str,
     log_callback: Optional[Callable] = None,
     cancel_event: Optional[asyncio.Event] = None,
+    job_id: str | None = None,
 ):
     def emit_log(msg):
         if log_callback:
@@ -69,8 +86,23 @@ async def run_orchestrator(
         emit_log(" ETAPA 2: CONSOLIDAÇÃO E SALVAMENTO")
         emit_log("==================================================")
 
+        stock_summary = None
+        if job_id is not None:
+            scan_id = f"{job_id}:{marca.lower()}"
+            produtos_validos = ensure_scan_product_ids(
+                produtos_validos,
+                marca,
+                scan_id,
+            )
+            stock_summary = compute_stock_summary(
+                produtos_validos,
+                brand=marca,
+                scan_id=scan_id,
+            )
+            persist_category_job_stock_summaries(job_id, [stock_summary])
+
         if produtos_validos:
-            df = pd.DataFrame(produtos_validos)
+            df = pd.DataFrame([_product_dict(produto) for produto in produtos_validos])
             
             # Converter listas para strings separadas por vírgula
             for col in ["available_colors", "available_sizes"]:
@@ -91,6 +123,11 @@ async def run_orchestrator(
                 "type": msg_type,
                 "valid_products": len(produtos_validos),
                 "output_file": arquivo_saida,
+                **(
+                    {"stock_summary": stock_summary.model_dump(mode="json")}
+                    if stock_summary is not None
+                    else {}
+                ),
                 "message": f"{'Cancelado. ' if is_cancelled() else ''}Sucesso! Dados de {len(produtos_validos)} produtos salvos em {arquivo_saida}.",
             })
         else:

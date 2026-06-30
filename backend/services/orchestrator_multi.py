@@ -23,6 +23,11 @@ from config import settings
 from services.brand_service import brand_service
 from core.websocket import manager
 from core.job_manager import JOB_CANCEL_FLAGS
+from services.stock_summary_service import (
+    compute_stock_summary,
+    ensure_scan_product_ids,
+    persist_category_job_stock_summaries,
+)
 
 logger = logging.getLogger("OrchestratorMulti")
 
@@ -165,6 +170,26 @@ async def run_multi_orchestrator(
         else:
             results_store[brand_key] = res
 
+    stock_summaries = []
+    for brand_key, result in results_store.items():
+        scan_id = f"{job_id}:{brand_key}"
+        result.products = ensure_scan_product_ids(
+            result.products,
+            brand_key,
+            scan_id,
+        )
+        stock_summaries.append(
+            compute_stock_summary(
+                result.products,
+                brand=brand_key,
+                scan_id=scan_id,
+            )
+        )
+    persist_category_job_stock_summaries(job_id, stock_summaries)
+    stock_summaries_payload = [
+        summary.model_dump(mode="json") for summary in stock_summaries
+    ]
+
     # ── Consolidar resultados ──────────────────────────────────────────
     is_cancelled = cancel_event.is_set()
 
@@ -198,12 +223,14 @@ async def run_multi_orchestrator(
             results_store, 
             total_success, 
             total_errors, 
-            log_callback
+            log_callback,
+            stock_summaries_payload,
         )
     else:
         msg_type = "cancelled" if is_cancelled else "error_done"
         log_callback({
             "type": msg_type,
+            "stock_summaries": stock_summaries_payload,
             "message": (
                 "Operação cancelada. Nenhum produto coletado."
                 if is_cancelled
@@ -215,7 +242,16 @@ async def run_multi_orchestrator(
     JOB_CANCEL_FLAGS.pop(job_id, None)
 
 
-def consolidate_and_save(all_products, arquivo_saida, is_cancelled, results_store, total_success, total_errors, log_callback):
+def consolidate_and_save(
+    all_products,
+    arquivo_saida,
+    is_cancelled,
+    results_store,
+    total_success,
+    total_errors,
+    log_callback,
+    stock_summaries=None,
+):
     """Função auxiliar para salvar o Excel (roda em thread do executor)."""
     try:
         df = pd.DataFrame(all_products)
@@ -257,6 +293,7 @@ def consolidate_and_save(all_products, arquivo_saida, is_cancelled, results_stor
             "total_errors": total_errors,
             "output_file": arquivo_saida,
             "brands_completed": list(results_store.keys()),
+            "stock_summaries": stock_summaries or [],
             "message": (
                 f"{'Cancelado parcial' if is_cancelled else 'Concluído'}! "
                 f"{len(all_products)} produtos de "
