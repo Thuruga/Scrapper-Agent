@@ -8,6 +8,7 @@ from typing import List, Optional
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
 
+from services.stock_depth_service import probe_scan_product_stock_depth
 from services.stock_summary_service import load_monitor_stock_summary
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
@@ -89,6 +90,18 @@ async def get_monitored_products(monitor_id: str):
         return json.loads(products_file.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return []
+
+
+@router.post("/category/{monitor_id}/products/{scan_product_id}/stock-depth")
+async def probe_monitored_product_stock_depth(
+    monitor_id: str,
+    scan_product_id: str,
+):
+    try:
+        result = await probe_scan_product_stock_depth(monitor_id, scan_product_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return result.model_dump(mode="json")
 
 
 @router.get("/category/{monitor_id}/stock-summary")
