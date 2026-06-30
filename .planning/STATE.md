@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Paridade de Dados, Cobertura Total de Frete & Inteligência Competitiva
 status: executing
-stopped_at: Completed 44-03-PLAN.md
-last_updated: "2026-06-30T18:39:18.554Z"
+stopped_at: Completed 44-04-PLAN.md
+last_updated: "2026-06-30T23:21:57.124Z"
 last_activity: 2026-06-30 -- Phase 44 execution started
 progress:
   total_phases: 9
   completed_phases: 3
   total_plans: 16
-  completed_plans: 14
-  percent: 88
+  completed_plans: 15
+  percent: 94
 ---
 
 # Project State: Intelligence Scraper
@@ -27,12 +27,12 @@ See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/sc
 
 **Goal:** Nivelar a extração de atributos entre todas as marcas, fechar lacunas de cobertura (Hugo Boss por categoria, Zara, frete universal) e adicionar camadas de inteligência competitiva (MAP, promoções, ruptura de estoque, sortimento, avaliações).
 **Phases:** 9 (37-45)
-**Progress:** [█████████░] 88%
+**Progress:** [█████████░] 94%
 
 ## Current Position
 
 Phase: 44 (Ruptura de Estoque & Avaliações Reforçadas) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-06-30 -- Phase 44 execution started
 
@@ -84,6 +84,7 @@ Last activity: 2026-06-30 -- Phase 44 execution started
 | Phase 44 P01 | 9 min | 3 tasks | 7 files |
 | Phase 44 P02 | 11 min | 2 tasks | 6 files |
 | Phase 44 P03 | 9 min | 3 tasks | 9 files |
+| Phase 44 P04 | 68 min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -170,6 +171,10 @@ Last activity: 2026-06-30 -- Phase 44 execution started
 - [Phase ?]: 44-03/provider-scope: stock-depth resolver returns a real provider only for engine='vtex'; wake/shopify/sfcc/marketplace/unknown engines return explicit unsupported. — Plan 44-03 implements VTEX as the only proved cart-probe provider and uses explicit unsupported states for other engines.
 - [Phase ?]: 44-03/identity-boundary: stock-depth API accepts only monitor_id and scan_product_id; product URL, brand domain, quantity, and provider are resolved from persisted artifacts/settings. — This enforces STOCK-02/T-44-09 by rejecting caller-supplied URL/domain/quantity/provider and validating persisted product URL against the persisted brand domain.
 - [Phase ?]: 44-03/non-false-states: blocked, temporary_failure, and unsupported persist stock_depth_estimate=None; unavailable may persist zero only when provider evidence is reliable. — This preserves D-08/D-09 semantics so failures, blocks, timeouts, and unsupported engines never become false quantity zero.
+- [Phase ?]: [44-04/comments-on-demand-boundary] — Normal search and VTEX search remain summary-only through get_bulk_reviews/get_single_review; full comments are reachable only through the monitor scan-product reviews action.
+- [Phase ?]: [44-04/provider-audit-explicit] — Aramis remains the only Trustvox-supported brand with store_id 78800 and recorded evidence; every other registered brand is review_provider='none' with unsupported rationale unless future evidence proves support.
+- [Phase ?]: [44-04/compact-comments] — Provider responses are normalized to ReviewComment fields and deduped before persistence; no raw provider payload fields are introduced.
+- [Phase ?]: [44-04/scan-product-identity] — Review comments resolve brand/product identity from persisted monitor artifacts and review_product_id; the route accepts no provider, domain, URL, product_id override, or raw payload.
 
 ### Pending Todos
 
@@ -204,8 +209,8 @@ Last activity: 2026-06-30 -- Phase 44 execution started
 
 ## Session Continuity
 
-Last session: 2026-06-30T18:38:43.426Z
-Stopped at: Completed 44-03-PLAN.md
+Last session: 2026-06-30T23:21:39.110Z
+Stopped at: Completed 44-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

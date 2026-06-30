@@ -55,7 +55,7 @@ Plans:
 - [x] 44-01-PLAN.md - Shared Phase 44 contracts, config, and rupture summary helper
 - [x] 44-02-PLAN.md - Scheduled and manual category scan rupture summary wiring
 - [x] 44-03-PLAN.md - Explicit monitor-product stock-depth cart-probe action
-- [ ] 44-04-PLAN.md - On-demand compact review comments and provider states
+- [x] 44-04-PLAN.md - On-demand compact review comments and provider states
 - [ ] 44-05-PLAN.md - Monitor modal stock/review operator actions
 
 **UI hint**: yes
@@ -200,5 +200,5 @@ Phases ativas executam em ordem numérica: 37 → 38 → 39 → 40 → 41 → 42
 | 41. Abstração de Frete & Marcas Não-VTEX | v4.0 | 0/? | Not started | - |
 | 42. Frete para Marketplaces & Matriz Multi-Regional | v4.0 | 0/? | Not started | - |
 | 43. Violação de MAP & Selos de Promoção | v4.0 | 0/? | Not started | - |
-| 44. Ruptura de Estoque & Avaliações Reforçadas | v4.0 | 3/5 | In Progress|  |
+| 44. Ruptura de Estoque & Avaliações Reforçadas | v4.0 | 4/5 | In Progress|  |
 | 45. Análise de Sortimento | v4.0 | 0/? | Not started | - |
