@@ -25,17 +25,19 @@ class MonitorStartRequest(BaseModel):
 async def start_monitoring(request: MonitorStartRequest):
     """Inicia o monitoramento de um produto."""
     job_id = str(uuid.uuid4())
-    
+
     # Inicia o monitoramento em background
     try:
-        config = await monitor_service.start_monitor(
+        config, status = await monitor_service.start_monitor(
             job_id=job_id,
             url=request.url,
             brand=request.brand,
             interval=request.interval,
             duration=request.duration
         )
-        return {"job_id": job_id, "status": "started", "config": config.model_dump()}
+        # Para already_active/reactivated o job_id existente é o da config já cadastrada;
+        # para created usamos o uuid recém-gerado (que é o próprio config.job_id).
+        return {"job_id": config.job_id, "status": status, "config": config.model_dump()}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
