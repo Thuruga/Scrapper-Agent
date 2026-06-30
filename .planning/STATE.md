@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Paridade de Dados, Cobertura Total de Frete & Inteligência Competitiva
 status: executing
-stopped_at: Completed 44-02-PLAN.md
-last_updated: "2026-06-30T18:24:43.344Z"
+stopped_at: Completed 44-03-PLAN.md
+last_updated: "2026-06-30T18:39:18.554Z"
 last_activity: 2026-06-30 -- Phase 44 execution started
 progress:
   total_phases: 9
   completed_phases: 3
   total_plans: 16
-  completed_plans: 13
-  percent: 33
+  completed_plans: 14
+  percent: 88
 ---
 
 # Project State: Intelligence Scraper
@@ -27,12 +27,12 @@ See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/sc
 
 **Goal:** Nivelar a extração de atributos entre todas as marcas, fechar lacunas de cobertura (Hugo Boss por categoria, Zara, frete universal) e adicionar camadas de inteligência competitiva (MAP, promoções, ruptura de estoque, sortimento, avaliações).
 **Phases:** 9 (37-45)
-**Progress:** [████████░░] 81%
+**Progress:** [█████████░] 88%
 
 ## Current Position
 
 Phase: 44 (Ruptura de Estoque & Avaliações Reforçadas) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-06-30 -- Phase 44 execution started
 
@@ -83,6 +83,7 @@ Last activity: 2026-06-30 -- Phase 44 execution started
 | 40 | 5 | - | - |
 | Phase 44 P01 | 9 min | 3 tasks | 7 files |
 | Phase 44 P02 | 11 min | 2 tasks | 6 files |
+| Phase 44 P03 | 9 min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -166,6 +167,9 @@ Last activity: 2026-06-30 -- Phase 44 execution started
 - [Phase 44]: 44-02/manual-scan-id: manual category summaries use scan_id='{job_id}:{brand_key}' and persist all brand summaries under category_scan_summaries_{job_id}.json. — This keeps multi-brand scan auditability while preserving one shared manual job artifact.
 - [Phase 44]: 44-02/hugo-boss-risk: automated STOCK-01 proof uses synthetic/working-brand fixtures; Hugo Boss zero-product scans remain a UAT dependency risk until the pending VTEX-IO category-scan todo is resolved. — The phase plan explicitly prohibits treating zero Hugo Boss products as STOCK-01 success.
 - [Phase 44]: 44-02/summary-source: scheduled and manual summary wiring consumes product-level stock_availability only through compute_stock_summary; routes never recompute summary math. — Plan 44-02 wired all category scan surfaces to the shared helper and read endpoints to persisted artifacts.
+- [Phase ?]: 44-03/provider-scope: stock-depth resolver returns a real provider only for engine='vtex'; wake/shopify/sfcc/marketplace/unknown engines return explicit unsupported. — Plan 44-03 implements VTEX as the only proved cart-probe provider and uses explicit unsupported states for other engines.
+- [Phase ?]: 44-03/identity-boundary: stock-depth API accepts only monitor_id and scan_product_id; product URL, brand domain, quantity, and provider are resolved from persisted artifacts/settings. — This enforces STOCK-02/T-44-09 by rejecting caller-supplied URL/domain/quantity/provider and validating persisted product URL against the persisted brand domain.
+- [Phase ?]: 44-03/non-false-states: blocked, temporary_failure, and unsupported persist stock_depth_estimate=None; unavailable may persist zero only when provider evidence is reliable. — This preserves D-08/D-09 semantics so failures, blocks, timeouts, and unsupported engines never become false quantity zero.
 
 ### Pending Todos
 
@@ -200,8 +204,8 @@ Last activity: 2026-06-30 -- Phase 44 execution started
 
 ## Session Continuity
 
-Last session: 2026-06-30T18:24:43.337Z
-Stopped at: Completed 44-02-PLAN.md
+Last session: 2026-06-30T18:38:43.426Z
+Stopped at: Completed 44-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
