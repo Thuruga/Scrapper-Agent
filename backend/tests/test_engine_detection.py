@@ -76,7 +76,7 @@ class TestDetectEngine:
     """Testes unitarios de detect_engine (api.routes_brands) com HTTP/browser mockado."""
 
     def test_shopify_detected_via_collections_json(self):
-        """Shopify: collections.json retorna 200 com chave 'collections' → 'shopify'."""
+        """Shopify: collections.json retorna 200 com chave 'collections' → ('shopify', None)."""
         mock_resp = _make_mock_response(200, json_data={"collections": [{"id": 1}]})
         mock_session = _make_mock_session({"collections.json": mock_resp})
         with patch(
@@ -84,11 +84,12 @@ class TestDetectEngine:
             new=AsyncMock(return_value=mock_session),
         ):
             from api.routes_brands import detect_engine
-            result = asyncio.run(detect_engine("test.myshopify.com"))
-        assert result == "shopify"
+            engine, html = asyncio.run(detect_engine("test.myshopify.com"))
+        assert engine == "shopify"
+        assert html is None
 
     def test_vtex_detected_via_category_tree(self):
-        """VTEX: collections.json retorna 404; category/tree/1 retorna 200 → 'vtex'."""
+        """VTEX: collections.json retorna 404; category/tree/1 retorna 200 → ('vtex', None)."""
         no = _make_mock_response(404)
         vtex = _make_mock_response(200)
         mock_session = _make_mock_session({
@@ -100,20 +101,23 @@ class TestDetectEngine:
             new=AsyncMock(return_value=mock_session),
         ):
             from api.routes_brands import detect_engine
-            result = asyncio.run(detect_engine("www.aramis.com.br"))
-        assert result == "vtex"
+            engine, html = asyncio.run(detect_engine("www.aramis.com.br"))
+        assert engine == "vtex"
+        assert html is None
 
     def test_wake_commerce_detected_returns_wake(self):
-        """SC-2 — Wake Commerce: probes de API falham; HTML contem fbitsstatic.net → 'wake'.
+        """SC-2 — Wake Commerce: probes de API falham; HTML contem fbitsstatic.net → ('wake', html).
 
         Apos o plan 30-01 (D-05), o branch fbitsstatic.net retorna o engine correto
         'wake' (antes retornava 'unknown'), evitando a auto-desativacao da regra D-04.
         A probe Wake roda ANTES do VTEX HTML (Pitfall 1), entao o browser nem e acionado.
+        O refactor 40-02 adiciona o html ao retorno para reutilizacao em infer_brand_name.
         """
         no = _make_mock_response(404)
+        home_html_text = '<script src="https://shop2gether.fbitsstatic.net/sf/bundle?type=js"></script>'
         html_wake = _make_mock_response(
             200,
-            text_data='<script src="https://shop2gether.fbitsstatic.net/sf/bundle?type=js"></script>',
+            text_data=home_html_text,
         )
         mock_session = _make_mock_session({
             "collections.json": no,
@@ -125,12 +129,13 @@ class TestDetectEngine:
             new=AsyncMock(return_value=mock_session),
         ):
             from api.routes_brands import detect_engine
-            result = asyncio.run(detect_engine("www.shop2gether.com.br"))
-        assert result == "wake"
+            engine, html = asyncio.run(detect_engine("www.shop2gether.com.br"))
+        assert engine == "wake"
+        assert html is not None  # HTML carried for name inference (D-01)
 
     def test_sfcc_detected_via_browser(self):
         """SC-1 — SFCC: HTTP probes 403/404; o HTML renderizado pelo browser contem
-        'demandware.static' → 'sfcc'.
+        'demandware.static' → ('sfcc', rendered_html).
 
         Caso Lacoste/HugoBoss: HTTP direto e 403 (sem marcadores), mas a home
         renderizada via Playwright expoe assets demandware. O seam BrowserManager.fetch_html
@@ -156,16 +161,14 @@ class TestDetectEngine:
             new=AsyncMock(return_value=rendered_sfcc),
         ):
             from api.routes_brands import detect_engine
-            result = asyncio.run(detect_engine("www.lacoste.com.br"))
-        assert result == "sfcc"
+            engine, html = asyncio.run(detect_engine("www.lacoste.com.br"))
+        assert engine == "sfcc"
+        assert html == rendered_sfcc  # rendered HTML carried for name inference (D-01)
 
-    def test_sfcc_anti_false_positive_403_no_demandware(self):
-        """SC-4 — anti-falso-positivo (caso Zara/Inditex): todas as probes HTTP
-        retornam 403 e o HTML renderizado NAO contem demandware.static /
-        demandware.edgesuite.net → 'unknown'.
+    def test_zara_detected_without_sfcc_false_positive(self):
+        """Zara/Inditex: rendered static.zara.net marker maps to engine='zara'.
 
-        Garante que a probe SFCC usa marcadores exclusivos e nao rotula 'sfcc'
-        qualquer pagina bloqueada/generica.
+        This also guards that the SFCC probe does not classify Zara as sfcc.
         """
         blocked = _make_mock_response(403, text_data="<html><body>Forbidden</body></html>")
         mock_session = _make_mock_session({
@@ -185,12 +188,13 @@ class TestDetectEngine:
             new=AsyncMock(return_value=rendered_generic),
         ):
             from api.routes_brands import detect_engine
-            result = asyncio.run(detect_engine("www.zara.com"))
-        assert result == "unknown"
+            engine, html = asyncio.run(detect_engine("www.zara.com"))
+        assert engine == "zara"
+        assert html == rendered_generic
 
     def test_all_probes_fail_returns_unknown(self):
         """SC-4 — nenhuma probe identifica plataforma: HTTP retorna 404/generico e o
-        HTML renderizado pelo browser tambem nao tem marcador demandware → 'unknown'.
+        HTML renderizado pelo browser tambem nao tem marcador demandware → ('unknown', None).
 
         Apos o plan 30-01, o fallback incondicional para 'vtex' foi removido (D-01).
         O browser e mockado para HTML sem marcadores (hermetico, T-30-09).
@@ -210,8 +214,10 @@ class TestDetectEngine:
             new=AsyncMock(return_value="<html><body>generic rendered</body></html>"),
         ):
             from api.routes_brands import detect_engine
-            result = asyncio.run(detect_engine("www.genericstore.com.br"))
-        assert result == "unknown"
+            engine, html = asyncio.run(detect_engine("www.genericstore.com.br"))
+        assert engine == "unknown"
+        # html may be None (browser path) or the home HTML (HTTP path carried through)
+        # — both are valid; the important thing is engine == "unknown"
 
 
 # ---------------------------------------------------------------------------
@@ -258,11 +264,11 @@ class TestCreateBrandUnknown:
             engine="auto",
         )
 
-        # Patch detect_engine para retornar "unknown"
+        # Patch detect_engine para retornar ("unknown", None) — tuple após refactor 40-02
         with patch.object(
             routes_brands_module,
             "detect_engine",
-            new=AsyncMock(return_value="unknown"),
+            new=AsyncMock(return_value=("unknown", None)),
         ):
             # Patch brand_service.add_brand para evitar I/O
             with patch.object(
@@ -324,7 +330,7 @@ class TestCreateBrandActive:
         with patch.object(
             routes_brands_module,
             "detect_engine",
-            new=AsyncMock(return_value=engine),
+            new=AsyncMock(return_value=(engine, None)),
         ):
             with patch.object(
                 routes_brands_module.brand_service,
