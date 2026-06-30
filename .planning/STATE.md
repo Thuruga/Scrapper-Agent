@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Paridade de Dados, Cobertura Total de Frete & Inteligência Competitiva
 status: executing
-stopped_at: Phase 44 context gathered
-last_updated: "2026-06-30T01:43:53.458Z"
+stopped_at: Phase 40 context gathered
+last_updated: "2026-06-30T02:02:22.934Z"
 last_activity: 2026-06-30
 progress:
   total_phases: 9
@@ -179,9 +179,9 @@ Last activity: 2026-06-30
 
 ## Session Continuity
 
-Last session: 2026-06-29T23:55:20.267Z
-Stopped at: Phase 44 context gathered
-Resume file: .planning/phases/44-ruptura-de-estoque-avalia-es-refor-adas/44-CONTEXT.md
+Last session: 2026-06-30T02:02:22.927Z
+Stopped at: Phase 40 context gathered
+Resume file: .planning/phases/40-onboarding-por-url-workflows-de-adi-o-ao-monitoramento/40-CONTEXT.md
 
 ## Operator Next Steps
 
