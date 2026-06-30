@@ -183,6 +183,13 @@ const PriceChart = ({ history }: { history: any[] }) => {
 
 // --- Pages ---
 
+// Normaliza um domínio para comparação: minúsculas + remove prefixo literal "www."
+// (slice literal, NÃO lstrip — lstrip removeria o char-set {w,.} e corromperia hosts).
+const normalizeDomain = (domain: string): string => {
+  const host = (domain || '').trim().toLowerCase();
+  return host.startsWith('www.') ? host.slice('www.'.length) : host;
+};
+
 const MonitorPage = ({ brands }: { brands: any[] }) => {
   const [monitors, setMonitors] = useState<any[]>([]);
   const [url, setUrl] = useState('');
@@ -190,6 +197,9 @@ const MonitorPage = ({ brands }: { brands: any[] }) => {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error' | 'info', message: string } | null>(null);
   const [expandedMonitorId, setExpandedMonitorId] = useState<string | null>(null);
+  // Identify-first: marca identificada por domínio, e fallback manual quando não há match.
+  const [identifiedBrandName, setIdentifiedBrandName] = useState<string | null>(null);
+  const [showManualBrand, setShowManualBrand] = useState(false);
 
   const refreshMonitors = () => {
     ApiClient.getMonitors().then(data => {
@@ -236,20 +246,74 @@ const MonitorPage = ({ brands }: { brands: any[] }) => {
     }
   }, [brands, brand]);
 
+  // Inicia o monitor com dedup + feedback de status (mesma semântica do botão "+" das 3 telas).
+  const startMonitorForBrand = async (productUrl: string, brandKey: string, brandLabel?: string) => {
+    const result = await ApiClient.addToMonitor(productUrl, brandKey);
+    if (result.status === 'already_active') {
+      setStatus({ type: 'info', message: 'Produto já está em monitoramento' });
+      toast.info('Produto já está em monitoramento');
+    } else if (result.status === 'reactivated') {
+      setStatus({ type: 'success', message: 'Monitor reativado' });
+      toast.success('Monitor reativado');
+    } else {
+      setStatus({ type: 'success', message: brandLabel ? `Adicionado ao monitoramento (${brandLabel})` : 'Adicionado ao monitoramento' });
+      toast.success('Adicionado ao monitoramento');
+    }
+    setUrl('');
+    setShowManualBrand(false);
+    setIdentifiedBrandName(null);
+    refreshMonitors();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!url || !brand) return;
+    if (!url) return;
 
+    // Caminho de fallback manual: o usuário já revelou o select e escolheu a marca.
+    if (showManualBrand) {
+      if (!brand) {
+        setStatus({ type: 'error', message: 'Selecione uma marca para iniciar o monitoramento.' });
+        return;
+      }
+      setLoading(true);
+      setStatus({ type: 'info', message: 'Iniciando monitoramento...' });
+      try {
+        const meta = brands.find(b => b.brand_key === brand);
+        await startMonitorForBrand(url, brand, meta?.brand_name);
+      } catch (err: any) {
+        setStatus({ type: 'error', message: 'Erro ao iniciar monitor: ' + err.message });
+        toast.error(err.message || 'Erro ao adicionar ao monitoramento');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // Caminho identify-first: cola a URL → detecta o domínio → casa com marca cadastrada.
     setLoading(true);
-    setStatus({ type: 'info', message: 'Iniciando monitoramento...' });
-
+    setIdentifiedBrandName(null);
+    setStatus({ type: 'info', message: 'Identificando marca pelo link...' });
     try {
-      await ApiClient.startMonitor({ url, brand });
-      setUrl('');
-      refreshMonitors();
-      setStatus({ type: 'success', message: 'Monitoramento iniciado com sucesso!' });
+      const identified = await ApiClient.identifyBrand(url);
+      const targetDomain = normalizeDomain(identified.domain);
+      const matched = brands.find(b => normalizeDomain(b.domain) === targetDomain);
+
+      if (matched) {
+        setIdentifiedBrandName(matched.brand_name);
+        await startMonitorForBrand(url, matched.brand_key, matched.brand_name);
+      } else {
+        // Sem marca cadastrada para o domínio → NÃO inicia; revela o select manual.
+        setIdentifiedBrandName(null);
+        setShowManualBrand(true);
+        setStatus({
+          type: 'info',
+          message: 'Não identificamos uma marca cadastrada para este domínio. Selecione a marca manualmente.',
+        });
+        toast.info('Selecione a marca manualmente para este produto.');
+      }
     } catch (err: any) {
-      setStatus({ type: 'error', message: "Erro ao iniciar monitor: " + err.message });
+      setStatus({ type: 'error', message: 'Erro ao identificar marca: ' + err.message });
+      toast.error(err.message || 'Erro ao identificar marca');
     } finally {
       setLoading(false);
     }
@@ -263,31 +327,43 @@ const MonitorPage = ({ brands }: { brands: any[] }) => {
           {status && <StatusBanner type={status.type} message={status.message} onClear={() => setStatus(null)} />}
           <form className="form-stack" onSubmit={handleSubmit}>
             <div className="form-group">
-              <label className="label">Marca Concorrente</label>
-              <select
-                className="input"
-                value={brand}
-                onChange={e => setBrand(e.target.value)}
-                required
-              >
-                <option value="">Selecione...</option>
-                {brands && brands.map(b => <option key={b.brand_key} value={b.brand_key}>{b.brand_name}</option>)}
-              </select>
-            </div>
-            <div className="form-group">
               <label className="label">URL do Produto</label>
               <input
                 type="url"
                 className="input"
-                placeholder="https://..."
+                placeholder="Cole o link do produto — identificamos a marca automaticamente"
                 value={url}
-                onChange={e => setUrl(e.target.value)}
+                onChange={e => {
+                  setUrl(e.target.value);
+                  // Mudar a URL invalida a identificação anterior e volta ao fluxo identify-first.
+                  setIdentifiedBrandName(null);
+                  setShowManualBrand(false);
+                }}
                 required
               />
             </div>
-            <button className="btn btn-primary w-full" disabled={loading}>
+            {identifiedBrandName && (
+              <p className="text-muted" style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <CheckCircle2 size={14} className="text-success" /> Marca identificada: <strong>{identifiedBrandName}</strong>
+              </p>
+            )}
+            {showManualBrand && (
+              <div className="form-group">
+                <label className="label">Marca Concorrente</label>
+                <select
+                  className="input"
+                  value={brand}
+                  onChange={e => setBrand(e.target.value)}
+                  required
+                >
+                  <option value="">Selecione...</option>
+                  {brands && brands.map(b => <option key={b.brand_key} value={b.brand_key}>{b.brand_name}</option>)}
+                </select>
+              </div>
+            )}
+            <button className="btn btn-primary w-full" disabled={loading || !url}>
               {loading ? <RefreshCw className="animate-spin" size={18} /> : <Zap size={18} />}
-              {loading ? "Iniciando..." : "Iniciar Monitoramento"}
+              {loading ? "Processando..." : showManualBrand ? "Iniciar Monitoramento" : "Identificar e Monitorar"}
             </button>
           </form>
         </GlassCard>
@@ -2382,138 +2458,8 @@ const SettingsPage = ({ brands, onRefresh }: { brands: any[], onRefresh: () => v
     }
   };
 
-  // --- Onboarding por URL ---
-  const ENGINE_OPTIONS = ['vtex', 'shopify', 'wake', 'sfcc', 'mercadolivre', 'netshoes', 'amazon', 'unknown'];
-
-  const [onboardUrl, setOnboardUrl] = useState('');
-  const [identifying, setIdentifying] = useState(false);
-  const [identifyResult, setIdentifyResult] = useState<{
-    engine: string; inferred_name: string; domain: string; warning?: string;
-  } | null>(null);
-  const [confirmForm, setConfirmForm] = useState<{
-    brand_name: string; domain: string; engine: string;
-  } | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  const handleIdentify = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!onboardUrl.trim()) return;
-    setIdentifying(true);
-    setIdentifyResult(null);
-    setConfirmForm(null);
-    try {
-      const result = await ApiClient.identifyBrand(onboardUrl.trim());
-      setIdentifyResult(result);
-      setConfirmForm({
-        brand_name: result.inferred_name,
-        domain: result.domain,
-        engine: result.engine,
-      });
-    } catch (err: any) {
-      toast.error(err.message || 'Erro ao identificar marca');
-    } finally {
-      setIdentifying(false);
-    }
-  };
-
-  const handleConfirmSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!confirmForm) return;
-    setSaving(true);
-    try {
-      // Never pass engine='auto' — always use the confirmed engine value (Pitfall 7)
-      await ApiClient.saveBrand({
-        brand_name: confirmForm.brand_name,
-        domain: confirmForm.domain,
-        engine: confirmForm.engine,
-      });
-      toast.success(`Marca "${confirmForm.brand_name}" cadastrada com sucesso`);
-      setOnboardUrl('');
-      setIdentifyResult(null);
-      setConfirmForm(null);
-      onRefresh();
-    } catch (err: any) {
-      toast.error(err.message || 'Erro ao salvar marca');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
     <div className="page-content">
-        <GlassCard title="Adicionar Marca por URL" subtitle="Cole a URL de qualquer loja para detectar automaticamente o nome e a plataforma.">
-          <form onSubmit={handleIdentify} style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
-            <div style={{ flex: 1, minWidth: '240px' }}>
-              <input
-                type="url"
-                className="input"
-                placeholder="https://www.hugoboss.com.br"
-                value={onboardUrl}
-                onChange={e => { setOnboardUrl(e.target.value); setIdentifyResult(null); setConfirmForm(null); }}
-                required
-              />
-            </div>
-            <button type="submit" className="btn btn-primary" disabled={identifying || !onboardUrl.trim()}>
-              {identifying ? <RefreshCw size={16} className="animate-spin" /> : <Search size={16} />}
-              {identifying ? 'Identificando…' : 'Identificar'}
-            </button>
-          </form>
-
-          {identifyResult && confirmForm && (
-            <form onSubmit={handleConfirmSave} style={{ marginTop: '20px', background: 'rgba(255,255,255,0.04)', borderRadius: '12px', padding: '16px', border: '1px solid rgba(255,255,255,0.1)' }}>
-              {identifyResult.warning && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', padding: '10px 14px', background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: '8px', color: '#fbbf24', fontSize: '13px' }}>
-                  <AlertTriangle size={15} />
-                  <span>{identifyResult.warning}</span>
-                </div>
-              )}
-              <div className="form-stack">
-                <div className="form-group">
-                  <label className="label">Nome da Marca</label>
-                  <input
-                    type="text"
-                    className="input"
-                    value={confirmForm.brand_name}
-                    onChange={e => setConfirmForm(f => f ? { ...f, brand_name: e.target.value } : f)}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="label">Domínio</label>
-                  <input
-                    type="text"
-                    className="input"
-                    value={confirmForm.domain}
-                    onChange={e => setConfirmForm(f => f ? { ...f, domain: e.target.value } : f)}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="label">Engine (plataforma detectada)</label>
-                  <select
-                    className="input"
-                    style={{ height: '48px', appearance: 'auto' }}
-                    value={confirmForm.engine}
-                    onChange={e => setConfirmForm(f => f ? { ...f, engine: e.target.value } : f)}
-                    required
-                  >
-                    {ENGINE_OPTIONS.map(opt => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
-                <button type="button" className="btn btn-outline" onClick={() => { setIdentifyResult(null); setConfirmForm(null); }} style={{ flex: 1 }}>Cancelar</button>
-                <button type="submit" className="btn btn-primary" disabled={saving} style={{ flex: 1 }}>
-                  {saving ? <RefreshCw size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-                  {saving ? 'Salvando…' : 'Confirmar e Salvar'}
-                </button>
-              </div>
-            </form>
-          )}
-        </GlassCard>
-
         <GlassCard title="Gerenciar Marcas">
           <div className="brand-list">
             {brands.map(b => {
