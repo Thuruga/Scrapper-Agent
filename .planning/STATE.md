@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Paridade de Dados, Cobertura Total de Frete & Inteligência Competitiva
 status: executing
-stopped_at: Phase 40 Plan 01 complete
-last_updated: "2026-06-30T12:45:00Z"
-last_activity: 2026-06-30 -- Phase 40 Plan 01 executed (url_utils + Wave-0 scaffolds)
+stopped_at: Phase 40 Plan 02 complete
+last_updated: "2026-06-30T13:02:43Z"
+last_activity: 2026-06-30 -- Phase 40 Plan 02 complete (POST /brands/identify + detect_engine tuple + infer_brand_name)
 progress:
   total_phases: 9
   completed_phases: 2
   total_plans: 16
-  completed_plans: 7
+  completed_plans: 8
   percent: 25
 ---
 
@@ -32,15 +32,15 @@ See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/sc
 ## Current Position
 
 Phase: 40 (onboarding-por-url-workflows-de-adi-o-ao-monitoramento) — EXECUTING
-Plan: 2 of 5
-Status: Plan 01 complete — executing Phase 40
-Last activity: 2026-06-30 -- Phase 40 Plan 01 complete (url_utils D-08 + Wave-0 scaffolds)
+Plan: 3 of 5
+Status: Plan 02 complete — executing Phase 40
+Last activity: 2026-06-30 -- Phase 40 Plan 02 complete (POST /brands/identify dry-run + detect_engine tuple + infer_brand_name)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed (v2.0): 11 + 1 (v4.0 Phase 40 P01)
+- Total plans completed (v2.0): 11 + 2 (v4.0 Phase 40 P01, P02)
 - Average duration: —
 
 **By Phase (milestones anteriores):**
@@ -90,6 +90,9 @@ Last activity: 2026-06-30 -- Phase 40 Plan 01 complete (url_utils D-08 + Wave-0 
 
 ### Decisions
 
+- [40-02/detect_engine-tuple]: detect_engine retorna tuple[str, str|None] em todos os caminhos. Steps 1-2 (API probes) retornam (engine, None). Step 3 salva html em _step3_html e cai para o browser probe quando nenhum marcador casa (evita bloquear detecção SFCC quando HTTP retorna página 403 sem marcadores). Step 7 carrega _step3_html para infer_brand_name.
+- [40-02/infer_brand_name-accepts-soup]: infer_brand_name aceita html como str | BeautifulSoup | None — o scaffold de test Wave-0 passa um objeto BeautifulSoup; aceitar ambos evita quebrar o scaffold enquanto mantém a assinatura pública str|None documentada.
+- [40-02/identify-dry-run]: POST /brands/identify nunca chama brand_service.add_brand (D-02); SSRF mitigation via stdlib ipaddress + scheme whitelist antes de qualquer fetch (T-40-SSRF); engine='unknown' emite warning mas não bloqueia onboarding (D-03).
 - [40-01/literal-www-strip]: normalize_url usa `host[len("www."):]` e não `str.lstrip("www.")` — lstrip remove o char-set {w,.} e corrompe hosts como `wwww.example.com`; o slice literal é o único approach correto (D-08).
 - [40-01/xfail-guard]: test_brand_identify.py usa guard de importabilidade + xfail(strict=False): verifica em runtime se `identify_brand`/`infer_brand_name` existem em `api.routes_brands`; se não, xfail — suite sempre verde antes do Plan 02.
 - [40-01/composite-tracking-filter]: normalize_url aplica `k.lower() not in _TRACKING_PARAMS` E `not k.lower().startswith("utm_")` — composite + prefix check para cobrir variantes dinâmicas de utm_ não na frozenset hardcoded.
@@ -182,9 +185,9 @@ Last activity: 2026-06-30 -- Phase 40 Plan 01 complete (url_utils D-08 + Wave-0 
 
 ## Session Continuity
 
-Last session: 2026-06-30T12:45:00Z
-Stopped at: Phase 40 Plan 01 complete
-Resume file: .planning/phases/40-onboarding-por-url-workflows-de-adi-o-ao-monitoramento/40-02-PLAN.md
+Last session: 2026-06-30T13:02:43Z
+Stopped at: Phase 40 Plan 02 complete
+Resume file: .planning/phases/40-onboarding-por-url-workflows-de-adi-o-ao-monitoramento/40-03-PLAN.md
 
 ## Operator Next Steps
 
