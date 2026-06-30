@@ -63,6 +63,18 @@ export class ApiClient {
     });
   }
 
+  static identifyBrand(url: string) {
+    return this.request<{
+      engine: string;
+      inferred_name: string;
+      domain: string;
+      warning?: string;
+    }>('/brands/identify', {
+      method: 'POST',
+      body: JSON.stringify({ url }),
+    });
+  }
+
   // ------------------------------------------------------------------
   // Search
   // ------------------------------------------------------------------
@@ -256,6 +268,16 @@ export class ApiClient {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  }
+
+  static addToMonitor(url: string, brand: string) {
+    return this.request<{ job_id: string; status: string; config: any }>(
+      '/monitor/start',
+      {
+        method: 'POST',
+        body: JSON.stringify({ url, brand, interval: 10, duration: 24 }),
+      }
+    );
   }
 
   static stopMonitor(jobId: string) {
