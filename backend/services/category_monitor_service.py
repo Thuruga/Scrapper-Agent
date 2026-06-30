@@ -6,6 +6,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
 
+from services.stock_summary_service import (
+    compute_stock_summary,
+    ensure_scan_product_ids,
+    persist_monitor_stock_summary,
+)
+
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 MONITORS_FILE = DATA_DIR / "monitored_categories.json"
 
@@ -55,6 +61,15 @@ async def run_category_scan(monitor: dict) -> None:
     except Exception as exc:
         logger.error("Erro ao extrair %s: %s", url, exc)
 
+    scraped_products = ensure_scan_product_ids(scraped_products, brand, monitor_id)
+    summary = compute_stock_summary(
+        scraped_products,
+        brand=brand,
+        monitor_id=monitor_id,
+    )
+    persist_monitor_stock_summary(monitor_id, summary)
+
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
     products_file = DATA_DIR / f"monitored_products_{monitor_id}.json"
     products_file.write_text(
         json.dumps(scraped_products, indent=2, ensure_ascii=False),
@@ -66,6 +81,14 @@ async def run_category_scan(monitor: dict) -> None:
     for item in local_data:
         if item.get("id") == monitor_id:
             item["last_scraped_at"] = last_scraped_at
+            item["last_stock_summary"] = {
+                "total_products": summary.total_products,
+                "verified_stock_count": summary.verified_stock_count,
+                "in_stock_count": summary.in_stock_count,
+                "out_of_stock_count": summary.out_of_stock_count,
+                "unknown_stock_count": summary.unknown_stock_count,
+                "rupture_pct": summary.rupture_pct,
+            }
             break
     _save_local(local_data)
 

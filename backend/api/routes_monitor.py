@@ -5,8 +5,10 @@ import uuid
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import APIRouter, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
+
+from services.stock_summary_service import load_monitor_stock_summary
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 MONITORS_FILE = DATA_DIR / "monitored_categories.json"
@@ -87,3 +89,14 @@ async def get_monitored_products(monitor_id: str):
         return json.loads(products_file.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return []
+
+
+@router.get("/category/{monitor_id}/stock-summary")
+async def get_monitor_stock_summary(monitor_id: str):
+    summary = load_monitor_stock_summary(monitor_id)
+    if summary is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Resumo de estoque nao encontrado.",
+        )
+    return summary.model_dump(mode="json")
