@@ -66,6 +66,17 @@ wiring into `run_bulk_scrape`, and add a hermetic test proving leaf filtering
   replace via `update_mappings`). `print_and_confirm` does gate before persist,
   but add an early overwrite guard for parity/safety.
 
+## Audit category-mapping accuracy (operator low-confidence — 2026-06-29)
+
+The operator doesn't fully trust the categories being shown. Only `camisas` and
+`calcas` were individually verified during 39-01; the other 5 HB mappings came from
+`auto_match` (the same matcher that mismatched calcas→Calçados). **Audit each of the 7
+`hugoboss.mappings`**: scan the mapped `vtex_fq_path` and confirm the returned products
+actually match the canonical label (e.g. `polos` → polos, not generic). Re-map or drop
+any that don't. Also reconcile `get_canonical_categories()` so the UI only offers HB
+categories that truly return products (note: `/masculino/roupas/polos` is empty on HB's
+own site). Likely root cause = the accent collision below.
+
 ## Secondary: auto_match accent collision
 
 `auto_match` (onboard_vtex_brands.py) mismatched canonical `calcas` →
