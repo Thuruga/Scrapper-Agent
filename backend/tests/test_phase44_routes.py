@@ -4,7 +4,7 @@ import json
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from core.models import RawProductBronze, StockRuptureSummary
+from core.models import RawProductBronze, StockDepthResult, StockRuptureSummary
 
 
 class _FakeCategoryEngine:
@@ -179,6 +179,99 @@ def test_monitor_stock_summary_endpoint_returns_404_when_missing(monkeypatch):
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Resumo de estoque nao encontrado."
+
+
+def test_stock_depth_endpoint_calls_service_with_path_parameters_only(monkeypatch):
+    import api.routes_monitor as routes_monitor
+
+    called = {}
+
+    async def fake_probe(monitor_id, scan_product_id):
+        called["monitor_id"] = monitor_id
+        called["scan_product_id"] = scan_product_id
+        return StockDepthResult(
+            stock_depth_state="estimated",
+            stock_depth_estimate=8,
+            stock_depth_checked_at="2026-06-30T18:40:00Z",
+            stock_depth_source="vtex-cart-probe",
+            stock_depth_label="maximo observado/estimativa via cart-probe",
+        )
+
+    monkeypatch.setattr(routes_monitor, "probe_scan_product_stock_depth", fake_probe)
+
+    app = FastAPI()
+    app.include_router(routes_monitor.router)
+
+    response = TestClient(app).post(
+        "/monitor/category/monitor-1/products/scan-product-1/stock-depth",
+        json={
+            "domain": "evil.example",
+            "url": "https://evil.example/p",
+            "quantity": 5000,
+            "provider": "forced",
+        },
+    )
+
+    assert response.status_code == 200
+    assert called == {
+        "monitor_id": "monitor-1",
+        "scan_product_id": "scan-product-1",
+    }
+
+
+def test_stock_depth_endpoint_maps_value_error_to_http_400(monkeypatch):
+    import api.routes_monitor as routes_monitor
+
+    async def fake_probe(monitor_id, scan_product_id):
+        raise ValueError("Produto do scan nao encontrado.")
+
+    monkeypatch.setattr(routes_monitor, "probe_scan_product_stock_depth", fake_probe)
+
+    app = FastAPI()
+    app.include_router(routes_monitor.router)
+
+    response = TestClient(app).post(
+        "/monitor/category/monitor-1/products/missing/stock-depth"
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Produto do scan nao encontrado."
+
+
+def test_stock_depth_endpoint_returns_stock_depth_payload(monkeypatch):
+    import api.routes_monitor as routes_monitor
+
+    expected = StockDepthResult(
+        stock_depth_state="blocked",
+        stock_depth_estimate=None,
+        stock_depth_checked_at="2026-06-30T18:40:00Z",
+        stock_depth_source="vtex-cart-probe",
+        stock_depth_label="maximo observado/estimativa via cart-probe",
+    )
+
+    async def fake_probe(monitor_id, scan_product_id):
+        return expected
+
+    monkeypatch.setattr(routes_monitor, "probe_scan_product_stock_depth", fake_probe)
+
+    app = FastAPI()
+    app.include_router(routes_monitor.router)
+
+    response = TestClient(app).post(
+        "/monitor/category/monitor-1/products/scan-product-1/stock-depth"
+    )
+
+    assert response.status_code == 200
+    assert response.json() == expected.model_dump(mode="json")
+
+
+def test_stock_depth_route_does_not_involve_search_routes():
+    from pathlib import Path
+
+    routes_search = Path("backend/api/routes_search.py").read_text(encoding="utf-8")
+    assert "probe_scan_product_stock_depth" not in routes_search
+    assert "stock_depth_service" not in routes_search
+    assert "cart_probe" not in routes_search
 
 
 def test_scrape_category_passes_generated_job_id_to_orchestrator(monkeypatch):
