@@ -337,6 +337,8 @@ class DynamicBrandCreate(BaseModel):
 
     review_provider: Optional[str] = "none"  # ex: "trustvox", "vtex_native"
     review_store_id: Optional[str] = None  # ex: "78800"
+    review_provider_evidence: Optional[str] = None
+    review_unsupported_reason: Optional[str] = None
     vtex_account: Optional[str] = None  # ex: "foxton" (se diferente do domínio)
     engine: Optional[str] = "vtex"  # ex: "vtex", "shopify"
     logo_url: Optional[str] = None  # ex: "https://.../logo.png"
