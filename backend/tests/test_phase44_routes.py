@@ -179,3 +179,191 @@ def test_monitor_stock_summary_endpoint_returns_404_when_missing(monkeypatch):
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Resumo de estoque nao encontrado."
+
+
+def test_scrape_category_passes_generated_job_id_to_orchestrator(monkeypatch):
+    import api.routes_category as routes_category
+    import services.orchestrator as orchestrator
+
+    called = {}
+
+    async def fake_run_orchestrator(
+        *,
+        marca,
+        url_categoria,
+        log_callback,
+        cancel_event,
+        job_id,
+    ):
+        called["marca"] = marca
+        called["url_categoria"] = url_categoria
+        called["job_id"] = job_id
+
+    monkeypatch.setattr(routes_category.uuid, "uuid4", lambda: "job-1")
+    monkeypatch.setattr(orchestrator, "run_orchestrator", fake_run_orchestrator)
+
+    app = FastAPI()
+    app.include_router(routes_category.router)
+
+    response = TestClient(app).post(
+        "/scrape-category",
+        json={
+            "brand": "aramis",
+            "custom_url": "https://www.aramis.com.br/camisas",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["job_id"] == "job-1"
+    assert called == {
+        "marca": "aramis",
+        "url_categoria": "https://www.aramis.com.br/camisas",
+        "job_id": "job-1",
+    }
+
+
+def test_run_orchestrator_persists_single_brand_stock_summary(
+    tmp_path, monkeypatch
+):
+    import services.orchestrator as orchestrator
+    import services.stock_summary_service as stock_summary_service
+    from services.engines import factory
+
+    products = [
+        {"url": "https://example.com/a", "raw_title": "Produto A", "stock_availability": True},
+        {"url": "https://example.com/b", "raw_title": "Produto B", "stock_availability": False},
+        {"url": "https://example.com/c", "raw_title": "Produto C", "stock_availability": None},
+    ]
+    monkeypatch.setattr(stock_summary_service, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(
+        factory.engine_factory,
+        "get_engine",
+        lambda brand: _FakeCategoryEngine(products),
+    )
+    monkeypatch.setattr(
+        orchestrator.pd.DataFrame,
+        "to_excel",
+        lambda self, *args, **kwargs: None,
+    )
+
+    emitted = []
+    asyncio.run(
+        orchestrator.run_orchestrator(
+            "aramis",
+            "https://www.aramis.com.br/camisas",
+            log_callback=emitted.append,
+            job_id="job-1",
+        )
+    )
+
+    payload = json.loads(
+        (tmp_path / "category_scan_summaries_job-1.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert len(payload) == 1
+    assert payload[0]["brand"] == "aramis"
+    assert payload[0]["scan_id"] == "job-1:aramis"
+    assert payload[0]["verified_stock_count"] == 2
+    assert payload[0]["unknown_stock_count"] == 1
+    assert emitted[-2]["stock_summary"]["rupture_pct"] == 0.5
+
+
+def test_run_multi_orchestrator_persists_one_stock_summary_per_brand(
+    tmp_path, monkeypatch
+):
+    import services.orchestrator_multi as orchestrator_multi
+    import services.stock_summary_service as stock_summary_service
+
+    async def fake_send_message(message, job_id):
+        return None
+
+    async def fake_brand_pipeline(brand_key, url, cancel_event, log_callback=None):
+        products = [
+            {
+                "url": f"https://example.com/{brand_key}/a",
+                "raw_title": "Produto A",
+                "stock_availability": brand_key == "aramis",
+            },
+            {
+                "url": f"https://example.com/{brand_key}/b",
+                "raw_title": "Produto B",
+                "stock_availability": None,
+            },
+        ]
+        return orchestrator_multi.BrandJobResult(
+            brand_key=brand_key,
+            brand_name=brand_key.title(),
+            products=products,
+            success_count=len(products),
+            finished=True,
+        )
+
+    monkeypatch.setattr(stock_summary_service, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(orchestrator_multi.manager, "send_message", fake_send_message)
+    monkeypatch.setattr(
+        orchestrator_multi,
+        "_run_brand_pipeline",
+        fake_brand_pipeline,
+    )
+    monkeypatch.setattr(orchestrator_multi, "consolidate_and_save", lambda *args: None)
+
+    async def run_job():
+        await orchestrator_multi.run_multi_orchestrator(
+            job_id="job-1",
+            brand_url_map={
+                "aramis": "https://www.aramis.com.br/camisas",
+                "reserva": "https://www.usereserva.com/camisas",
+            },
+            category_label="Camisas",
+            cancel_event=asyncio.Event(),
+        )
+
+    asyncio.run(run_job())
+
+    payload = json.loads(
+        (tmp_path / "category_scan_summaries_job-1.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert [item["brand"] for item in payload] == ["aramis", "reserva"]
+    assert [item["scan_id"] for item in payload] == [
+        "job-1:aramis",
+        "job-1:reserva",
+    ]
+    assert payload[0]["in_stock_count"] == 1
+    assert payload[1]["out_of_stock_count"] == 1
+
+
+def test_category_job_stock_summary_endpoint_returns_persisted_summaries(monkeypatch):
+    import api.routes_category as routes_category
+
+    summaries = [
+        StockRuptureSummary(
+            brand="aramis",
+            total_products=1,
+            in_stock_count=1,
+            out_of_stock_count=0,
+            unknown_stock_count=0,
+            verified_stock_count=1,
+            rupture_pct=0.0,
+            scan_id="job-1:aramis",
+            scanned_at="2026-06-30T12:00:00Z",
+        )
+    ]
+    monkeypatch.setattr(
+        routes_category,
+        "load_category_job_stock_summaries",
+        lambda job_id: summaries if job_id == "job-1" else [],
+    )
+
+    app = FastAPI()
+    app.include_router(routes_category.router)
+
+    response = TestClient(app).get("/scrape-category/job-1/stock-summary")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "job_id": "job-1",
+        "summaries": [summaries[0].model_dump(mode="json")],
+    }
