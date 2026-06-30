@@ -199,6 +199,7 @@ class ShopifyApiClient(BaseScraper):
             
             # Atributos
             available_sizes = list(set([v.get("title") for v in variants if v.get("available")]))
+            stock_availability = self._variants_available(variants, default=False)
             
             return RawProductBronze(
                 url=urljoin(self.base_url, f"/products/{handle}"),
@@ -207,7 +208,7 @@ class ShopifyApiClient(BaseScraper):
                 raw_description=p.get("body_html", ""),
                 price_full=price_old if price_old and price_old > price_full else price_full,
                 price_discount=price_full if price_old and price_old > price_full else None,
-                stock_availability=any([v.get("available") for v in variants]),
+                stock_availability=stock_availability,
                 category=category,
                 image_url=image_url,
                 available_sizes=available_sizes,
@@ -220,6 +221,12 @@ class ShopifyApiClient(BaseScraper):
         except Exception as e:
             logger.error(f"Erro ao mapear produto Shopify: {e}")
             return None
+
+    @staticmethod
+    def _variants_available(variants: List[Dict[str, Any]], default: bool) -> bool:
+        if not variants:
+            return default
+        return any(variant.get("available") is True for variant in variants)
 
     async def get_product_by_url(self, product_url: str) -> Optional[RawProductBronze]:
         """Extrai dados de um único produto via URL (append .json)."""
@@ -293,6 +300,10 @@ class ShopifyApiClient(BaseScraper):
                         image_url = img.get("url") if isinstance(img, dict) else img
                         if not image_url:
                             image_url = p.get("image")
+
+                        available = self._variants_available(p.get("variants", []), default=True)
+                        if only_in_stock and not available:
+                            continue
                         
                         products.append(SearchProductResult(
                             brand=self.brand_key,
@@ -300,7 +311,7 @@ class ShopifyApiClient(BaseScraper):
                             url=urljoin(self.base_url, p.get("url", "/")),
                             price_full=_parse_shopify_price(p.get("price") or 0),
                             image_url=image_url,
-                            available=True
+                            available=available
                         ))
         except Exception as e:
             logger.debug(f"[{self.brand_key}] Falha na busca via suggest.json: {e}")
@@ -318,13 +329,16 @@ class ShopifyApiClient(BaseScraper):
                             first_variant = variants[0] if variants else {}
                             images = p.get("images", [])
                             image_url = images[0].get("src") if images else None
+                            available = self._variants_available(variants, default=False)
+                            if only_in_stock and not available:
+                                continue
                             products.append(SearchProductResult(
                                 brand=self.brand_key,
                                 product_name=p.get("title") or "Sem titulo",
                                 url=urljoin(self.base_url, f"/products/{p.get('handle', '')}"),
                                 price_full=_parse_shopify_price(first_variant.get("price") or 0),
                                 image_url=image_url,
-                                available=any(v.get("available") for v in variants),
+                                available=available,
                             ))
             except Exception as e:
                 logger.debug(f"[{self.brand_key}] Falha na busca via search.json: {e}")
