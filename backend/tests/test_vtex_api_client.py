@@ -18,6 +18,7 @@ Estrategia (deterministico, zero rede):
   - metodos async dirigidos via asyncio.run (projeto sem pytest-asyncio configurado).
 """
 import asyncio
+import copy
 import types
 
 import pytest
@@ -121,6 +122,124 @@ class TestParseProductDictCharacterization:
         client = VtexApiClient(brand_name="Aramis")
         result = asyncio.run(client.parse_product_dict({"foo": "bar"}, "http://x/p", "x"))
         assert result is None
+
+    def test_stock_availability_true_when_later_sku_has_stock(self, monkeypatch):
+        async def fake_review(brand_key, product_id):
+            return (None, None)
+
+        async def fake_color_family(domain, product_id):
+            return []
+
+        product = copy.deepcopy(_PRODUCT)
+        product["items"][0]["sellers"][0]["commertialOffer"]["AvailableQuantity"] = 0
+        product["items"].append(copy.deepcopy(product["items"][0]))
+        product["items"][1]["itemId"] = "sku2"
+        product["items"][1]["name"] = "Camisa Polo Aramis Piquet - G"
+        product["items"][1]["sellers"][0]["commertialOffer"]["AvailableQuantity"] = 4
+
+        monkeypatch.setattr(vtex_module, "get_single_review", fake_review)
+        client = VtexApiClient(brand_name="Aramis")
+        monkeypatch.setattr(client, "_get_color_family", fake_color_family)
+
+        result = asyncio.run(client.parse_product_dict(product, product["link"], "www.aramis.com.br"))
+
+        assert result is not None
+        assert result.stock_availability is True
+
+    def test_stock_availability_false_when_all_skus_are_unavailable(self, monkeypatch):
+        async def fake_review(brand_key, product_id):
+            return (None, None)
+
+        async def fake_color_family(domain, product_id):
+            return []
+
+        product = copy.deepcopy(_PRODUCT)
+        product["items"][0]["sellers"][0]["commertialOffer"]["AvailableQuantity"] = 0
+        product["items"].append(copy.deepcopy(product["items"][0]))
+        product["items"][1]["itemId"] = "sku2"
+        product["items"][1]["name"] = "Camisa Polo Aramis Piquet - G"
+        product["items"][1]["sellers"][0]["commertialOffer"]["AvailableQuantity"] = 0
+
+        monkeypatch.setattr(vtex_module, "get_single_review", fake_review)
+        client = VtexApiClient(brand_name="Aramis")
+        monkeypatch.setattr(client, "_get_color_family", fake_color_family)
+
+        result = asyncio.run(client.parse_product_dict(product, product["link"], "www.aramis.com.br"))
+
+        assert result is not None
+        assert result.stock_availability is False
+
+
+class TestVtexSearchStockAggregation:
+    def test_only_in_stock_keeps_product_when_later_sku_has_stock(self, monkeypatch):
+        product_with_later_stock = copy.deepcopy(_PRODUCT)
+        product_with_later_stock["items"][0]["sellers"][0]["commertialOffer"]["AvailableQuantity"] = 0
+        product_with_later_stock["items"].append(copy.deepcopy(product_with_later_stock["items"][0]))
+        product_with_later_stock["items"][1]["itemId"] = "sku2"
+        product_with_later_stock["items"][1]["sellers"][0]["commertialOffer"]["AvailableQuantity"] = 2
+
+        product_without_stock = copy.deepcopy(_PRODUCT)
+        product_without_stock["productId"] = "empty"
+        product_without_stock["productName"] = "Camisa sem estoque"
+        product_without_stock["items"][0]["sellers"][0]["commertialOffer"]["AvailableQuantity"] = 0
+
+        class _Brand:
+            brand_key = "aramis"
+            brand_name = "Aramis"
+            domain = "www.aramis.com.br"
+
+        async def fake_request_json(self, url):
+            if "_from=0" in url:
+                return [product_with_later_stock, product_without_stock]
+            return []
+
+        async def fake_reviews(brand_key, product_ids):
+            return {pid: (None, None) for pid in product_ids}
+
+        monkeypatch.setattr(vtex_module.brand_service, "get_brand", lambda brand_key: _Brand())
+        monkeypatch.setattr(vtex_module, "resolve_query_to_vtex_category_path", lambda query, brand_key: None)
+        monkeypatch.setattr(vtex_module, "get_bulk_reviews", fake_reviews)
+        monkeypatch.setattr(VtexApiClient, "_request_json", fake_request_json)
+
+        from services.engines.base_engine import BaseEngine
+
+        monkeypatch.setattr(BaseEngine, "filter_mens_fashion", staticmethod(lambda products: products))
+
+        result = asyncio.run(VtexApiClient("Aramis").search("camisa", max_results=10, only_in_stock=True))
+
+        assert [p.product_name for p in result.products] == ["Camisa Polo Aramis Piquet"]
+        assert result.products[0].available is True
+
+    def test_search_marks_product_unavailable_when_no_sku_has_stock(self, monkeypatch):
+        product_without_stock = copy.deepcopy(_PRODUCT)
+        product_without_stock["items"][0]["sellers"][0]["commertialOffer"]["AvailableQuantity"] = 0
+
+        class _Brand:
+            brand_key = "aramis"
+            brand_name = "Aramis"
+            domain = "www.aramis.com.br"
+
+        async def fake_request_json(self, url):
+            if "_from=0" in url:
+                return [product_without_stock]
+            return []
+
+        async def fake_reviews(brand_key, product_ids):
+            return {pid: (None, None) for pid in product_ids}
+
+        monkeypatch.setattr(vtex_module.brand_service, "get_brand", lambda brand_key: _Brand())
+        monkeypatch.setattr(vtex_module, "resolve_query_to_vtex_category_path", lambda query, brand_key: None)
+        monkeypatch.setattr(vtex_module, "get_bulk_reviews", fake_reviews)
+        monkeypatch.setattr(VtexApiClient, "_request_json", fake_request_json)
+
+        from services.engines.base_engine import BaseEngine
+
+        monkeypatch.setattr(BaseEngine, "filter_mens_fashion", staticmethod(lambda products: products))
+
+        result = asyncio.run(VtexApiClient("Aramis").search("camisa", max_results=10, only_in_stock=False))
+
+        assert len(result.products) == 1
+        assert result.products[0].available is False
 
 
 # ---------------------------------------------------------------------------
