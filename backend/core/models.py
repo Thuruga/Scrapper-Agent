@@ -68,6 +68,8 @@ class ReviewCommentsResult(BaseModel):
     rating: Optional[float] = None
     review_count: Optional[int] = None
     review_product_id: Optional[str] = None
+    source_provider: Optional[str] = None
+    max_pages: int = 0
 
 
 class StockDepthResult(BaseModel):
