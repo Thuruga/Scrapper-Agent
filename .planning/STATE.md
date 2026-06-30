@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Paridade de Dados, Cobertura Total de Frete & Inteligência Competitiva
 status: executing
-stopped_at: Phase 40 Plan 03 complete
-last_updated: "2026-06-30T13:33:00Z"
-last_activity: 2026-06-30 -- Phase 40 Plan 03 complete (dedup-aware start_monitor + idempotent POST /monitor/start)
+stopped_at: Phase 40 Plan 04 complete
+last_updated: "2026-06-30T14:27:37Z"
+last_activity: 2026-06-30 -- Phase 40 Plan 04 complete (marketplace toggles UX-05: brands.json entries + per-request CrossMarketplaceService enforcement)
 progress:
   total_phases: 9
   completed_phases: 2
   total_plans: 16
-  completed_plans: 9
-  percent: 28
+  completed_plans: 10
+  percent: 31
 ---
 
 # Project State: Intelligence Scraper
@@ -32,15 +32,15 @@ See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/sc
 ## Current Position
 
 Phase: 40 (onboarding-por-url-workflows-de-adi-o-ao-monitoramento) — EXECUTING
-Plan: 4 of 5
-Status: Plan 03 complete — executing Phase 40
-Last activity: 2026-06-30 -- Phase 40 Plan 03 complete (dedup-aware start_monitor + idempotent POST /monitor/start)
+Plan: 5 of 5
+Status: Plan 04 complete — executing Phase 40
+Last activity: 2026-06-30 -- Phase 40 Plan 04 complete (marketplace toggles UX-05: brands.json entries + per-request CrossMarketplaceService enforcement)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed (v2.0): 11 + 2 (v4.0 Phase 40 P01, P02)
+- Total plans completed (v2.0): 11 + 4 (v4.0 Phase 40 P01-P04)
 - Average duration: —
 
 **By Phase (milestones anteriores):**
@@ -79,6 +79,7 @@ Last activity: 2026-06-30 -- Phase 40 Plan 03 complete (dedup-aware start_monito
 | Phase 33 P02 | 18 min | 2 tasks | 4 files |
 | 33 | 3 | - | - |
 | 39 | 3 | - | - |
+| Phase 40 P04 | 25m | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -90,6 +91,8 @@ Last activity: 2026-06-30 -- Phase 40 Plan 03 complete (dedup-aware start_monito
 
 ### Decisions
 
+- [40-04/marketplace-brand-keys]: Preserved brand_keys mercado_livre/netshoes/amazon from Plan 02 runtime injection — engine values mercadolivre/netshoes/amazon (no underscore) matching engine class naming; _ENGINE_MAP is the single authoritative source.
+- [40-04/_inject_engines-helper]: Tests use _inject_engines(service, engines_dict) helper: sets _by_display and monkey-patches _active_engines() — hermetic, no brands.json disk access in tests.
 - [40-03/dedup-return]: start_monitor retorna (PriceMonitorConfig, status_str) em todos os caminhos; status ∈ {created, already_active, reactivated}; POST /monitor/start retorna config.job_id (id canônico: existente ou novo) + campo status.
 - [40-03/lazy-import]: normalize_url importado dentro do corpo de start_monitor para evitar risco de import-cycle; espelha recomendação do PATTERNS.md.
 - [40-02/detect_engine-tuple]: detect_engine retorna tuple[str, str|None] em todos os caminhos. Steps 1-2 (API probes) retornam (engine, None). Step 3 salva html em _step3_html e cai para o browser probe quando nenhum marcador casa (evita bloquear detecção SFCC quando HTTP retorna página 403 sem marcadores). Step 7 carrega _step3_html para infer_brand_name.
@@ -187,9 +190,9 @@ Last activity: 2026-06-30 -- Phase 40 Plan 03 complete (dedup-aware start_monito
 
 ## Session Continuity
 
-Last session: 2026-06-30T13:33:00Z
-Stopped at: Phase 40 Plan 03 complete
-Resume file: .planning/phases/40-onboarding-por-url-workflows-de-adi-o-ao-monitoramento/40-04-PLAN.md
+Last session: 2026-06-30T14:27:37Z
+Stopped at: Phase 40 Plan 04 complete
+Resume file: .planning/phases/40-onboarding-por-url-workflows-de-adi-o-ao-monitoramento/40-05-PLAN.md
 
 ## Operator Next Steps
 
