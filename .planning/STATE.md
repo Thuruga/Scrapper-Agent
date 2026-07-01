@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Paridade de Dados, Cobertura Total de Frete & Inteligência Competitiva
 status: executing
-stopped_at: Completed 38-01-PLAN.md
-last_updated: "2026-07-01T16:39:05.709Z"
+stopped_at: Completed 38-02-PLAN.md
+last_updated: "2026-07-01T18:05:17.107Z"
 last_activity: 2026-07-01 -- Phase 38 execution started
 progress:
   total_phases: 9
   completed_phases: 4
   total_plans: 19
-  completed_plans: 17
+  completed_plans: 18
   percent: 44
 ---
 
@@ -27,12 +27,12 @@ See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/sc
 
 **Goal:** Nivelar a extração de atributos entre todas as marcas, fechar lacunas de cobertura (Hugo Boss por categoria, Zara, frete universal) e adicionar camadas de inteligência competitiva (MAP, promoções, ruptura de estoque, sortimento, avaliações).
 **Phases:** 9 (37-45)
-**Progress:** [█████████░] 89%
+**Progress:** [██████████] 95%
 
 ## Current Position
 
 Phase: 38 (UX de Busca & Monitoramento — Quick Wins) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-07-01 -- Phase 38 execution started
 
@@ -87,6 +87,7 @@ Last activity: 2026-07-01 -- Phase 38 execution started
 | Phase 44 P04 | 68 min | 3 tasks | 7 files |
 | Phase 44 P05 | 12 min | 2 tasks | 3 files |
 | Phase 38-ux-de-busca-monitoramento-quick-wins P01 | 25min | 3 tasks | 5 files |
+| Phase 38-ux-de-busca-monitoramento-quick-wins P02 | 20min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -182,6 +183,8 @@ Last activity: 2026-07-01 -- Phase 38 execution started
 - [Phase ?]: [44-05/client-boundary] — Phase 44 frontend methods accept only monitor_id, scan_product_id, and optional max_pages; no URL/domain/provider/quantity payload is exposed.
 - [Phase 38-01]: last_price_discount: single delta field added to both PriceMonitorConfig and PriceHistoryEntry; last_price keeps meaning effective/current price for frontend back-compat (D-04)
 - [Phase 38-01]: has_change now also fires on config.last_price_discount != current_discount, so a promo-only change (price_full unchanged, discount added) is no longer silently dropped (D-01)
+- [Phase ?]: [38-02/icon-placement]: History icon placed page-local (top of SearchPage/CrossMarketplacePage own page-content) instead of lifting to shared app-shell content-header - avoids new cross-component state plumbing for a two-tab feature
+- [Phase ?]: [38-02/dual-mode-controlled]: HistoryList made dual-mode controlled/uncontrolled (optional collapsed/onToggleCollapsed props) so the internal toggle still works if a future caller omits the new props - avoids a breaking API change
 
 ### Pending Todos
 
@@ -216,8 +219,8 @@ Last activity: 2026-07-01 -- Phase 38 execution started
 
 ## Session Continuity
 
-Last session: 2026-07-01T16:39:05.686Z
-Stopped at: Completed 38-01-PLAN.md
+Last session: 2026-07-01T18:05:17.089Z
+Stopped at: Completed 38-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

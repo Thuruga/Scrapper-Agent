@@ -23,12 +23,12 @@ Requisitos comprometidos para este milestone. Cada um mapeia para uma phase no R
 
 ### C — UX de Monitoramento & Busca
 
-- [ ] **UX-01**: Monitor de categoria e varredura por categoria são responsivos em viewports menores.
+- [x] **UX-01**: Monitor de categoria e varredura por categoria são responsivos em viewports menores.
 - [x] **UX-02**: Lista de monitoramento exibe o valor da promoção (`price_discount`) além do preço cheio.
 - [x] **UX-03**: Operador cadastra uma marca colando **apenas a URL**; o sistema detecta marca + engine (`detect_engine` + inferência de nome) e apresenta para confirmação antes de salvar, com override manual disponível.
 - [x] **UX-04**: Operador adiciona um produto ao monitoramento direto da busca comparativa, da busca por SKU e do monitor de categoria; criação idempotente (dedup por url+marca).
 - [x] **UX-05**: Toggles de ativar/desativar disponíveis também para os marketplaces virtuais (Mercado Livre, Netshoes, Amazon), respeitados pelo `cross_marketplace_service`.
-- [ ] **UX-06**: Histórico de busca fica no canto superior direito, tanto na busca comparativa quanto na busca por SKU.
+- [x] **UX-06**: Histórico de busca fica no canto superior direito, tanto na busca comparativa quanto na busca por SKU.
 - [ ] **UX-07**: Busca por SKU aceita somente o padrão de SKU (ex.: `ML.05.0326046`, validado) e o campo de CEP fica na mesma linha do input do SKU (igual à comparativa).
 - [x] **UX-08**: Selecionar uma categoria no monitor dispara automaticamente a primeira varredura e exibe a lista de produtos, sem trigger manual.
 
@@ -90,9 +90,9 @@ Explicitamente excluído deste milestone, com motivo.
 | PARID-03 | Phase 37 | Pending |
 | PARID-04 | Phase 37 | Pending |
 | COMP-08 | Phase 38 | Complete |
-| UX-01 | Phase 38 | Pending |
+| UX-01 | Phase 38 | Complete |
 | UX-02 | Phase 38 | Complete |
-| UX-06 | Phase 38 | Pending |
+| UX-06 | Phase 38 | Complete |
 | UX-07 | Phase 38 | Pending |
 | UX-08 | Phase 38 | Complete |
 | COMP-06 | Phase 39 | Complete |
