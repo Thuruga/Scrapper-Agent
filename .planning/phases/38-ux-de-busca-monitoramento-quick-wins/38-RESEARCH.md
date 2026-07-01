@@ -417,17 +417,19 @@ Not applicable — this phase does not involve external libraries or APIs whose 
 
 **If this table is empty:** N/A — two low-risk implementation-shape assumptions are logged above; neither affects a locked decision from CONTEXT.md.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Exact field names for D-04 (`last_price_full`/`last_price_discount` vs. alternatives)**
    - What we know: CONTEXT.md explicitly defers this to Claude's discretion; the only hard constraint is that `last_price` must keep meaning "effective/current price" for frontend backward-compatibility.
    - What's unclear: Whether to add ONE new field (`last_price_discount`, delta-only, computing "original price" via `last_price + last_price_discount` the same way `App.tsx:3009-3018` already does) or TWO new fields (`last_price_full` + `last_price_discount`, mirroring `RawProductBronze` exactly).
    - Recommendation: Add a single `last_price_discount: Optional[float] = None` field to `PriceMonitorConfig` (and to `PriceHistoryEntry` for historical accuracy), keep `last_price` as the effective/current price per D-01's formula — this is the minimal change that satisfies D-01/D-02/D-03 and reuses the exact `App.tsx:3009-3018` rendering formula (`last_price + last_price_discount` = pre-discount price) without introducing a redundant `last_price_full` that would need to always equal the pre-D-01-formula value.
+   - **RESOLVED:** 38-01-PLAN.md Task 2 adopted the recommendation as-is — a single `last_price_discount: Optional[float] = None` field on both `PriceMonitorConfig` and `PriceHistoryEntry`; `last_price` keeps its existing meaning (effective/current price).
 
 2. **Poll cadence and termination condition for UX-08's completion detection**
    - What we know: No existing polling mechanism exists on `MonitoredCategoriesPage`; `MonitorPage`'s analogous poll runs indefinitely every 5s with no stop condition (it's a persistent dashboard).
    - What's unclear: The auto-sweep poll should almost certainly STOP once `last_scraped_at` appears (unlike `MonitorPage`'s permanent poll) — CONTEXT.md doesn't specify a timeout for pathological cases (e.g., a scan that never completes due to anti-bot blocking).
    - Recommendation: Poll every 3-5s, stop on first successful detection of a non-null `last_scraped_at` for the new category's `id`, AND add a reasonable max-attempts cap (e.g., 20 attempts / ~60-100s) that silently stops polling and leaves the row's spinner in place (the operator can still manually refresh/reopen later) — avoids an infinite client-side timer if a scan hangs.
+   - **RESOLVED:** 38-03-PLAN.md Task 2 adopted the recommendation as-is — poll every 3-5s, stop on first non-null `last_scraped_at` for the new category's id, with a ~20-attempt cap; on cap exhaustion polling silently stops and the spinner stays visible (cleared on unmount).
 
 ## Environment Availability
 
