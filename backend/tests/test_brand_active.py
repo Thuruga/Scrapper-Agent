@@ -230,6 +230,27 @@ class TestMarketplacesInBrandsJson:
         )
 
 
+class TestLacosteExcludedFromActiveOnly:
+    """Phase 38 Plan 01: COMP-08 regression guard.
+
+    Usa o brand_service real (singleton, le brands.json) — nao mocka nada,
+    espelhando o padrao de TestMarketplacesInBrandsJson. Lacoste esta
+    cadastrada com is_active=False (bloqueio anti-bot, ver STATE.md); este
+    teste garante que ela nunca aparece no chokepoint de enforcement
+    list_brands(active_only=True) mesmo apos futuras edicoes de brands.json.
+    """
+
+    def test_lacoste_absent_from_active_only(self):
+        """Lacoste (is_active=False) nao deve aparecer em list_brands(active_only=True)."""
+        from services.brand_service import brand_service
+
+        active_keys = {b.brand_key for b in brand_service.list_brands(active_only=True)}
+        assert "lacoste" not in active_keys, (
+            f"'lacoste' nao deveria aparecer em list_brands(active_only=True). "
+            f"Keys ativas: {sorted(active_keys)}"
+        )
+
+
 class TestBrandRouteReturnsInactive:
     """Guarda contra Pitfall-6 (MGMT-01 SC-4 / D-08).
 

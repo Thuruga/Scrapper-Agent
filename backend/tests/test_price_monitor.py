@@ -191,6 +191,66 @@ async def test_monitor_invalid_payload_does_not_crash_loop():
 
 
 @pytest.mark.asyncio
+async def test_price_monitor_promo_only_change_triggers_history():
+    """UX-02 (D-01/D-03): uma mudanca APENAS de promocao (price_full inalterado,
+    discount adicionado) deve gerar uma entrada de historico e uma mensagem WS
+    price_update cujo payload contenha o campo price_discount.
+
+    RED ate a Task 2 (campo last_price_discount nos models) + Task 3 (deteccao
+    de mudanca + payload WS discount-aware) serem implementadas.
+    """
+    service = PriceMonitorService()
+    job_id = "test-promo-only"
+
+    config = PriceMonitorConfig(
+        job_id=job_id,
+        url="http://example.com/produto-promo",
+        brand="test-brand",
+        interval_minutes=1,
+        duration_hours=1,
+        active=True,
+        last_price=100.0,
+    )
+    service.monitors[job_id] = config
+
+    mock_engine = MagicMock()
+    # price_full inalterado (100.0), mas agora com um desconto (delta) de 20.0 —
+    # promo-only change: preco efetivo nao mudou, mas o desconto apareceu.
+    mock_engine.get_pdp_product = AsyncMock(return_value={
+        "url": config.url,
+        "brand": "test-brand",
+        "raw_title": "Produto Promo",
+        "raw_description": "Descricao",
+        "price_full": 100.0,
+        "price_discount": 20.0,
+        "image_url": "http://example.com/img.jpg",
+        "stock_availability": True,
+    })
+
+    async def stop_after_first(*args, **kwargs):
+        config.active = False
+
+    with patch("services.price_monitor_service.engine_factory.get_engine", return_value=mock_engine), \
+         patch("services.price_monitor_service.manager.send_message", new_callable=AsyncMock) as mock_ws, \
+         patch.object(service, "_save_monitors"), \
+         patch("services.price_monitor_service.asyncio.sleep", new=AsyncMock(side_effect=stop_after_first)):
+        await service._monitor_loop(job_id)
+
+    assert len(config.history) == 1, (
+        "Mudanca apenas de desconto (promo-only) deve gerar uma entrada de historico (D-01)"
+    )
+
+    price_update_payloads = [
+        c.args[0] for c in mock_ws.await_args_list
+        if isinstance(c.args[0], dict) and c.args[0].get("type") == "price_update"
+    ]
+    assert price_update_payloads, "Deveria ter emitido uma mensagem WS price_update"
+    assert "price_discount" in price_update_payloads[0], (
+        "Payload WS price_update deve conter o campo price_discount (D-03)"
+    )
+
+
+@pytest.mark.asyncio
 async def test_dedup_active():
     """Adicionar um monitor para (url+brand) que já está ativo é no-op: retorna 'already_active'
     sem criar nova entrada em service.monitors."""
