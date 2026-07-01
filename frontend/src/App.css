@@ -203,6 +203,10 @@ body {
   .hidden-on-mobile {
     display: none !important;
   }
+
+  .grid-category {
+    grid-template-columns: 1fr;
+  }
 }
 
 .mobile-header-toggle {
