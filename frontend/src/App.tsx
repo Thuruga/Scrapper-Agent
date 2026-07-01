@@ -62,6 +62,8 @@ import './App.css';
 // Regex do SKU alvo (busca por marketplace) — UX gate apenas (T-38-04); backend valida independentemente.
 const SKU_PATTERN = /^ML\.05\.\d{7}$/;
 const SKU_ERROR_MSG = 'Formato inválido. Use o padrão ML.05.XXXXXXX (ex: ML.05.0326046).';
+const AUTO_SWEEP_POLL_MS = 5000;
+const AUTO_SWEEP_MAX_ATTEMPTS = 20;
 
 const SidebarItem = ({ icon: Icon, label, active, onClick }: any) => (
   <button
@@ -2728,12 +2730,19 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
   const [selectedMonitorStockSummary, setSelectedMonitorStockSummary] = useState<any | null>(null);
   const [stockDepthLoadingIds, setStockDepthLoadingIds] = useState<Set<string>>(new Set());
   const [reviewLoadingIds, setReviewLoadingIds] = useState<Set<string>>(new Set());
+  const [autoSweepIds, setAutoSweepIds] = useState<Set<string>>(new Set());
+  const autoSweepPollsRef = useRef<Record<string, number>>({});
+
+  const refreshCategoriesList = async () => {
+    const data = await ApiClient.getMonitoredCategories();
+    setCategories(data);
+    return data;
+  };
 
   const fetchCategories = async () => {
     setLoading(true);
     try {
-      const data = await ApiClient.getMonitoredCategories();
-      setCategories(data);
+      await refreshCategoriesList();
     } catch (err: any) {
       alert("Erro ao buscar categorias monitoradas: " + err.message);
     } finally {
@@ -2756,6 +2765,13 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
 
     return () => {
       active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      Object.values(autoSweepPollsRef.current).forEach(intervalId => window.clearInterval(intervalId));
+      autoSweepPollsRef.current = {};
     };
   }, []);
 
@@ -2790,31 +2806,6 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
     return () => { isMounted = false; };
   }, [newCategory.brand, isModalOpen, manualMode]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-    try {
-      await ApiClient.createMonitoredCategory(newCategory);
-      setNewCategory({ url: '', brand: brands.length > 0 ? brands[0].brand_key : '' });
-      setIsModalOpen(false);
-      fetchCategories();
-    } catch (err: any) {
-      alert("Erro ao adicionar: " + err.message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleDelete = async (monitorId: string) => {
-    if (!window.confirm("Deseja realmente excluir este monitoramento?")) return;
-    try {
-      await ApiClient.deleteMonitoredCategory(monitorId);
-      fetchCategories();
-    } catch (err: any) {
-      alert("Erro ao excluir: " + err.message);
-    }
-  };
-
   const handleViewProducts = async (monitor: any) => {
     setSelectedMonitor(monitor);
     setLoadingProducts(true);
@@ -2838,6 +2829,99 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
       setSelectedMonitorStockSummary(null);
     } finally {
       setLoadingProducts(false);
+    }
+  };
+
+  const clearAutoSweepPoll = (monitorId: string) => {
+    const intervalId = autoSweepPollsRef.current[monitorId];
+    if (intervalId) {
+      window.clearInterval(intervalId);
+      delete autoSweepPollsRef.current[monitorId];
+    }
+    setAutoSweepIds(prev => {
+      if (!prev.has(monitorId)) return prev;
+      const next = new Set(prev);
+      next.delete(monitorId);
+      return next;
+    });
+  };
+
+  const startAutoSweepPoll = (monitorId: string) => {
+    clearAutoSweepPoll(monitorId);
+    setAutoSweepIds(prev => {
+      const next = new Set(prev);
+      next.add(monitorId);
+      return next;
+    });
+
+    let attempts = 0;
+    let inFlight = false;
+    const poll = async () => {
+      if (inFlight) return;
+      inFlight = true;
+      attempts += 1;
+
+      try {
+        const latest = await ApiClient.getMonitoredCategories();
+        setCategories(latest);
+        const completed = latest.find((item: any) => item.id === monitorId && item.last_scraped_at);
+
+        if (completed) {
+          clearAutoSweepPoll(monitorId);
+          await handleViewProducts(completed);
+          return;
+        }
+
+        if (attempts >= AUTO_SWEEP_MAX_ATTEMPTS) {
+          clearAutoSweepPoll(monitorId);
+        }
+      } catch (err: any) {
+        clearAutoSweepPoll(monitorId);
+        toast.error('Categoria salva, mas a primeira varredura falhou. Tente novamente na lista.');
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    autoSweepPollsRef.current[monitorId] = window.setInterval(poll, AUTO_SWEEP_POLL_MS);
+    void poll();
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      const created = await ApiClient.createMonitoredCategory(newCategory) as any;
+      setNewCategory({ url: '', brand: brands.length > 0 ? brands[0].brand_key : '' });
+      setIsModalOpen(false);
+      toast.success('Categoria adicionada. Iniciando primeira varredura…');
+
+      if (created?.id) {
+        setCategories(prev => (
+          prev.some(item => item.id === created.id)
+            ? prev
+            : [...prev, created]
+        ));
+        startAutoSweepPoll(created.id);
+      } else {
+        await fetchCategories();
+        toast.error('Categoria salva, mas a primeira varredura falhou. Tente novamente na lista.');
+      }
+    } catch (err: any) {
+      toast.error("Erro ao adicionar: " + err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (monitorId: string) => {
+    if (!window.confirm("Deseja realmente excluir este monitoramento?")) return;
+    clearAutoSweepPoll(monitorId);
+    try {
+      await ApiClient.deleteMonitoredCategory(monitorId);
+      fetchCategories();
+    } catch (err: any) {
+      alert("Erro ao excluir: " + err.message);
     }
   };
 
@@ -2944,43 +3028,53 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
                 </tr>
               </thead>
               <tbody>
-                {categories.map((c, i) => (
-                  <tr key={i}>
-                    <td>
-                      <span className="badge" style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>
-                        {brands.find(b => b.brand_key === c.brand)?.brand_name || c.brand}
-                      </span>
-                    </td>
-                    <td style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <a href={c.url} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{c.url}</a>
-                        <a href={c.url} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', flexShrink: 0 }} title="Abrir no navegador">
-                          <ExternalLink size={14} />
-                        </a>
-                      </div>
-                    </td>
-                    <td>
-                      {c.status === 'active' ? (
-                        <span className="text-success" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><CheckCircle2 size={14} /> Ativo</span>
-                      ) : (
-                        <span className="text-error">Inativo</span>
-                      )}
-                    </td>
-                    <td className="text-muted">
-                      {c.last_scraped_at ? new Date(c.last_scraped_at).toLocaleString() : 'Nunca'}
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button className="btn btn-icon btn-outline" onClick={() => handleViewProducts(c)} title="Ver Produtos">
-                          <Eye size={16} />
-                        </button>
-                        <button className="btn btn-icon btn-outline text-error" onClick={() => handleDelete(c.id)} title="Excluir Monitor">
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {categories.map((c, i) => {
+                  const isAutoSweepPending = autoSweepIds.has(c.id) && !c.last_scraped_at;
+                  return (
+                    <tr key={c.id || i}>
+                      <td>
+                        <span className="badge" style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>
+                          {brands.find(b => b.brand_key === c.brand)?.brand_name || c.brand}
+                        </span>
+                      </td>
+                      <td style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <a href={c.url} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{c.url}</a>
+                          <a href={c.url} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', flexShrink: 0 }} title="Abrir no navegador">
+                            <ExternalLink size={14} />
+                          </a>
+                        </div>
+                      </td>
+                      <td>
+                        {c.status === 'active' ? (
+                          <span className="text-success" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><CheckCircle2 size={14} /> Ativo</span>
+                        ) : (
+                          <span className="text-error">Inativo</span>
+                        )}
+                      </td>
+                      <td className="text-muted">
+                        {isAutoSweepPending ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                            <RefreshCw className="animate-spin" size={14} />
+                            Varredura...
+                          </span>
+                        ) : (
+                          c.last_scraped_at ? new Date(c.last_scraped_at).toLocaleString() : 'Nunca'
+                        )}
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button className="btn btn-icon btn-outline" onClick={() => handleViewProducts(c)} title="Ver Produtos">
+                            <Eye size={16} />
+                          </button>
+                          <button className="btn btn-icon btn-outline text-error" onClick={() => handleDelete(c.id)} title="Excluir Monitor">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
