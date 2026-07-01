@@ -374,7 +374,10 @@ class TestInactiveMarketplaceExcluded:
 
         fake_active_brands = [
             DynamicBrand(
-                brand_key="mercadolivre",
+                # Valor de produção em brands.json é "mercado_livre" (COM underscore).
+                # O fix normaliza esta chave para "mercadolivre" (chave do _ENGINE_MAP);
+                # usar o valor real aqui fixa a regressão do BUG 2.
+                brand_key="mercado_livre",
                 brand_name="Mercado Livre",
                 domain="mercadolivre.com.br",
                 engine="mercadolivre",
@@ -446,11 +449,17 @@ class TestInactiveMarketplaceExcluded:
         from core.models import DynamicBrand
         from services import cross_marketplace_service as cms_module
 
+        # _ENGINE_MAP usa a chave canônica "mercadolivre" (sem underscore), mas o
+        # brand_key REAL de produção em brands.json é "mercado_livre" (com underscore).
+        # Mapeamos as chaves do _ENGINE_MAP para os brand_keys de produção para que a
+        # fixture reflita a realidade e fixe a regressão do BUG 2.
+        _PRODUCTION_BRAND_KEY = {"mercadolivre": "mercado_livre"}
         fake_all_active = [
             DynamicBrand(
-                brand_key=key,
+                brand_key=_PRODUCTION_BRAND_KEY.get(key, key),
                 brand_name=display,
                 domain=f"{key}.com.br",
+                # O campo engine é incidental — _active_engines chaveia por brand_key.
                 engine=key,
                 is_active=True,
             )
@@ -468,3 +477,8 @@ class TestInactiveMarketplaceExcluded:
 
         assert len(active) == 3, f"Esperado 3 engines ativos, obtido {len(active)}: {list(active)}"
         assert set(active.keys()) == {"Mercado Livre", "Netshoes", "Amazon"}
+        # Regressão BUG 2: Mercado Livre (brand_key "mercado_livre") deve estar ativo.
+        assert "Mercado Livre" in active, (
+            "_active_engines deve incluir Mercado Livre quando o brand_key de produção "
+            "'mercado_livre' está ativo (normalização para 'mercadolivre')"
+        )

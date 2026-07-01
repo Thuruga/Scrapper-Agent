@@ -98,6 +98,65 @@ def infer_brand_name(html: "str | BeautifulSoup | None", domain: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Marketplace domain → engine mapping
+# ---------------------------------------------------------------------------
+# Os marketplaces (Mercado Livre / Amazon / Netshoes) NÃO respondem às probes de
+# plataforma (collections.json, api/catalog_system, fbitsstatic, vtexassets,
+# cdn.shopify, demandware) — então sem este mapeamento detect_engine os classifica
+# como "unknown", o identify falha ("não identificado") e o título do monitor cai
+# para o brand_key em maiúsculas. As strings retornadas são EXATAMENTE as chaves de
+# engine resolvíveis por EngineFactory.get_engine / brands.json
+# (mercadolivre / amazon / netshoes — via normalize_brand_key).
+#
+# A chave é o domínio REGISTRÁVEL (eTLD+1-ish) do marketplace; o match cobre
+# qualquer subdomínio (www., produto., lista., m., etc.) por sufixo de label.
+_MARKETPLACE_DOMAIN_ENGINES: dict[str, str] = {
+    "mercadolivre.com.br": "mercadolivre",
+    "mercadolibre.com": "mercadolivre",
+    "amazon.com.br": "amazon",
+    "amazon.com": "amazon",
+    "netshoes.com.br": "netshoes",
+}
+
+
+# Domínio REGISTRÁVEL canônico de cada marketplace, como cadastrado em brands.json
+# (o campo ``domain`` da marca). O identify normaliza o host detectado para este valor
+# quando é um marketplace, de modo que o match por domínio do frontend
+# (`normalizeDomain(b.domain) === normalizeDomain(identified.domain)`) resolva a marca
+# cadastrada MESMO quando a URL vem em um subdomínio como `produto.mercadolivre.com.br`
+# (que, sem esta normalização, não casaria `mercadolivre.com.br`). Mantém o frontend
+# intocado e a correção testável server-side.
+_MARKETPLACE_ENGINE_CANONICAL_DOMAIN: dict[str, str] = {
+    "mercadolivre": "mercadolivre.com.br",
+    "amazon": "amazon.com.br",
+    "netshoes": "netshoes.com.br",
+}
+
+
+def detect_marketplace_engine(domain: str) -> str | None:
+    """Retorna o engine de marketplace para um host, ou None se não for marketplace.
+
+    Casa por sufixo de LABEL (boundary) para cobrir todas as formas de host:
+    ``www.amazon.com.br``, ``produto.mercadolivre.com.br``, ``lista.mercadolivre.com.br``,
+    ``m.netshoes.com.br`` etc. Usa ``host == base or host.endswith("." + base)`` para
+    evitar que ``maliciousmercadolivre.com.br`` (sufixo de string, mas não de label)
+    case indevidamente.
+    """
+    host = (domain or "").strip().lower().rstrip(".")
+    if not host:
+        return None
+    for base, engine in _MARKETPLACE_DOMAIN_ENGINES.items():
+        if host == base or host.endswith("." + base):
+            return engine
+    return None
+
+
+def canonical_marketplace_domain(engine: str) -> str | None:
+    """Domínio registrável canônico para um engine de marketplace, ou None."""
+    return _MARKETPLACE_ENGINE_CANONICAL_DOMAIN.get(engine)
+
+
+# ---------------------------------------------------------------------------
 # detect_engine — returns (engine, home_html) tuple on EVERY path (D-01)
 # ---------------------------------------------------------------------------
 
@@ -109,6 +168,18 @@ async def detect_engine(domain: str) -> tuple[str, str | None]:
     successfully fetched it; None for early API-based detections and for
     fallback/error paths.
     """
+    # Step 0 (marketplace): ML/Amazon/Netshoes não respondem às probes de
+    # plataforma; resolvê-los aqui evita o "unknown" e o título caindo no
+    # brand_key. Sem fetch de rede — só o host. home_html=None (o nome real do
+    # produto é resolvido depois pelo get_pdp_product do monitor, não pela home).
+    marketplace_engine = detect_marketplace_engine(domain)
+    if marketplace_engine is not None:
+        logger.info(
+            "detect_engine: marketplace '%s' detectado para %s (domínio→engine)",
+            marketplace_engine, domain,
+        )
+        return marketplace_engine, None
+
     session = await SessionManager.get_session()
     base_url = f"https://{domain}"
     headers = {
@@ -291,6 +362,15 @@ async def identify_brand(request: IdentifyRequest) -> IdentifyResponse:
 
     # 4. Brand name inference (D-01 precedence: JSON-LD → OG → title → domain)
     inferred_name = infer_brand_name(home_html, domain)
+
+    # 4b. Marketplace: normaliza o domínio de retorno para o registrável canônico
+    # (ex.: produto.mercadolivre.com.br → mercadolivre.com.br). Assim o match por
+    # domínio do frontend resolve a marca de marketplace cadastrada mesmo quando a
+    # URL do produto veio num subdomínio (produto./lista./m.). Sem isto, o ML em
+    # `produto.` não casava `mercadolivre.com.br` e nenhum monitor era criado.
+    canonical_domain = canonical_marketplace_domain(engine)
+    if canonical_domain is not None:
+        domain = canonical_domain
 
     # 5. Warning for unknown engine (D-03) — does NOT block onboarding
     warning: str | None = None

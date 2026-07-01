@@ -412,6 +412,7 @@ body {
 .monitor-pricing { grid-area: pricing; text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; padding-left: 1rem; border-left: 1px solid var(--border); }
 .monitor-price-value { font-size: 1.15rem; font-weight: 800; color: var(--primary); letter-spacing: -0.5px; }
 .monitor-price-pending { font-size: 0.85rem; color: var(--text-muted); font-style: italic; }
+.monitor-price-blocked { font-size: 0.8rem; color: var(--danger, #ef4444); font-weight: 700; cursor: help; }
 .monitor-badge { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
 .monitor-actions { grid-area: actions; display: flex; align-items: center; gap: 0.5rem; padding-left: 0.5rem; }
 .monitor-chart-container { grid-area: chart; width: 100%; overflow: hidden; }

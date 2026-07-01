@@ -8,6 +8,7 @@ from services.nlp_service import nlp_service
 from services.engines.mercado_livre_engine import MercadoLivreEngine
 from services.engines.netshoes_engine import NetshoesEngine
 from services.engines.amazon_engine import AmazonEngine
+from services.engines.brand_key_utils import normalize_brand_key
 from services.engines.seller_extraction import is_marketplace_default
 from services.brand_service import brand_service
 
@@ -181,7 +182,10 @@ class CrossMarketplaceService:
         (D-11) without a server restart.
         """
         active_brands = brand_service.list_brands(active_only=True)
-        active_keys = {b.brand_key for b in active_brands}
+        # Normalize each active brand_key to the canonical engine key so the
+        # production value "mercado_livre" matches the _ENGINE_MAP key
+        # "mercadolivre" (otherwise Mercado Livre is silently excluded).
+        active_keys = {normalize_brand_key(b.brand_key) for b in active_brands}
         return {
             display_name: self._engine_instances[engine_key]
             for engine_key, (display_name, _) in _ENGINE_MAP.items()

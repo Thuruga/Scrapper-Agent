@@ -224,6 +224,109 @@ class TestDetectEngine:
 # TestCreateBrandUnknown — integracao: create_brand com engine unknown (regra D-04)
 # ---------------------------------------------------------------------------
 
+class TestMarketplaceDomainDetection:
+    """REGRESSÃO (monitor-marketplace-pendente Round 2, hypothesis_A):
+    detect_engine deve resolver domínios de marketplace (ML/Amazon/Netshoes) para o
+    engine correto ANTES das probes de plataforma — antes caíam em 'unknown' porque
+    não respondem a collections.json/api/catalog_system/etc, quebrando o identify e o
+    título do monitor. As strings retornadas têm que ser resolvíveis por EngineFactory
+    (mercadolivre/amazon/netshoes)."""
+
+    def test_detect_marketplace_engine_all_host_forms(self):
+        """O helper puro casa todas as formas de host por sufixo de LABEL."""
+        from api.routes_brands import detect_marketplace_engine
+
+        cases = {
+            # Mercado Livre — inclui o subdomínio produto. do teste ao vivo
+            "produto.mercadolivre.com.br": "mercadolivre",
+            "www.mercadolivre.com.br": "mercadolivre",
+            "lista.mercadolivre.com.br": "mercadolivre",
+            "mercadolivre.com.br": "mercadolivre",
+            "mercadolibre.com": "mercadolivre",
+            # Amazon
+            "www.amazon.com.br": "amazon",
+            "amazon.com.br": "amazon",
+            "www.amazon.com": "amazon",
+            # Netshoes
+            "www.netshoes.com.br": "netshoes",
+            "m.netshoes.com.br": "netshoes",
+            "netshoes.com.br": "netshoes",
+        }
+        for host, expected in cases.items():
+            assert detect_marketplace_engine(host) == expected, (
+                f"host {host!r} deveria mapear para {expected!r}"
+            )
+
+    def test_detect_marketplace_engine_non_marketplace_returns_none(self):
+        """Domínios de marca própria/desconhecidos → None (segue para as probes)."""
+        from api.routes_brands import detect_marketplace_engine
+
+        for host in [
+            "www.aramis.com.br",
+            "www.richards.com.br",
+            "example.com",
+            "",
+        ]:
+            assert detect_marketplace_engine(host) is None, host
+
+    def test_detect_marketplace_engine_label_boundary_no_false_positive(self):
+        """Sufixo de STRING (não de label) NÃO deve casar (anti-spoof)."""
+        from api.routes_brands import detect_marketplace_engine
+
+        # 'maliciousmercadolivre.com.br' termina com 'mercadolivre.com.br' como
+        # substring, mas não como sufixo de label → não deve casar.
+        assert detect_marketplace_engine("maliciousmercadolivre.com.br") is None
+        assert detect_marketplace_engine("notamazon.com.br") is None
+
+    def test_detect_engine_ml_subdomain_maps_to_engine_no_network(self):
+        """detect_engine('produto.mercadolivre.com.br') → ('mercadolivre', None)
+        sem NENHUM fetch de rede (o Step 0 resolve antes das probes)."""
+        # SessionManager.get_session lança se for chamado: prova que não há I/O.
+        with patch(
+            "api.routes_brands.SessionManager.get_session",
+            new=AsyncMock(side_effect=AssertionError("não deve haver fetch p/ marketplace")),
+        ):
+            from api.routes_brands import detect_engine
+            engine, html = asyncio.run(detect_engine("produto.mercadolivre.com.br"))
+        assert engine == "mercadolivre"
+        assert html is None
+
+    def test_detect_engine_amazon_maps_to_engine(self):
+        """detect_engine('www.amazon.com.br') → ('amazon', None) sem rede."""
+        with patch(
+            "api.routes_brands.SessionManager.get_session",
+            new=AsyncMock(side_effect=AssertionError("não deve haver fetch p/ marketplace")),
+        ):
+            from api.routes_brands import detect_engine
+            engine, html = asyncio.run(detect_engine("www.amazon.com.br"))
+        assert engine == "amazon"
+        assert html is None
+
+    def test_detect_engine_netshoes_maps_to_engine(self):
+        """detect_engine('www.netshoes.com.br') → ('netshoes', None) sem rede."""
+        with patch(
+            "api.routes_brands.SessionManager.get_session",
+            new=AsyncMock(side_effect=AssertionError("não deve haver fetch p/ marketplace")),
+        ):
+            from api.routes_brands import detect_engine
+            engine, html = asyncio.run(detect_engine("www.netshoes.com.br"))
+        assert engine == "netshoes"
+        assert html is None
+
+    def test_marketplace_engine_strings_resolve_in_factory(self):
+        """As strings retornadas devem ser resolvíveis por EngineFactory.get_engine
+        (contrato IDENTIFY→factory): o engine string casa o brand_key via
+        normalize_brand_key."""
+        from services.engines.factory import engine_factory
+        from services.engines.mercado_livre_engine import MercadoLivreEngine
+        from services.engines.amazon_engine import AmazonEngine
+        from services.engines.netshoes_engine import NetshoesEngine
+
+        assert isinstance(engine_factory.get_engine("mercadolivre"), MercadoLivreEngine)
+        assert isinstance(engine_factory.get_engine("amazon"), AmazonEngine)
+        assert isinstance(engine_factory.get_engine("netshoes"), NetshoesEngine)
+
+
 class TestCreateBrandUnknown:
     """Regressao D-04: create_brand persiste marca 'unknown' com is_active=False."""
 

@@ -101,6 +101,96 @@ async def test_price_monitor_no_change():
 
 
 @pytest.mark.asyncio
+async def test_monitor_uses_get_pdp_product_not_get_product_details():
+    """REGRESSÃO (monitor-marketplace-pendente): o _monitor_loop deve consumir
+    get_pdp_product (produto COMPLETO), não get_product_details (que nos engines
+    de marketplace devolve só {"seller": ...} e quebrava a validação)."""
+    service = PriceMonitorService()
+    job_id = "test-pdp-path"
+    config = PriceMonitorConfig(
+        job_id=job_id,
+        url="https://produto.mercadolivre.com.br/MLB-123",
+        brand="mercado_livre",
+        interval_minutes=1,
+        duration_hours=1,
+        active=True,
+    )
+    service.monitors[job_id] = config
+
+    mock_engine = MagicMock()
+    # get_product_details: shape seller-only do cross-marketplace (NÃO deve ser usado)
+    mock_engine.get_product_details = AsyncMock(return_value={"seller": "Aramis"})
+    # get_pdp_product: produto completo
+    mock_engine.get_pdp_product = AsyncMock(return_value={
+        "url": config.url,
+        "brand": "mercado_livre",
+        "raw_title": "Camiseta Aramis New Basic Navy",
+        "raw_description": "Camiseta Aramis",
+        "price_full": 199.9,
+        "image_url": "https://http2.mlstatic.com/img.jpg",
+        "stock_availability": True,
+    })
+
+    async def stop_after_first(*args, **kwargs):
+        # Para o loop após a primeira checagem para não rodar para sempre.
+        config.active = False
+
+    with patch("services.price_monitor_service.engine_factory.get_engine", return_value=mock_engine), \
+         patch("services.price_monitor_service.manager.send_message", new_callable=AsyncMock) as mock_ws, \
+         patch.object(service, "_save_monitors"), \
+         patch("services.price_monitor_service.asyncio.sleep", new=AsyncMock(side_effect=stop_after_first)):
+        await service._monitor_loop(job_id)
+
+    mock_engine.get_pdp_product.assert_awaited()
+    mock_engine.get_product_details.assert_not_called()
+    assert config.last_price == 199.9, "Monitor de marketplace deve resolver o preço"
+    assert config.product_name == "Camiseta Aramis New Basic Navy"
+    assert len(config.history) == 1
+    # Não deve ter emitido erro de validação
+    error_msgs = [
+        c.args[0] for c in mock_ws.await_args_list
+        if isinstance(c.args[0], dict) and c.args[0].get("type") == "error"
+    ]
+    assert not error_msgs, f"Não deveria emitir erro; emitiu: {error_msgs}"
+
+
+@pytest.mark.asyncio
+async def test_monitor_invalid_payload_does_not_crash_loop():
+    """Se get_pdp_product devolver um payload incompleto (ex.: engine de marketplace
+    que ainda não foi sobrescrito → herda o default que delega para get_product_details
+    seller-only), o loop NÃO deve travar: captura ValidationError, loga e segue."""
+    service = PriceMonitorService()
+    job_id = "test-invalid-payload"
+    config = PriceMonitorConfig(
+        job_id=job_id,
+        url="https://www.amazon.com.br/dp/X",
+        brand="amazon",
+        interval_minutes=1,
+        duration_hours=1,
+        active=True,
+    )
+    service.monitors[job_id] = config
+
+    mock_engine = MagicMock()
+    # Simula o default da base (delega p/ get_product_details seller-only)
+    mock_engine.get_pdp_product = AsyncMock(return_value={"seller": "Amazon"})
+
+    async def stop_after_first(*args, **kwargs):
+        config.active = False
+
+    with patch("services.price_monitor_service.engine_factory.get_engine", return_value=mock_engine), \
+         patch("services.price_monitor_service.manager.send_message", new_callable=AsyncMock), \
+         patch.object(service, "_save_monitors"), \
+         patch("services.price_monitor_service.asyncio.sleep", new=AsyncMock(side_effect=stop_after_first)):
+        # Não deve levantar — o loop precisa sobreviver ao payload inválido
+        await service._monitor_loop(job_id)
+
+    assert config.last_price is None
+    assert config.product_name is None
+    assert len(config.history) == 0
+
+
+@pytest.mark.asyncio
 async def test_dedup_active():
     """Adicionar um monitor para (url+brand) que já está ativo é no-op: retorna 'already_active'
     sem criar nova entrada em service.monitors."""

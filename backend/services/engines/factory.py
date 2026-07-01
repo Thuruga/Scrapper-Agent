@@ -6,6 +6,7 @@ from services.engines.mercado_livre_engine import MercadoLivreEngine
 from services.engines.netshoes_engine import NetshoesEngine
 from services.engines.amazon_engine import AmazonEngine
 from services.brand_service import brand_service
+from services.engines.brand_key_utils import normalize_brand_key
 from core.models import BrandSearchResult
 
 class EngineFactory:
@@ -19,7 +20,7 @@ class EngineFactory:
         Resolve a engine para a marca. 
         """
         # Trata as marcas virtuais de marketplace que vêm do frontend
-        brand_key_lower = brand_key.lower().replace(" ", "").replace("_", "")
+        brand_key_lower = normalize_brand_key(brand_key)
         if brand_key_lower == "mercadolivre":
             return MercadoLivreEngine()
         elif brand_key_lower == "netshoes":

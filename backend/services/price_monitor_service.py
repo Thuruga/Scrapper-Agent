@@ -7,6 +7,8 @@ from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from typing import Dict
 
+from pydantic import ValidationError
+
 from core.models import PriceMonitorConfig, PriceHistoryEntry
 from core.websocket import manager
 from services.engines.factory import engine_factory
@@ -121,61 +123,96 @@ class PriceMonitorService:
             await asyncio.sleep(initial_jitter)
 
         while config.active:
+            failure_reason = None
             try:
+                config.last_checked_at = datetime.now(timezone.utc).isoformat()
                 # Resolve o motor dinamicamente via factory
                 engine = engine_factory.get_engine(config.brand)
-                product_data = await engine.get_product_details(config.url)
-                
-                # Converte para objeto se vier como dict (para facilitar acesso)
+                # get_pdp_product retorna o PRODUTO COMPLETO (compatível com
+                # RawProductBronze). Para VTEX/Shopify/SFCC/Wake/Zara delega para
+                # get_product_details; para os marketplaces (ML/Amazon/Netshoes)
+                # usa o parser de PDP dedicado — get_product_details desses engines
+                # devolve só {"seller": ...} (fluxo cross-marketplace) e quebraria
+                # a validação.
+                product_data = await engine.get_pdp_product(config.url)
+
+                # Converte para objeto se vier como dict (para facilitar acesso).
+                # A imagem não é obrigatória para resolver preço no monitor: removemos
+                # image_url se vier ausente/inválida para não derrubar a validação
+                # (RawProductBronze.image_url_must_be_present rejeitaria None/"").
                 from core.models import RawProductBronze
-                product = RawProductBronze.model_validate(product_data) if product_data else None
-                
+                product = None
+                if product_data:
+                    payload = dict(product_data)
+                    img = payload.get("image_url")
+                    if not img or not str(img).strip() or str(img) == "None":
+                        payload.pop("image_url", None)
+                    try:
+                        product = RawProductBronze.model_validate(payload)
+                    except ValidationError as exc:
+                        # Payload incompleto/ inválido: registra o motivo (visível nos
+                        # logs do servidor, não só no WebSocket) e segue para o próximo
+                        # ciclo. Sem isso o monitor ficava "Pendente" sem qualquer pista.
+                        logger.warning(
+                            "Monitor %s (%s): produto inválido em %s — %s",
+                            job_id, config.brand, config.url, exc,
+                        )
+                        failure_reason = "Dados do produto incompletos ou inválidos."
+                        await manager.send_message(
+                            {"type": "error", "message": "Não foi possível extrair os dados do produto."},
+                            job_id,
+                        )
+                        product = None
+                else:
+                    # get_pdp_product devolveu None: acesso bloqueado (anti-bot),
+                    # 403/503 ou PDP sem dados extraíveis. O motivo detalhado (site,
+                    # status, título da página) já foi logado pelo próprio engine.
+                    failure_reason = (
+                        "Não foi possível ler o produto — o site pode estar bloqueando "
+                        "automação (anti-bot)."
+                    )
+
                 if product:
+                    config.last_status = "ok"
+                    config.last_error = None
                     current_price = product.price_full
                     available = product.stock_availability
-                    
+
                     # Atualiza metadados (imagem e nome) na config se ainda não tiver
-                    needs_save = False
                     if product.image_url and not config.image_url:
                         config.image_url = product.image_url
-                        needs_save = True
                     if product.raw_title and not config.product_name:
                         config.product_name = product.raw_title
-                        needs_save = True
 
                     current_colors = product.available_colors or []
                     current_sizes = product.available_sizes or []
-                    
-                    if needs_save:
-                        self._save_monitors()
 
                     # Verifica se houve mudança de preço, disponibilidade, cores ou tamanhos
                     has_change = False
-                    
+
                     if config.last_price is None or config.last_price != current_price:
                         has_change = True
-                        
+
                     # Checa se houve alteração nas numerações/cores disponíveis
                     if sorted(config.available_colors) != sorted(current_colors):
                         has_change = True
                         config.available_colors = current_colors
-                    
+
                     if sorted(config.available_sizes) != sorted(current_sizes):
                         has_change = True
                         config.available_sizes = current_sizes
-                    
+
                     # Registra no histórico se houve mudança
                     if has_change:
                         entry = PriceHistoryEntry(
-                            price=current_price, 
+                            price=current_price,
                             available=bool(available),
                             available_colors=current_colors,
                             available_sizes=current_sizes
                         )
                         config.history.append(entry)
                         config.last_price = current_price
-                        self._save_monitors()
-                        
+
                         # Notifica o frontend via WebSocket
                         await manager.send_message({
                             "type": "price_update",
@@ -193,16 +230,32 @@ class PriceMonitorService:
                             "message": f"Checagem realizada às {datetime.now().strftime('%H:%M:%S')}. Sem alterações."
                         }, job_id)
                 else:
-                    await manager.send_message({"type": "error", "message": "Falha ao acessar o produto."}, job_id)
-                    
+                    # Falha ao resolver o produto. Marca o estado para o front exibir
+                    # algo claro ("Bloqueado") em vez de "Pendente" eterno.
+                    config.last_status = "blocked"
+                    config.last_error = failure_reason or "Falha ao acessar o produto."
+                    await manager.send_message({"type": "error", "message": config.last_error}, job_id)
+
+            except asyncio.CancelledError:
+                # Cancelamento (stop/delete) deve propagar — nunca virar "erro do monitor".
+                raise
             except Exception as e:
+                # Loga com traceback no servidor (antes só ia para o WebSocket, invisível
+                # sem cliente conectado — o que escondia a causa do "Pendente" eterno).
+                logger.exception("Erro inesperado no monitor %s (%s): %s", job_id, config.brand, e)
+                config.last_status = "error"
+                config.last_error = f"Erro: {str(e)[:200]}"
                 await manager.send_message({"type": "error", "message": f"Erro no monitor: {e}"}, job_id)
+
+            # Persiste o estado da checagem (status/erro/preço/timestamp) a cada ciclo,
+            # para o front refletir "ok"/"blocked"/"error" e o estado sobreviver a restart.
+            self._save_monitors()
 
             # Aguarda o próximo intervalo com um pequeno jitter (±5%) para evitar sincronização
             base_sleep = config.interval_minutes * 60
             jitter_range = base_sleep * 0.05
             sleep_time = base_sleep + random.uniform(-jitter_range, jitter_range)
-            
+
             logger.info(f"Monitor {job_id} concluído. Próxima checagem em {sleep_time/60:.1f} min.")
             await asyncio.sleep(max(1, sleep_time))
 

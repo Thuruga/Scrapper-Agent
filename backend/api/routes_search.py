@@ -182,8 +182,11 @@ async def search_products(request: SearchRequest) -> ComparisonResult:
     """
     import uuid
 
+    # list_brands(active_only=True) já inclui os marketplaces (mercado_livre,
+    # netshoes, amazon) como entradas reais em brands.json (Plan 04 / D-10) —
+    # nenhum .extend() hardcoded é necessário (era a 2ª fonte de verdade que
+    # duplicava cada marketplace na lista-alvo e quebrava ao desativar um deles).
     all_brands = [b.brand_key for b in brand_service.list_brands(active_only=True)]
-    all_brands.extend(["mercado_livre", "netshoes", "amazon"])
     if request.brands:
         invalid = [b for b in request.brands if b.lower() not in all_brands]
         if invalid:
@@ -200,6 +203,9 @@ async def search_products(request: SearchRequest) -> ComparisonResult:
         if request.brands
         else all_brands
     )
+    # Salvaguarda: dedupe preservando ordem (dict.fromkeys, NÃO set — a ordem das
+    # colunas no front depende desta sequência).
+    target_brands = list(dict.fromkeys(b.lower() for b in target_brands))
 
     clean_zipcode = request.zipcode.replace("-", "") if request.zipcode else None
 
@@ -276,8 +282,10 @@ async def search_products_get(
         include_shipping=include_shipping
     )
 
+    # search_all_brands roda com brands=None → usa list_brands(active_only=True)
+    # como fonte única. Montar brands_searched da MESMA fonte (sem .extend) mantém
+    # a metadata alinhada com o que foi de fato buscado (D-10).
     all_brands = [b.brand_key for b in brand_service.list_brands(active_only=True)]
-    all_brands.extend(["mercado_livre", "netshoes", "amazon"])
 
     return ComparisonResult(
         query=q,
@@ -314,8 +322,9 @@ async def export_search_products(request: SearchRequest):
     """
     Executa a busca comparativa e retorna o resultado como download de arquivo Excel.
     """
+    # list_brands(active_only=True) já inclui os marketplaces como entradas reais
+    # (Plan 04 / D-10) — sem .extend() hardcoded redundante.
     all_brands = [b.brand_key for b in brand_service.list_brands(active_only=True)]
-    all_brands.extend(["mercado_livre", "netshoes", "amazon"])
     if request.brands:
         invalid = [b for b in request.brands if b.lower() not in all_brands]
         if invalid:
@@ -329,6 +338,8 @@ async def export_search_products(request: SearchRequest):
         if request.brands
         else all_brands
     )
+    # Salvaguarda: dedupe preservando ordem (dict.fromkeys, NÃO set).
+    target_brands = list(dict.fromkeys(b.lower() for b in target_brands))
 
     clean_zipcode = request.zipcode.replace("-", "") if request.zipcode else None
 

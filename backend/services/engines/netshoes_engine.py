@@ -5,6 +5,7 @@ import re
 from typing import List, Dict, Any, Optional, Callable
 import asyncio
 from curl_cffi.requests import AsyncSession
+from bs4 import BeautifulSoup
 
 from config import relevance_settings
 from services.engines.base_engine import BaseEngine
@@ -57,6 +58,242 @@ class NetshoesEngine(BaseEngine):
         except Exception as e:
             logger.error(f"Erro ao buscar detalhes Netshoes {product_url}: {e}")
         return None
+
+    async def get_pdp_product(self, product_url: str) -> Optional[Dict[str, Any]]:
+        """
+        Extrai o produto COMPLETO da PDP da Netshoes (para o monitor de preço).
+
+        Fonte: window.__INITIAL_STATE__ → Product.currentProduct (SSR).
+
+        1ª tentativa: curl_cffi (rápido). Em caso de 403 (anti-bot) ou HTML sem
+        __INITIAL_STATE__ parseável, faz fallback para Playwright (mesmo padrão do
+        ML/Amazon) — sem o fallback um único 403 dead-endava em None → "Pendente"
+        eterno. Retorna um dict compatível com RawProductBronze.
+        """
+        # --- Tentativa 1: curl_cffi ---
+        try:
+            async with AsyncSession(impersonate="chrome120", timeout=15) as session:
+                response = await session.get(product_url, headers=self.headers)
+                if response.status_code == 200:
+                    product = self._extract_pdp(response.text, product_url)
+                    if product:
+                        return product
+                    logger.warning(
+                        "Netshoes PDP %s: 200 OK mas produto não extraído (curl_cffi) — tentando Playwright.",
+                        product_url,
+                    )
+                else:
+                    logger.warning(
+                        "Netshoes PDP %s retornou status %s (curl_cffi) — tentando Playwright.",
+                        product_url, response.status_code,
+                    )
+        except Exception as e:
+            logger.warning("Erro Netshoes PDP via curl_cffi %s: %s — tentando Playwright.", product_url, e)
+
+        # --- Tentativa 2: Playwright (renderiza a SSR quando curl_cffi é bloqueado) ---
+        html = await asyncio.to_thread(self._render_pdp_html, product_url)
+        if not html:
+            logger.warning(
+                "Netshoes PDP %s: Playwright não retornou HTML (anti-bot persistente).",
+                product_url,
+            )
+            return None
+        product = self._extract_pdp(html, product_url)
+        if not product:
+            logger.warning(
+                "Netshoes PDP %s: Playwright renderizou HTML mas produto não extraído "
+                "(title=%r, __INITIAL_STATE__=%s, ld+json=%d, len=%d).",
+                product_url, self._page_title(html),
+                "window.__INITIAL_STATE__" in html, len(self._jsonld_blocks(html)), len(html),
+            )
+        return product
+
+    def _extract_pdp(self, html: str, product_url: str) -> Optional[Dict[str, Any]]:
+        """Extrai o produto da PDP tentando, em ordem: __INITIAL_STATE__ (SSR
+        autoritativo) → JSON-LD Product → meta tags (og/product). O anti-bot da
+        Netshoes muda a estrutura entregue, então múltiplas fontes dão resiliência."""
+        product = self._build_pdp_product(self._extract_initial_state(html), product_url)
+        if product:
+            return product
+        product = self._pdp_from_jsonld(html, product_url)
+        if product:
+            return product
+        return self._pdp_from_meta(html, product_url)
+
+    def _jsonld_blocks(self, html: str) -> List[dict]:
+        blocks: List[dict] = []
+        for script in BeautifulSoup(html, "html.parser").find_all(
+            "script", type="application/ld+json"
+        ):
+            try:
+                data = json.loads(script.string or "")
+            except (ValueError, TypeError):
+                continue
+            if isinstance(data, list):
+                blocks.extend(b for b in data if isinstance(b, dict))
+            elif isinstance(data, dict):
+                blocks.append(data)
+        return blocks
+
+    def _pdp_from_jsonld(self, html: str, product_url: str) -> Optional[Dict[str, Any]]:
+        for block in self._jsonld_blocks(html):
+            if block.get("@type") != "Product":
+                continue
+            title = block.get("name") or ""
+            offers = block.get("offers") or {}
+            if isinstance(offers, list):
+                offers = offers[0] if offers else {}
+            price_full: Optional[float] = None
+            try:
+                price_full = float(offers.get("price")) if offers.get("price") else None
+            except (TypeError, ValueError):
+                price_full = None
+            if not title or not price_full or price_full <= 0:
+                continue
+            image = block.get("image") or ""
+            if isinstance(image, list):
+                image = image[0] if image else ""
+            availability = str(offers.get("availability", "")).lower()
+            return {
+                "url": product_url,
+                "brand": self.brand_key,
+                "raw_title": title,
+                "raw_description": block.get("description") or title,
+                "price_full": price_full,
+                "image_url": image or None,
+                "stock_availability": ("instock" in availability) if availability else True,
+                "available_sizes": [],
+            }
+        return None
+
+    def _pdp_from_meta(self, html: str, product_url: str) -> Optional[Dict[str, Any]]:
+        soup = BeautifulSoup(html, "html.parser")
+
+        def _meta(*names: str) -> Optional[str]:
+            for name in names:
+                tag = soup.find("meta", property=name) or soup.find("meta", attrs={"name": name})
+                if tag and tag.get("content"):
+                    return tag["content"].strip()
+            return None
+
+        title = _meta("og:title") or self._page_title(html)
+        price_raw = _meta("product:price:amount", "og:price:amount")
+        price_full: Optional[float] = None
+        if price_raw:
+            try:
+                price_full = float(price_raw.replace(",", "."))
+            except ValueError:
+                price_full = None
+        if not title or not price_full or price_full <= 0:
+            return None
+        image = _meta("og:image")
+        if image and image.startswith("//"):
+            image = f"https:{image}"
+        return {
+            "url": product_url,
+            "brand": self.brand_key,
+            "raw_title": title,
+            "raw_description": _meta("og:description") or title,
+            "price_full": price_full,
+            "image_url": image or None,
+            "stock_availability": True,
+            "available_sizes": [],
+        }
+
+    def _page_title(self, html: str) -> str:
+        soup = BeautifulSoup(html, "html.parser")
+        return soup.title.string.strip() if soup.title and soup.title.string else ""
+
+    def _render_pdp_html(self, product_url: str) -> Optional[str]:
+        """Renderiza a PDP da Netshoes via Playwright (fallback de anti-bot 403)."""
+        try:
+            from playwright.sync_api import sync_playwright
+            import time
+
+            with sync_playwright() as p:
+                browser = p.chromium.launch(
+                    headless=True,
+                    args=["--no-sandbox", "--disable-blink-features=AutomationControlled"],
+                )
+                ctx = browser.new_context(
+                    user_agent=(
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        "Chrome/120.0.0.0 Safari/537.36"
+                    ),
+                    locale="pt-BR",
+                )
+                page = ctx.new_page()
+                page.add_init_script(
+                    "Object.defineProperty(navigator, 'webdriver', { get: () => undefined });"
+                )
+                page.goto(product_url, wait_until="domcontentloaded", timeout=20000)
+                time.sleep(3)
+                html = page.content()
+                browser.close()
+                return html
+        except Exception as exc:
+            logger.error(f"Erro Netshoes PDP via Playwright {product_url}: {exc}")
+            return None
+
+    def _build_pdp_product(
+        self, state: Optional[dict], product_url: str
+    ) -> Optional[Dict[str, Any]]:
+        product_state = (state or {}).get("Product", {}).get("currentProduct", {})
+        if not product_state:
+            return None
+
+        title = (
+            product_state.get("name")
+            or product_state.get("productName")
+            or product_state.get("title")
+            or ""
+        )
+
+        # Preço autoritativo da variante exibida (saleInCents).
+        price_obj = product_state.get("price") or (
+            product_state.get("prices", [{}])[0] if product_state.get("prices") else {}
+        )
+        price_full: Optional[float] = None
+        if isinstance(price_obj, dict):
+            sale_in_cents = price_obj.get("saleInCents")
+            if isinstance(sale_in_cents, (int, float)) and sale_in_cents > 0:
+                price_full = float(sale_in_cents) / 100
+
+        # Imagem
+        image_url = product_state.get("image") or ""
+        images = product_state.get("images")
+        if not image_url and isinstance(images, list) and images:
+            first = images[0]
+            image_url = first.get("url", "") if isinstance(first, dict) else str(first)
+        if image_url and image_url.startswith("//"):
+            image_url = f"https:{image_url}"
+
+        # Disponibilidade
+        available = product_state.get("available")
+        if available is None:
+            available = bool(price_full and price_full > 0)
+
+        # Tamanhos / cores quando disponíveis
+        sizes: List[str] = []
+        for sku in product_state.get("skus", []) or []:
+            size = (sku.get("size") if isinstance(sku, dict) else None) or ""
+            if size and size not in sizes:
+                sizes.append(size)
+
+        if not title or price_full is None:
+            return None
+
+        return {
+            "url": product_url,
+            "brand": self.brand_key,
+            "raw_title": title,
+            "raw_description": product_state.get("description") or title,
+            "price_full": price_full,
+            "image_url": image_url or None,
+            "stock_availability": bool(available),
+            "available_sizes": sizes,
+        }
 
     def _extract_seller_price(self, state: Optional[dict]) -> Dict[str, Any]:
         """

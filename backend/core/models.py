@@ -302,6 +302,14 @@ class PriceMonitorConfig(BaseModel):
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
     last_price: Optional[float] = None
+    # Estado da última checagem — alimenta o card do front:
+    #   None      = ainda não checado (mostra "Pendente")
+    #   "ok"      = preço resolvido
+    #   "blocked" = não foi possível ler o produto (anti-bot / 403 / sem dados)
+    #   "error"   = erro inesperado no ciclo
+    last_status: Optional[str] = None
+    last_error: Optional[str] = None
+    last_checked_at: Optional[str] = None
     history: List[PriceHistoryEntry] = Field(default_factory=list)
     active: bool = True
     image_url: Optional[str] = None

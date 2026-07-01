@@ -116,6 +116,161 @@ class MercadoLivreEngine(BaseEngine):
         # Tenta com Playwright como fallback
         return await asyncio.to_thread(self._run_playwright_pdp, product_url)
 
+    async def get_pdp_product(self, product_url: str) -> Optional[Dict[str, Any]]:
+        """
+        Extrai o produto COMPLETO da PDP do Mercado Livre (para o monitor de preço).
+
+        O ML protege as PDPs com o desafio Anubis (PoW): responde HTTP 200 com uma
+        página de challenge que NÃO contém o JSON-LD do produto. Por isso um 200 sem
+        Product também precisa cair no Playwright robusto (BrowserManager +
+        networkidle — o mesmo caminho comprovado da busca, que atravessa o redirect
+        do Anubis), e não só os casos de status != 200 / exceção.
+
+        Fonte de extração: JSON-LD `application/ld+json` (Product) → fallback DOM.
+        Retorna um dict compatível com RawProductBronze.
+        """
+        # --- Tentativa 1: curl_cffi (rápido) ---
+        try:
+            async with AsyncSession(impersonate="chrome120", timeout=15) as session:
+                response = await session.get(product_url, headers=self.headers)
+                if response.status_code == 200 and not self._is_anubis_challenge(response.text):
+                    product = self._build_pdp_product(response.text, product_url)
+                    if product:
+                        return product
+                    logger.warning(
+                        "ML PDP %s: 200 OK mas Product não extraído (curl_cffi) — tentando Playwright.",
+                        product_url,
+                    )
+                elif response.status_code == 200:
+                    logger.warning(
+                        "ML PDP %s: curl_cffi caiu no Anubis (200 challenge) — tentando Playwright.",
+                        product_url,
+                    )
+                else:
+                    logger.warning(
+                        "ML PDP %s: curl_cffi status %s — tentando Playwright.",
+                        product_url, response.status_code,
+                    )
+        except Exception as e:
+            logger.warning("ML PDP %s: erro curl_cffi (%s) — tentando Playwright.", product_url, e)
+
+        # --- Tentativa 2: Playwright robusto (BrowserManager resolve o Anubis PoW) ---
+        try:
+            from core.browser_manager import BrowserManager
+            html = await BrowserManager.fetch_html(
+                product_url, wait_until="networkidle", extra_sleep=8.0, timeout=60000
+            )
+        except Exception as exc:
+            logger.error("ML PDP %s: Playwright não renderizou: %s", product_url, exc)
+            return None
+
+        if not html or self._is_anubis_challenge(html):
+            logger.warning("ML PDP %s: Anubis/challenge não resolvido no Playwright.", product_url)
+            return None
+
+        product = self._build_pdp_product(html, product_url)
+        if not product:
+            logger.warning(
+                "ML PDP %s: HTML renderizado (len=%d) mas Product/preço não extraído "
+                "(ld+json blocks=%d).",
+                product_url, len(html), len(self._extract_seo_json(html)),
+            )
+        return product
+
+    def _build_pdp_product(
+        self, html: Optional[str], product_url: str
+    ) -> Optional[Dict[str, Any]]:
+        if not html:
+            return None
+
+        # 1. Fonte primária: JSON-LD Product (SEO estável do ML).
+        for block in self._extract_seo_json(html):
+            if isinstance(block, dict) and block.get("@type") == "Product":
+                result = self._pdp_from_jsonld(block, product_url)
+                if result:
+                    return result
+                break
+
+        # 2. Fallback: seletores da PDP renderizada (quando não há JSON-LD).
+        return self._pdp_from_dom(html, product_url)
+
+    def _pdp_from_jsonld(
+        self, product_block: Dict[str, Any], product_url: str
+    ) -> Optional[Dict[str, Any]]:
+        title = product_block.get("name") or ""
+
+        offers = product_block.get("offers") or {}
+        if isinstance(offers, list):
+            offers = offers[0] if offers else {}
+        price_full: Optional[float] = None
+        try:
+            price_full = float(offers.get("price")) if offers.get("price") else None
+        except (TypeError, ValueError):
+            price_full = None
+
+        availability = str(offers.get("availability", "")).lower()
+        available = "instock" in availability if availability else bool(price_full)
+
+        image = product_block.get("image") or ""
+        if isinstance(image, list):
+            image = image[0] if image else ""
+
+        description = product_block.get("description") or title
+
+        if not title or price_full is None or price_full <= 0:
+            return None
+
+        return {
+            "url": product_url,
+            "brand": self.brand_key,
+            "raw_title": title,
+            "raw_description": description,
+            "price_full": price_full,
+            "image_url": image or None,
+            "stock_availability": bool(available),
+        }
+
+    def _pdp_from_dom(self, html: str, product_url: str) -> Optional[Dict[str, Any]]:
+        """Fallback: extrai título/preço direto da PDP renderizada do ML.
+
+        Usado quando o JSON-LD não está presente (ex.: variações de layout). Busca
+        o preço na LINHA PRINCIPAL de preço (``.ui-pdp-price__second-line``) para não
+        pegar o preço original riscado.
+        """
+        soup = BeautifulSoup(html, "html.parser")
+
+        title_el = soup.select_one(".ui-pdp-title") or soup.find("h1")
+        title = title_el.get_text(strip=True) if title_el else ""
+
+        price_full: Optional[float] = None
+        price_scope = soup.select_one(".ui-pdp-price__second-line") or soup
+        fraction = price_scope.select_one(".andes-money-amount__fraction")
+        if fraction:
+            int_part = re.sub(r"\D", "", fraction.get_text())
+            cents_el = price_scope.select_one(".andes-money-amount__cents")
+            cents = re.sub(r"\D", "", cents_el.get_text()) if cents_el else ""
+            if int_part:
+                try:
+                    price_full = float(f"{int_part}.{cents or '00'}")
+                except ValueError:
+                    price_full = None
+
+        img_el = soup.select_one("figure.ui-pdp-gallery__figure img, img.ui-pdp-image")
+        image = (img_el.get("src") or img_el.get("data-zoom")) if img_el else None
+
+        if not title or price_full is None or price_full <= 0:
+            return None
+
+        return {
+            "url": product_url,
+            "brand": self.brand_key,
+            "raw_title": title,
+            "raw_description": title,
+            "price_full": price_full,
+            "image_url": image or None,
+            "stock_availability": True,
+        }
+
     def _extract_seo_json(self, html: str) -> List[Dict]:
         soup = BeautifulSoup(html, "html.parser")
         scripts = soup.find_all("script", type="application/ld+json")

@@ -70,6 +70,163 @@ class AmazonEngine(BaseEngine):
             logger.error(f"Erro ao buscar detalhes Amazon {product_url}: {e}")
         return None
 
+    async def get_pdp_product(self, product_url: str) -> Optional[Dict[str, Any]]:
+        """
+        Extrai o produto COMPLETO da PDP da Amazon (para o monitor de preço).
+
+        1ª tentativa: curl_cffi. Em caso de CAPTCHA/503, faz fallback para
+        Playwright (BrowserManager). Retorna dict compatível com RawProductBronze.
+        """
+        try:
+            async with AsyncSession(impersonate="chrome120", timeout=15) as session:
+                response = await session.get(product_url, headers=self.headers)
+                if response.status_code == 200 and not self._check_captcha(response.text):
+                    product = self._parse_pdp_html(response.text, product_url)
+                    if product:
+                        return product
+                    # 200 OK sem CAPTCHA mas sem produto: o parser não achou
+                    # título/preço. Loga para diagnosticar (antes era silencioso)
+                    # e segue para o Playwright (layout/preço pode hidratar via JS).
+                    logger.warning(
+                        "Amazon PDP %s: 200 OK sem CAPTCHA, mas título/preço não extraídos "
+                        "(seletor de preço ausente?) — ativando Playwright.",
+                        product_url,
+                    )
+                elif response.status_code == 503 or self._check_captcha(response.text):
+                    logger.warning(
+                        "Amazon PDP %s disparou CAPTCHA/503 — ativando Playwright.", product_url
+                    )
+                else:
+                    logger.warning(
+                        "Amazon PDP %s: HTTP %s (curl_cffi) — ativando Playwright.",
+                        product_url, response.status_code,
+                    )
+        except Exception as e:
+            logger.error(f"Erro Amazon PDP via curl_cffi {product_url}: {e}")
+
+        if relevance_settings.PLAYWRIGHT_AMAZON_FALLBACK:
+            try:
+                from core.browser_manager import BrowserManager
+
+                html = await BrowserManager.fetch_html(
+                    product_url, wait_until="domcontentloaded", extra_sleep=2.0, timeout=35000
+                )
+                if self._check_captcha(html):
+                    logger.warning("Amazon PDP Playwright: CAPTCHA para %s", product_url)
+                    return None
+                product = self._parse_pdp_html(html, product_url)
+                if not product:
+                    # NAMEIA o engine e o desfecho: o Playwright renderizou mas o
+                    # parser não extraiu preço — pista p/ a próxima iteração ao vivo.
+                    logger.warning(
+                        "Amazon PDP %s: Playwright renderizou mas título/preço não foram "
+                        "extraídos (revisar seletores de preço da PDP).",
+                        product_url,
+                    )
+                return product
+            except Exception as exc:
+                logger.error(f"Amazon PDP Playwright erro {product_url}: {exc}")
+        else:
+            logger.warning(
+                "Amazon PDP %s: curl_cffi não resolveu e PLAYWRIGHT_AMAZON_FALLBACK=False — "
+                "sem preço.", product_url,
+            )
+        return None
+
+    def _parse_pdp_html(self, html: str, product_url: str) -> Optional[Dict[str, Any]]:
+        soup = BeautifulSoup(html, "html.parser")
+
+        title_tag = soup.find(id="productTitle")
+        title = title_tag.get_text(strip=True) if title_tag else ""
+
+        price_full = self._extract_pdp_price(soup)
+
+        # Imagem principal
+        image_url = None
+        img_tag = soup.find(id="landingImage") or soup.find(id="imgBlkFront")
+        if img_tag:
+            image_url = img_tag.get("src") or img_tag.get("data-old-hires")
+
+        # Disponibilidade
+        available = True
+        avail_tag = soup.find(id="availability")
+        if avail_tag:
+            avail_text = avail_tag.get_text(strip=True).lower()
+            if any(s in avail_text for s in ["indisponível", "esgotado", "unavailable", "out of stock"]):
+                available = False
+
+        if not title or price_full is None or price_full <= 0:
+            # Loga QUAL campo faltou — a próxima iteração ao vivo fica diagnosticável
+            # (antes: retornava None silenciosamente e o monitor ficava "Pendente").
+            logger.warning(
+                "Amazon _parse_pdp_html: extração incompleta para %s "
+                "(title=%r, price_full=%r) — sem produto.",
+                product_url, bool(title), price_full,
+            )
+            return None
+
+        return {
+            "url": product_url,
+            "brand": self.brand_key,
+            "raw_title": title,
+            "raw_description": title,
+            "price_full": price_full,
+            "image_url": image_url or None,
+            "stock_availability": available,
+        }
+
+    def _extract_pdp_price(self, soup: BeautifulSoup) -> Optional[float]:
+        """Extrai o preço da PDP tentando os contêineres da PDP, do mais específico
+        para o mais genérico.
+
+        A Amazon serve vários layouts de preço. O layout atual usa o bloco
+        ``#corePriceDisplay_desktop_feature_div`` / ``#corePrice_feature_div`` com
+        ``.a-price .a-offscreen``; layouts antigos usam ``#priceblock_ourprice`` /
+        ``#priceblock_dealprice``; e ``span.a-offscreen`` solto é o último recurso
+        (pode ser um preço secundário, por isso vem por último). Restringir aos
+        contêineres de preço primeiro evita casar o preço de "outras ofertas" ou de
+        produtos relacionados como se fosse o preço principal.
+        """
+        # 1. Contêineres de preço principais (layout atual), do mais específico ao genérico.
+        scoped_selectors = [
+            "#corePriceDisplay_desktop_feature_div span.a-price span.a-offscreen",
+            "#corePrice_feature_div span.a-price span.a-offscreen",
+            "#corePrice_desktop span.a-price span.a-offscreen",
+            "span.a-price[data-a-color='price'] span.a-offscreen",
+            "#priceblock_ourprice",
+            "#priceblock_dealprice",
+            "#price_inside_buybox",
+            "#tp_price_block_total_price_ww span.a-offscreen",
+            "span.a-price span.a-offscreen",  # fallback amplo (por último)
+        ]
+        for css in scoped_selectors:
+            tag = soup.select_one(css)
+            price = self._price_from_tag_text(tag.get_text(strip=True)) if tag else None
+            if price is not None:
+                return price
+        return None
+
+    @staticmethod
+    def _price_from_tag_text(text: Optional[str]) -> Optional[float]:
+        """Converte um texto de preço da Amazon BR (ex.: 'R$ 1.299,90') em float."""
+        if not text:
+            return None
+        raw = (
+            text.replace("R$", "")
+            .replace("\xa0", "")
+            .replace(" ", "")
+            .replace(".", "")
+            .replace(",", ".")
+            .strip()
+        )
+        match = re.search(r"\d+\.\d+", raw)
+        if match:
+            try:
+                return float(match.group())
+            except ValueError:
+                return None
+        return None
+
     def _parse_html(self, html: str, limit: int) -> List[Dict[str, Any]]:
         soup = BeautifulSoup(html, "html.parser")
         produtos = []

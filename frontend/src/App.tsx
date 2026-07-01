@@ -417,6 +417,13 @@ const MonitorPage = ({ brands }: { brands: any[] }) => {
                   <div className="monitor-pricing">
                     {m.last_price ? (
                       <div className="monitor-price-value">R$ {m.last_price.toFixed(2)}</div>
+                    ) : (m.last_status === 'blocked' || m.last_status === 'error') ? (
+                      <div
+                        className="monitor-price-blocked"
+                        title={m.last_error || 'Não foi possível ler o produto.'}
+                      >
+                        {m.last_status === 'blocked' ? 'Bloqueado (anti-bot)' : 'Indisponível'}
+                      </div>
                     ) : (
                       <div className="monitor-price-pending">Pendente...</div>
                     )}
@@ -2569,6 +2576,15 @@ const productReviewComments = (product: any) => {
   return [];
 };
 
+const reviewCommentDisplayText = (comment: any) => {
+  return (
+    comment.title ||
+    comment.text ||
+    [comment.author, comment.created_at].filter(Boolean).join(' - ') ||
+    'Avaliacao sem texto'
+  );
+};
+
 const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -3012,8 +3028,8 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
                         {productReviewComments(p).length > 0 && (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
                             {productReviewComments(p).slice(0, 2).map((comment: any) => (
-                              <span key={comment.review_id} title={comment.text || comment.title || ''}>
-                                {comment.rating ? `${comment.rating}/5 - ` : ''}{comment.title || comment.text || 'Comentario sem texto'}
+                              <span key={comment.review_id} title={reviewCommentDisplayText(comment)}>
+                                {comment.rating ? `${comment.rating}/5 - ` : ''}{reviewCommentDisplayText(comment)}
                               </span>
                             ))}
                           </div>

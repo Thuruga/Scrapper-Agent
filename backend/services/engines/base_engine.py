@@ -59,8 +59,30 @@ class BaseEngine(ABC):
     async def get_product_details(self, product_url: str) -> Optional[Dict[str, Any]]:
         """
         Extrai detalhes de um único produto.
+
+        IMPORTANTE: este método existe para o fluxo de enriquecimento de seller/preço
+        do cross-marketplace. Os engines de marketplace (ML/Amazon/Netshoes) retornam
+        aqui APENAS `{"seller": ...}` (ou `+price`), NÃO o produto completo. Para obter
+        um produto completo compatível com `RawProductBronze` (price monitor), use
+        `get_pdp_product`.
         """
         pass
+
+    async def get_pdp_product(self, product_url: str) -> Optional[Dict[str, Any]]:
+        """
+        Extrai o produto COMPLETO de uma PDP (Product Detail Page), no formato
+        compatível com `RawProductBronze` (campos url/brand/raw_title/
+        raw_description/price_full/image_url/stock_availability/...).
+
+        Usado pelo monitor de preço (`PriceMonitorService._monitor_loop`).
+
+        Default: delega para `get_product_details`. Engines que JÁ retornam o
+        produto completo lá (VTEX/Shopify/SFCC/Wake/Zara via `validate_single`)
+        funcionam sem alteração. Engines de marketplace (ML/Amazon/Netshoes),
+        cujo `get_product_details` retorna apenas `{"seller": ...}`,
+        SOBRESCREVEM este método para parsear o produto completo da PDP.
+        """
+        return await self.get_product_details(product_url)
 
     @abstractmethod
     async def calculate_shipping(self, product: Any, zipcode: str) -> Optional[Dict[str, Any]]:
