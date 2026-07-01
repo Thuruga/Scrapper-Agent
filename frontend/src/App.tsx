@@ -61,6 +61,7 @@ import './App.css';
 
 // Regex do SKU alvo (busca por marketplace) — UX gate apenas (T-38-04); backend valida independentemente.
 const SKU_PATTERN = /^ML\.05\.\d{7}$/;
+const SKU_ERROR_MSG = 'Formato inválido. Use o padrão ML.05.XXXXXXX (ex: ML.05.0326046).';
 
 const SidebarItem = ({ icon: Icon, label, active, onClick }: any) => (
   <button
@@ -1990,8 +1991,8 @@ const CrossMarketplacePage = ({ preloadedJobId, onClearPreloadedJob, onReopen }:
   const cepDraftRef = useRef<HTMLInputElement>(null);
   // --- Validação do SKU alvo (UX-07): UX gate only, backend valida independentemente (T-38-04) ---
   const [skuFieldError, setSkuFieldError] = useState<string | null>(null);
-  const SKU_ERROR_MSG = 'Formato inválido. Use o padrão ML.05.XXXXXXX (ex: ML.05.0326046).';
   const validateSku = (value: string): boolean => SKU_PATTERN.test(value.trim());
+  const isTargetSkuValid = validateSku(targetSku);
 
   // withDisplayOrder importado do store (fonte única — CR-01/IN-02): a action
   // startCrossSearch e a pré-carga de histórico aplicam exatamente a mesma lógica.
@@ -2252,7 +2253,7 @@ const CrossMarketplacePage = ({ preloadedJobId, onClearPreloadedJob, onReopen }:
                   onChange={e => {
                     const val = e.target.value;
                     setCross({ targetSku: val });
-                    if (skuFieldError && validateSku(val)) setSkuFieldError(null);
+                    if (skuFieldError) setSkuFieldError(null);
                   }}
                   onBlur={e => {
                     if (!e.target.value) return;
@@ -2294,7 +2295,7 @@ const CrossMarketplacePage = ({ preloadedJobId, onClearPreloadedJob, onReopen }:
           <p className="text-muted mt-2" style={{ fontSize: '12px', marginTop: '8px' }}>
             Ao informar o SKU, o sistema irá automaticamente na loja da Aramis identificar o nome e categoria do produto para varrer os demais marketplaces.
           </p>
-          <button type="submit" className="btn btn-primary w-full" disabled={loading || !!skuFieldError}>
+          <button type="submit" className="btn btn-primary w-full" disabled={loading || !isTargetSkuValid}>
             {loading ? <RefreshCw className="animate-spin" size={18} /> : <Radar size={18} />}
             {loading ? "Rastreando Concorrência..." : "Buscar em Marketplaces"}
           </button>
