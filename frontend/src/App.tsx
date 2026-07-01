@@ -59,6 +59,8 @@ import './App.css';
 
 // --- Components ---
 
+// Regex do SKU alvo (busca por marketplace) — UX gate apenas (T-38-04); backend valida independentemente.
+const SKU_PATTERN = /^ML\.05\.\d{7}$/;
 
 const SidebarItem = ({ icon: Icon, label, active, onClick }: any) => (
   <button
@@ -1986,6 +1988,10 @@ const CrossMarketplacePage = ({ preloadedJobId, onClearPreloadedJob, onReopen }:
   const [cepError, setCepError] = useState<string | null>(null);
   const [pendingShipItem, setPendingShipItem] = useState<{ item: any; marketplace: string } | null>(null);
   const cepDraftRef = useRef<HTMLInputElement>(null);
+  // --- Validação do SKU alvo (UX-07): UX gate only, backend valida independentemente (T-38-04) ---
+  const [skuFieldError, setSkuFieldError] = useState<string | null>(null);
+  const SKU_ERROR_MSG = 'Formato inválido. Use o padrão ML.05.XXXXXXX (ex: ML.05.0326046).';
+  const validateSku = (value: string): boolean => SKU_PATTERN.test(value.trim());
 
   // withDisplayOrder importado do store (fonte única — CR-01/IN-02): a action
   // startCrossSearch e a pré-carga de histórico aplicam exatamente a mesma lógica.
@@ -2173,6 +2179,10 @@ const CrossMarketplacePage = ({ preloadedJobId, onClearPreloadedJob, onReopen }:
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!targetSku) return;
+    if (!validateSku(targetSku)) {
+      setSkuFieldError(SKU_ERROR_MSG);
+      return;
+    }
     onClearPreloadedJob?.();
     // startCrossSearch faz: loading=true, results=null, reset seleção, AbortController,
     // withDisplayOrder e toast — tudo dentro da action (CR-01).
@@ -2225,39 +2235,66 @@ const CrossMarketplacePage = ({ preloadedJobId, onClearPreloadedJob, onReopen }:
         />
       )}
       <GlassCard className="search-bar-container">
-        <form onSubmit={handleSearch} className="form-stack">
-          <div className="form-group" style={{ display: 'flex', gap: '16px' }}>
-            <div style={{ flex: 1 }}>
-              <label className="label">SKU Alvo (Aramis)</label>
-              <input
-                type="text"
-                className="input"
-                placeholder="Ex: ML.05.0326046"
-                value={targetSku}
-                onChange={e => setCross({ targetSku: e.target.value })}
-                required
-              />
+        <form onSubmit={handleSearch} className="search-form">
+          <div className="search-main-row">
+            <div className="search-field">
+              <label className="search-field-label" htmlFor="sku-input">SKU Alvo (Aramis)</label>
+              <div className={`search-input-wrapper${skuFieldError ? ' cep-input-error' : ''}`}>
+                <Search className="search-icon" size={20} aria-hidden="true" />
+                <input
+                  id="sku-input"
+                  type="text"
+                  className="search-input"
+                  placeholder="Ex: ML.05.0326046"
+                  value={targetSku}
+                  aria-invalid={skuFieldError ? 'true' : 'false'}
+                  aria-describedby={skuFieldError ? 'sku-error-msg' : undefined}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setCross({ targetSku: val });
+                    if (skuFieldError && validateSku(val)) setSkuFieldError(null);
+                  }}
+                  onBlur={e => {
+                    if (!e.target.value) return;
+                    setSkuFieldError(validateSku(e.target.value) ? null : SKU_ERROR_MSG);
+                  }}
+                  required
+                />
+              </div>
+              {skuFieldError && (
+                <p id="sku-error-msg" className="cep-helper cep-helper-error" role="alert" aria-live="polite">
+                  <AlertTriangle size={12} aria-hidden="true" />
+                  {skuFieldError}
+                </p>
+              )}
             </div>
-            <div style={{ width: '200px' }}>
-              <label className="label">CEP (Opcional)</label>
-              <input
-                type="text"
-                className="input"
-                placeholder="Ex: 01001-000"
-                value={zipcode}
-                onChange={e => {
-                  let val = e.target.value.replace(/\D/g, '');
-                  if (val.length > 8) val = val.slice(0, 8);
-                  if (val.length > 5) val = val.slice(0, 5) + '-' + val.slice(5);
-                  setCross({ zipcode: val });
-                }}
-              />
+
+            <div className="search-field">
+              <label className="search-field-label" htmlFor="cross-cep-input">CEP (Opcional)</label>
+              <div className="search-input-wrapper">
+                <MapPin className="search-icon" size={20} aria-hidden="true" />
+                <input
+                  id="cross-cep-input"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="postal-code"
+                  className="search-input"
+                  placeholder="Ex: 01001-000"
+                  value={zipcode}
+                  onChange={e => {
+                    let val = e.target.value.replace(/\D/g, '');
+                    if (val.length > 8) val = val.slice(0, 8);
+                    if (val.length > 5) val = val.slice(0, 5) + '-' + val.slice(5);
+                    setCross({ zipcode: val });
+                  }}
+                />
+              </div>
             </div>
           </div>
           <p className="text-muted mt-2" style={{ fontSize: '12px', marginTop: '8px' }}>
             Ao informar o SKU, o sistema irá automaticamente na loja da Aramis identificar o nome e categoria do produto para varrer os demais marketplaces.
           </p>
-          <button type="submit" className="btn btn-primary w-full" disabled={loading}>
+          <button type="submit" className="btn btn-primary w-full" disabled={loading || !!skuFieldError}>
             {loading ? <RefreshCw className="animate-spin" size={18} /> : <Radar size={18} />}
             {loading ? "Rastreando Concorrência..." : "Buscar em Marketplaces"}
           </button>
