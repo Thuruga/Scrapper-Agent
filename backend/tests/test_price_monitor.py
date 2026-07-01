@@ -227,13 +227,20 @@ async def test_price_monitor_promo_only_change_triggers_history():
         "stock_availability": True,
     })
 
-    async def stop_after_first(*args, **kwargs):
-        config.active = False
+    # config.last_price nao e None, entao _monitor_loop faz um jitter inicial
+    # (1o asyncio.sleep) ANTES do laco `while config.active`. So o 2o sleep
+    # (fim do ciclo, dentro do laco) deve parar o monitor.
+    sleep_calls = {"count": 0}
+
+    async def stop_after_second_sleep(*args, **kwargs):
+        sleep_calls["count"] += 1
+        if sleep_calls["count"] >= 2:
+            config.active = False
 
     with patch("services.price_monitor_service.engine_factory.get_engine", return_value=mock_engine), \
          patch("services.price_monitor_service.manager.send_message", new_callable=AsyncMock) as mock_ws, \
          patch.object(service, "_save_monitors"), \
-         patch("services.price_monitor_service.asyncio.sleep", new=AsyncMock(side_effect=stop_after_first)):
+         patch("services.price_monitor_service.asyncio.sleep", new=AsyncMock(side_effect=stop_after_second_sleep)):
         await service._monitor_loop(job_id)
 
     assert len(config.history) == 1, (

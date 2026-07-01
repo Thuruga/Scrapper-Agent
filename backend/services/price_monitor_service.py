@@ -176,6 +176,14 @@ class PriceMonitorService:
                     config.last_status = "ok"
                     config.last_error = None
                     current_price = product.price_full
+                    # price_discount e um DELTA (valor positivo do desconto), nao um
+                    # preco final — convencao dos engines VTEX/ML/Shopify
+                    # (list_price - sale_price). Normaliza 0/None para None.
+                    current_discount = (
+                        product.price_discount
+                        if product.price_discount and product.price_discount > 0
+                        else None
+                    )
                     available = product.stock_availability
 
                     # Atualiza metadados (imagem e nome) na config se ainda não tiver
@@ -193,6 +201,12 @@ class PriceMonitorService:
                     if config.last_price is None or config.last_price != current_price:
                         has_change = True
 
+                    # Mudanca apenas no desconto (price_full inalterado) tambem conta
+                    # como mudanca — sem isso, uma promocao (D-01) era ignorada em
+                    # silencio quando o preco efetivo nao mudava.
+                    if config.last_price_discount != current_discount:
+                        has_change = True
+
                     # Checa se houve alteração nas numerações/cores disponíveis
                     if sorted(config.available_colors) != sorted(current_colors):
                         has_change = True
@@ -206,17 +220,21 @@ class PriceMonitorService:
                     if has_change:
                         entry = PriceHistoryEntry(
                             price=current_price,
+                            last_price_discount=current_discount,
                             available=bool(available),
                             available_colors=current_colors,
                             available_sizes=current_sizes
                         )
                         config.history.append(entry)
                         config.last_price = current_price
+                        config.last_price_discount = current_discount
 
                         # Notifica o frontend via WebSocket
                         await manager.send_message({
                             "type": "price_update",
                             "price": current_price,
+                            "price_full": current_price,
+                            "price_discount": current_discount,
                             "available": available,
                             "available_colors": current_colors,
                             "available_sizes": current_sizes,
