@@ -19,18 +19,18 @@ Requisitos comprometidos para este milestone. Cada um mapeia para uma phase no R
 
 - [x] **COMP-06**: Varredura por categoria e monitoramento por categoria da **Hugo Boss** funcionam (de/para de categorias VTEX, mirando o padrão VALID_SLUGS-from-RAW; sem novo engine).
 - [ ] **COMP-07**: Operador onboarda e busca produtos da **Zara** (catálogo + preço). _Gated por um spike de viabilidade GO/NO-GO sobre extração pública de produto+preço (Inditex); se NO-GO, vira backlog sem construir o engine._ (cumpre COMP-FUT-03) — **DEFERIDO ao backlog** (Phase 39 spike 010 = NO-GO, anti-bot; ver `.planning/todos/pending/zara-comp07-deferred.md`). Não entregue; gate cumprido.
-- [ ] **COMP-08**: **Lacoste** não aparece como alvo selecionável em nenhuma superfície de busca (comparativa, SKU, categoria, scheduler, export); garantido no chokepoint `list_brands(active_only=True)` + teste de regressão.
+- [x] **COMP-08**: **Lacoste** não aparece como alvo selecionável em nenhuma superfície de busca (comparativa, SKU, categoria, scheduler, export); garantido no chokepoint `list_brands(active_only=True)` + teste de regressão.
 
 ### C — UX de Monitoramento & Busca
 
 - [ ] **UX-01**: Monitor de categoria e varredura por categoria são responsivos em viewports menores.
-- [ ] **UX-02**: Lista de monitoramento exibe o valor da promoção (`price_discount`) além do preço cheio.
+- [x] **UX-02**: Lista de monitoramento exibe o valor da promoção (`price_discount`) além do preço cheio.
 - [x] **UX-03**: Operador cadastra uma marca colando **apenas a URL**; o sistema detecta marca + engine (`detect_engine` + inferência de nome) e apresenta para confirmação antes de salvar, com override manual disponível.
 - [x] **UX-04**: Operador adiciona um produto ao monitoramento direto da busca comparativa, da busca por SKU e do monitor de categoria; criação idempotente (dedup por url+marca).
 - [x] **UX-05**: Toggles de ativar/desativar disponíveis também para os marketplaces virtuais (Mercado Livre, Netshoes, Amazon), respeitados pelo `cross_marketplace_service`.
 - [ ] **UX-06**: Histórico de busca fica no canto superior direito, tanto na busca comparativa quanto na busca por SKU.
 - [ ] **UX-07**: Busca por SKU aceita somente o padrão de SKU (ex.: `ML.05.0326046`, validado) e o campo de CEP fica na mesma linha do input do SKU (igual à comparativa).
-- [ ] **UX-08**: Selecionar uma categoria no monitor dispara automaticamente a primeira varredura e exibe a lista de produtos, sem trigger manual.
+- [x] **UX-08**: Selecionar uma categoria no monitor dispara automaticamente a primeira varredura e exibe a lista de produtos, sem trigger manual.
 
 ### D — Frete (Cobertura Total)
 
@@ -89,12 +89,12 @@ Explicitamente excluído deste milestone, com motivo.
 | PARID-02 | Phase 37 | Pending |
 | PARID-03 | Phase 37 | Pending |
 | PARID-04 | Phase 37 | Pending |
-| COMP-08 | Phase 38 | Pending |
+| COMP-08 | Phase 38 | Complete |
 | UX-01 | Phase 38 | Pending |
-| UX-02 | Phase 38 | Pending |
+| UX-02 | Phase 38 | Complete |
 | UX-06 | Phase 38 | Pending |
 | UX-07 | Phase 38 | Pending |
-| UX-08 | Phase 38 | Pending |
+| UX-08 | Phase 38 | Complete |
 | COMP-06 | Phase 39 | Complete |
 | COMP-07 | Phase 39 | Deferred (NO-GO → backlog) |
 | UX-03 | Phase 40 (P02 backend complete; P05 frontend pending) | Partial |

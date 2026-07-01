@@ -77,7 +77,7 @@ Plans:
 **Plans**: 3 plansPlans:
 **Wave 1**
 
-- [ ] 38-01-PLAN.md — Backend: campo de desconto no monitor (D-01/D-03/D-04) + testes Wave-0 (UX-02, UX-08 backend, COMP-08)
+- [x] 38-01-PLAN.md — Backend: campo de desconto no monitor (D-01/D-03/D-04) + testes Wave-0 (UX-02, UX-08 backend, COMP-08)
 - [ ] 38-02-PLAN.md — Frontend: responsividade .grid-category 768px (UX-01) + ícone de histórico no canto superior direito (UX-06)
 
 **Wave 2** *(blocked on Wave 1 completion)*
@@ -203,7 +203,7 @@ Phases ativas executam em ordem numérica: 37 → 38 → 39 → 40 → 41 → 42
 | 35. Publicação de Banners no SharePoint | v3.0 | 0/? | Not started | - |
 | 36. Onboarding das Marcas Concorrentes Restantes | v3.0 | 3/3 | Complete (NO-GO) | 2026-06-25 |
 | 37. Paridade de Atributos & Fundação SQLite | v4.0 | 0/? | Not started | - |
-| 38. UX de Busca & Monitoramento — Quick Wins | v4.0 | 0/? | Not started | - |
+| 38. UX de Busca & Monitoramento — Quick Wins | v4.0 | 1/3 | In Progress|  |
 | 39. Cobertura de Marcas — Hugo Boss & Zara | v4.0 | 3/3 | Complete    | 2026-06-30 |
 | 40. Onboarding por URL & Workflows de Adição | v4.0 | 5/5 | Complete    | 2026-06-30 |
 | 41. Abstração de Frete & Marcas Não-VTEX | v4.0 | 0/? | Not started | - |
