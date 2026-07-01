@@ -185,11 +185,28 @@ const PriceChart = ({ history }: { history: any[] }) => {
 
 // --- Pages ---
 
-// Normaliza um domínio para comparação: minúsculas + remove prefixo literal "www."
-// (slice literal, NÃO lstrip — lstrip removeria o char-set {w,.} e corromperia hosts).
+// Normaliza um domínio para comparação: minúsculas + remove ponto final (FQDN)
+// + remove prefixo literal "www." (slice literal, NÃO lstrip — lstrip removeria o
+// char-set {w,.} e corromperia hosts).
 const normalizeDomain = (domain: string): string => {
-  const host = (domain || '').trim().toLowerCase();
+  const host = (domain || '').trim().toLowerCase().replace(/\.+$/, '');
   return host.startsWith('www.') ? host.slice('www.'.length) : host;
+};
+
+// Casa o host de uma URL com o domínio cadastrado de uma marca.
+// Match exato OU por sufixo de LABEL: o domínio cadastrado de marketplace é o
+// registrável (ex.: "mercadolivre.com.br"), mas a URL do produto pode vir em
+// qualquer subdomínio ("produto.mercadolivre.com.br", "lista.mercadolivre.com.br",
+// "www.amazon.com.br", "m.netshoes.com.br"). Sem isto, o identify-first casava só
+// por igualdade exata: "produto.mercadolivre.com.br" ≠ "mercadolivre.com.br" ⇒ o
+// ML nunca criava monitor (bug monitor-marketplace-pendente Round 2, causa ML).
+// Boundary de label (host === base || host.endsWith("." + base)) para NÃO casar
+// "maliciousmercadolivre.com.br".
+const domainMatchesBrand = (urlDomain: string, brandDomain: string): boolean => {
+  const host = normalizeDomain(urlDomain);
+  const base = normalizeDomain(brandDomain);
+  if (!host || !base) return false;
+  return host === base || host.endsWith(`.${base}`);
 };
 
 const MonitorPage = ({ brands }: { brands: any[] }) => {
@@ -297,8 +314,12 @@ const MonitorPage = ({ brands }: { brands: any[] }) => {
     setStatus({ type: 'info', message: 'Identificando marca pelo link...' });
     try {
       const identified = await ApiClient.identifyBrand(url);
-      const targetDomain = normalizeDomain(identified.domain);
-      const matched = brands.find(b => normalizeDomain(b.domain) === targetDomain);
+      // Casa por sufixo de label (domainMatchesBrand): cobre subdomínios de
+      // marketplace (produto./lista./www./m.) sem corromper o match de marcas
+      // próprias. O identify devolve o host como veio na URL (ex.:
+      // "produto.mercadolivre.com.br"); a marca ML está cadastrada como
+      // "mercadolivre.com.br". Igualdade exata falhava e o ML nunca criava monitor.
+      const matched = brands.find(b => domainMatchesBrand(identified.domain, b.domain));
 
       if (matched) {
         setIdentifiedBrandName(matched.brand_name);
@@ -2522,6 +2543,32 @@ const SettingsPage = ({ brands, onRefresh }: { brands: any[], onRefresh: () => v
   );
 };
 
+const stockDepthStateLabel = (state?: string | null) => {
+  const labels: Record<string, string> = {
+    estimated: 'estimado',
+    unavailable: 'indisponivel',
+    unsupported: 'nao suportado',
+    blocked: 'bloqueado',
+    temporary_failure: 'falha temporaria',
+  };
+  return state ? (labels[state] || state) : '';
+};
+
+const reviewsStateLabel = (state?: string | null) => {
+  const labels: Record<string, string> = {
+    available: 'disponivel',
+    unsupported: 'nao suportado',
+    temporary_failure: 'falha temporaria',
+  };
+  return state ? (labels[state] || state) : '';
+};
+
+const productReviewComments = (product: any) => {
+  if (Array.isArray(product.comments)) return product.comments;
+  if (Array.isArray(product.review_comments)) return product.review_comments;
+  return [];
+};
+
 const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -2667,7 +2714,11 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
     try {
       const result = await ApiClient.requestMonitoredProductStockDepth(selectedMonitor.id, scanProductId);
       mergeMonitorProductResult(scanProductId, result);
-      toast.success('Profundidade de estoque atualizada');
+      if (result.stock_depth_state === 'estimated') {
+        toast.success('Profundidade de estoque atualizada');
+      } else {
+        toast.info(`Profundidade: ${stockDepthStateLabel(result.stock_depth_state)}`);
+      }
     } catch (err: any) {
       toast.error(err.message || 'Erro ao consultar profundidade de estoque');
     } finally {
@@ -2686,7 +2737,11 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
     try {
       const result = await ApiClient.requestMonitoredProductReviews(selectedMonitor.id, scanProductId);
       mergeMonitorProductResult(scanProductId, result);
-      toast.success('Comentários de avaliação atualizados');
+      if (result.reviews_state === 'available' && result.comments.length > 0) {
+        toast.success('Comentarios de avaliacao atualizados');
+      } else {
+        toast.info(`Avaliacoes: ${reviewsStateLabel(result.reviews_state)}`);
+      }
     } catch (err: any) {
       toast.error(err.message || 'Erro ao buscar comentários de avaliação');
     } finally {
@@ -2946,17 +3001,17 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
                         {p.stock_availability == null && <span>Estoque nao verificado</span>}
                         {p.stock_depth_state && (
                           <span>
-                            Profundidade: {p.stock_depth_estimate ?? '-'} ({p.stock_depth_state})
+                            Profundidade: {p.stock_depth_estimate ?? '-'} ({stockDepthStateLabel(p.stock_depth_state)})
                           </span>
                         )}
                         {p.reviews_state && (
                           <span>
-                            Avaliacoes: {p.review_count ?? 0} ({p.reviews_state})
+                            Avaliacoes: {p.review_count ?? 0} ({reviewsStateLabel(p.reviews_state)})
                           </span>
                         )}
-                        {Array.isArray(p.comments) && p.comments.length > 0 && (
+                        {productReviewComments(p).length > 0 && (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
-                            {p.comments.slice(0, 2).map((comment: any) => (
+                            {productReviewComments(p).slice(0, 2).map((comment: any) => (
                               <span key={comment.review_id} title={comment.text || comment.title || ''}>
                                 {comment.rating ? `${comment.rating}/5 - ` : ''}{comment.title || comment.text || 'Comentario sem texto'}
                               </span>

@@ -41,23 +41,25 @@ async def probe_scan_product_stock_depth(
     if not is_url_allowed_for_brand(product_url, brand):
         raise ValueError("URL do produto nao pertence ao dominio da marca.")
 
-    _enforce_probe_guard(brand_key, monitor_id)
-
-    provider = resolve_stock_depth_provider(brand)
-    try:
-        provider_result = await provider.probe(
-            product,
-            brand,
-            settings.STOCK_PROBE_QUANTITY,
-        )
-    except Exception as exc:
-        logger.info("[stock-depth] provider exception state=temporary_failure")
-        provider_result = StockDepthResult(
-            stock_depth_state=StockDepthState.TEMPORARY_FAILURE,
-            stock_depth_estimate=None,
-            stock_depth_source="provider-exception",
-            stock_depth_label=str(exc),
-        )
+    guard_result = _enforce_probe_guard(brand_key, monitor_id)
+    if guard_result is not None:
+        provider_result = guard_result
+    else:
+        provider = resolve_stock_depth_provider(brand)
+        try:
+            provider_result = await provider.probe(
+                product,
+                brand,
+                settings.STOCK_PROBE_QUANTITY,
+            )
+        except Exception as exc:
+            logger.info("[stock-depth] provider exception state=temporary_failure")
+            provider_result = StockDepthResult(
+                stock_depth_state=StockDepthState.TEMPORARY_FAILURE,
+                stock_depth_estimate=None,
+                stock_depth_source="provider-exception",
+                stock_depth_label=str(exc),
+            )
 
     checked_at = _utc_now_iso()
     normalized = _normalize_result(provider_result, checked_at)
@@ -110,26 +112,38 @@ def _find_scan_product(
     return matches[0]
 
 
-def _enforce_probe_guard(brand_key: str, monitor_id: str) -> None:
+def _enforce_probe_guard(
+    brand_key: str,
+    monitor_id: str,
+) -> StockDepthResult | None:
     key = (brand_key, monitor_id)
     now = _now_monotonic()
     guard = _PROBE_GUARDS.get(key)
     if guard is None:
         _PROBE_GUARDS[key] = {"last_probe_at": now, "count": 1}
-        return
+        return None
 
     count = int(guard.get("count", 0))
     max_count = int(settings.MAX_STOCK_DEPTH_PROBES_PER_BRAND)
     if count >= max_count:
-        raise ValueError("Limite de probes por marca/execucao atingido.")
+        return StockDepthResult(
+            stock_depth_state=StockDepthState.BLOCKED,
+            stock_depth_estimate=None,
+            stock_depth_source="probe-limit",
+        )
 
     last_probe_at = float(guard.get("last_probe_at", 0.0))
     elapsed = now - last_probe_at
     if elapsed < float(settings.STOCK_PROBE_THROTTLE_SECONDS):
-        raise ValueError("Throttle de stock-depth ainda ativo.")
+        return StockDepthResult(
+            stock_depth_state=StockDepthState.BLOCKED,
+            stock_depth_estimate=None,
+            stock_depth_source="probe-throttle",
+        )
 
     guard["last_probe_at"] = now
     guard["count"] = count + 1
+    return None
 
 
 def _normalize_result(

@@ -251,22 +251,25 @@ def test_probe_scan_product_enforces_throttle_and_run_cap_without_sleep(
     )
 
     asyncio.run(stock_depth_service.probe_scan_product_stock_depth("monitor-1", "p1"))
-    try:
-        asyncio.run(stock_depth_service.probe_scan_product_stock_depth("monitor-1", "p2"))
-    except ValueError as exc:
-        assert "Throttle" in str(exc)
-    else:
-        raise AssertionError("Expected throttle to reject immediate second probe")
+
+    throttled = asyncio.run(
+        stock_depth_service.probe_scan_product_stock_depth("monitor-1", "p2")
+    )
+    assert throttled.stock_depth_state == "blocked"
+    assert throttled.stock_depth_source == "probe-throttle"
 
     asyncio.run(stock_depth_service.probe_scan_product_stock_depth("monitor-1", "p2"))
-    try:
-        asyncio.run(stock_depth_service.probe_scan_product_stock_depth("monitor-1", "p3"))
-    except ValueError as exc:
-        assert "Limite de probes" in str(exc)
-    else:
-        raise AssertionError("Expected per-brand/run cap to reject third probe")
+
+    capped = asyncio.run(
+        stock_depth_service.probe_scan_product_stock_depth("monitor-1", "p3")
+    )
+    assert capped.stock_depth_state == "blocked"
+    assert capped.stock_depth_source == "probe-limit"
 
     assert [call["product"]["scan_product_id"] for call in provider.calls] == ["p1", "p2"]
+    persisted = _read_products(tmp_path, "monitor-1")
+    assert persisted[2]["stock_depth_state"] == "blocked"
+    assert persisted[2]["stock_depth_source"] == "probe-limit"
 
 
 def test_probe_scan_product_updates_only_matching_record(tmp_path, monkeypatch):
