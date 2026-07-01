@@ -776,9 +776,24 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
 
 // --- HistoryList ---
 
-const HistoryList = ({ type, onReopen, refreshKey }: { type: 'search' | 'cross'; onReopen: (jobId: string) => void; refreshKey: number }) => {
+const HistoryList = ({ type, onReopen, refreshKey, collapsed: collapsedProp, onToggleCollapsed, onCountChange }: {
+  type: 'search' | 'cross';
+  onReopen: (jobId: string) => void;
+  refreshKey: number;
+  /** Optional controlled collapsed state — when provided (with onToggleCollapsed), an external
+   * trigger (e.g. the top-right History icon) drives the panel instead of the internal header button. */
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
+  /** Reports the type-filtered item count upward so an external badge can mirror it without a second fetch. */
+  onCountChange?: (count: number) => void;
+}) => {
   const [items, setItems] = useState<any[]>([]);
-  const [collapsed, setCollapsed] = useState(true);
+  const [collapsedState, setCollapsedState] = useState(true);
+  const collapsed = collapsedProp !== undefined ? collapsedProp : collapsedState;
+  const setCollapsed = (updater: (c: boolean) => boolean) => {
+    if (onToggleCollapsed) { onToggleCollapsed(); return; }
+    setCollapsedState(updater);
+  };
   const [deleteTick, setDeleteTick] = useState(0);
 
   useEffect(() => {
@@ -789,6 +804,11 @@ const HistoryList = ({ type, onReopen, refreshKey }: { type: 'search' | 'cross';
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshKey, deleteTick]);
+
+  useEffect(() => {
+    onCountChange?.(items.length);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items.length]);
 
   const handleDelete = (e: React.MouseEvent, jobId: string) => {
     e.stopPropagation();
@@ -1203,6 +1223,9 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
   // UI transiente — permanecem como useState local (D-03)
   const [exporting, setExporting] = useState(false);
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+  // --- Histórico de buscas: ícone no topo controla o painel (UX-06) ---
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyCount, setHistoryCount] = useState(0);
   // --- Campo de CEP da barra de busca (opcional, sem valor padrão) ---
   // Se preenchido antes da busca, o frete de TODOS os produtos vem junto (include_shipping).
   const [cepFieldError, setCepFieldError] = useState<string | null>(null);
@@ -1467,6 +1490,39 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
 
   return (
     <div className="page-content">
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <button
+          type="button"
+          className="btn-icon"
+          title="Ver histórico de buscas"
+          onClick={() => setHistoryOpen(o => !o)}
+          style={{ position: 'relative' }}
+        >
+          <History size={18} />
+          {historyCount > 0 && (
+            <span
+              className="monitor-badge"
+              style={{
+                position: 'absolute', top: '-6px', right: '-6px',
+                color: 'var(--primary)', fontSize: '0.65rem',
+                background: 'rgba(99,102,241,0.12)', padding: '2px 6px', borderRadius: '20px',
+              }}
+            >
+              {historyCount}
+            </span>
+          )}
+        </button>
+      </div>
+      {onReopen && (
+        <HistoryList
+          type="search"
+          onReopen={onReopen}
+          refreshKey={historyRefreshKey}
+          collapsed={!historyOpen}
+          onToggleCollapsed={() => setHistoryOpen(o => !o)}
+          onCountChange={setHistoryCount}
+        />
+      )}
       <GlassCard className="search-bar-container">
         <form onSubmit={handleSearch} className="search-form">
           <div className="search-main-row">
@@ -1598,8 +1654,6 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
           </div>
         </div>
       </GlassCard>
-
-      {onReopen && <HistoryList type="search" onReopen={onReopen} refreshKey={historyRefreshKey} />}
 
       <div className="results-container">
         {results && (() => {
@@ -1922,6 +1976,9 @@ const CrossMarketplacePage = ({ preloadedJobId, onClearPreloadedJob, onReopen }:
   const [loadingShipping, setLoadingShipping] = useState<Record<string, boolean>>({});
   const [exporting, setExporting] = useState(false);
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+  // --- Histórico de buscas: ícone no topo controla o painel (UX-06) ---
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyCount, setHistoryCount] = useState(0);
   // Modal de CEP — mesma lógica da busca comparativa: ao clicar "Calcular Frete" sem CEP,
   // abre o modal em vez de bloquear com alert.
   const [cepModalOpen, setCepModalOpen] = useState(false);
@@ -2134,6 +2191,39 @@ const CrossMarketplacePage = ({ preloadedJobId, onClearPreloadedJob, onReopen }:
 
   return (
     <div className="page-content">
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <button
+          type="button"
+          className="btn-icon"
+          title="Ver histórico de buscas"
+          onClick={() => setHistoryOpen(o => !o)}
+          style={{ position: 'relative' }}
+        >
+          <History size={18} />
+          {historyCount > 0 && (
+            <span
+              className="monitor-badge"
+              style={{
+                position: 'absolute', top: '-6px', right: '-6px',
+                color: 'var(--primary)', fontSize: '0.65rem',
+                background: 'rgba(99,102,241,0.12)', padding: '2px 6px', borderRadius: '20px',
+              }}
+            >
+              {historyCount}
+            </span>
+          )}
+        </button>
+      </div>
+      {onReopen && (
+        <HistoryList
+          type="cross"
+          onReopen={onReopen}
+          refreshKey={historyRefreshKey}
+          collapsed={!historyOpen}
+          onToggleCollapsed={() => setHistoryOpen(o => !o)}
+          onCountChange={setHistoryCount}
+        />
+      )}
       <GlassCard className="search-bar-container">
         <form onSubmit={handleSearch} className="form-stack">
           <div className="form-group" style={{ display: 'flex', gap: '16px' }}>
@@ -2173,8 +2263,6 @@ const CrossMarketplacePage = ({ preloadedJobId, onClearPreloadedJob, onReopen }:
           </button>
         </form>
       </GlassCard>
-
-      {onReopen && <HistoryList type="cross" onReopen={onReopen} refreshKey={historyRefreshKey} />}
 
       {results && (
         <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
