@@ -285,6 +285,7 @@ class PriceHistoryEntry(BaseModel):
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
     price: float
+    last_price_discount: Optional[float] = None
     available: bool
     available_colors: List[str] = Field(default_factory=list)
     available_sizes: List[str] = Field(default_factory=list)
@@ -302,6 +303,7 @@ class PriceMonitorConfig(BaseModel):
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
     last_price: Optional[float] = None
+    last_price_discount: Optional[float] = None
     # Estado da última checagem — alimenta o card do front:
     #   None      = ainda não checado (mostra "Pendente")
     #   "ok"      = preço resolvido
