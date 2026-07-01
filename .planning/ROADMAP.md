@@ -74,7 +74,11 @@ Plans:
   5. Ao selecionar uma categoria no monitor de categoria, a primeira varredura dispara automaticamente sem necessidade de clique em "iniciar" — e os resultados aparecem na lista.
   6. A Lacoste não aparece como opção selecionável em nenhuma superfície (busca comparativa, busca por SKU, varredura por categoria, scheduler, export) — garantido pelo chokepoint `list_brands(active_only=True)` e coberto por teste de regressão.
 
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 38-01-PLAN.md — Backend: campo de desconto no monitor (D-01/D-03/D-04) + testes Wave-0 (UX-02, UX-08 backend, COMP-08)
+- [ ] 38-02-PLAN.md — Frontend: responsividade .grid-category 768px (UX-01) + ícone de histórico no canto superior direito (UX-06)
+- [ ] 38-03-PLAN.md — Frontend: validação de SKU + CEP inline (UX-07), auto-sweep com poll/spinner/modal (UX-08) e valor de promoção na lista de monitores (UX-02)
 **UI hint**: yes
 
 ### Phase 39: Cobertura de Marcas — Hugo Boss & Zara
