@@ -25,7 +25,7 @@ Com o motor multi-engine, frete VTEX e os engines Wake/SFCC entregues no v3.0, o
 Phases 19-36 pertencem a milestones CONCLUÍDOS (v1.10-v3.0). As phases ativas do v4.0 são **37-45**.
 
 - [ ] **Phase 37: Paridade de Atributos & Fundação SQLite** - Vocabulário canônico único, normalização/aliasing de atributos em todos os engines, relatório de cobertura por marca e introdução do SQLite para dados analíticos (PARID-01, PARID-02, PARID-03, PARID-04)
-- [ ] **Phase 38: UX de Busca & Monitoramento — Quick Wins** - Responsividade do monitor/varredura, promoção na lista de monitoramento, histórico no canto superior direito, padrão de SKU + CEP inline, auto-trigger do monitor de categoria e remoção da Lacoste de todas as superfícies de busca (UX-01, UX-02, UX-06, UX-07, UX-08, COMP-08)
+- [x] **Phase 38: UX de Busca & Monitoramento — Quick Wins** - Responsividade do monitor/varredura, promoção na lista de monitoramento, histórico no canto superior direito, padrão de SKU + CEP inline, auto-trigger do monitor de categoria e remoção da Lacoste de todas as superfícies de busca (UX-01, UX-02, UX-06, UX-07, UX-08, COMP-08) (completed 2026-07-01)
 - [x] **Phase 39: Cobertura de Marcas — Hugo Boss & Zara** - Varredura e monitoramento por categoria da Hugo Boss funcionando; spike-gated onboarding da Zara (GO/NO-GO antes do engine) (COMP-06, COMP-07) (completed 2026-06-30)
 - [x] **Phase 40: Onboarding por URL & Workflows de Adição ao Monitoramento** - Cadastro de marca só pela URL, detecção automática de engine + nome, botão "adicionar ao monitoramento" nas três superfícies de busca e toggles de ativar/desativar para marketplaces virtuais (UX-03, UX-04, UX-05) (completed 2026-06-30)
 - [ ] **Phase 41: Abstração de Frete & Marcas Não-VTEX** - Camada de abstração de frete por engine (BaseShipping + implementações Wake/Shopify), fechamento do gap de frete do Buckman (VTEX) e VTEX permanece no VtexApiClient (FRET-07)
@@ -82,7 +82,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 38-03-PLAN.md — Frontend: validação de SKU + CEP inline (UX-07), auto-sweep com poll/spinner/modal (UX-08) e valor de promoção na lista de monitores (UX-02)
+- [x] 38-03-PLAN.md — Frontend: validação de SKU + CEP inline (UX-07), auto-sweep com poll/spinner/modal (UX-08) e valor de promoção na lista de monitores (UX-02)
 
 **UI hint**: yes
 
@@ -203,7 +203,7 @@ Phases ativas executam em ordem numérica: 37 → 38 → 39 → 40 → 41 → 42
 | 35. Publicação de Banners no SharePoint | v3.0 | 0/? | Not started | - |
 | 36. Onboarding das Marcas Concorrentes Restantes | v3.0 | 3/3 | Complete (NO-GO) | 2026-06-25 |
 | 37. Paridade de Atributos & Fundação SQLite | v4.0 | 0/? | Not started | - |
-| 38. UX de Busca & Monitoramento — Quick Wins | v4.0 | 2/3 | In Progress|  |
+| 38. UX de Busca & Monitoramento — Quick Wins | v4.0 | 3/3 | Complete   | 2026-07-01 |
 | 39. Cobertura de Marcas — Hugo Boss & Zara | v4.0 | 3/3 | Complete    | 2026-06-30 |
 | 40. Onboarding por URL & Workflows de Adição | v4.0 | 5/5 | Complete    | 2026-06-30 |
 | 41. Abstração de Frete & Marcas Não-VTEX | v4.0 | 0/? | Not started | - |

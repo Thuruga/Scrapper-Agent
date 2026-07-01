@@ -29,7 +29,7 @@ Requisitos comprometidos para este milestone. Cada um mapeia para uma phase no R
 - [x] **UX-04**: Operador adiciona um produto ao monitoramento direto da busca comparativa, da busca por SKU e do monitor de categoria; criação idempotente (dedup por url+marca).
 - [x] **UX-05**: Toggles de ativar/desativar disponíveis também para os marketplaces virtuais (Mercado Livre, Netshoes, Amazon), respeitados pelo `cross_marketplace_service`.
 - [x] **UX-06**: Histórico de busca fica no canto superior direito, tanto na busca comparativa quanto na busca por SKU.
-- [ ] **UX-07**: Busca por SKU aceita somente o padrão de SKU (ex.: `ML.05.0326046`, validado) e o campo de CEP fica na mesma linha do input do SKU (igual à comparativa).
+- [x] **UX-07**: Busca por SKU aceita somente o padrão de SKU (ex.: `ML.05.0326046`, validado) e o campo de CEP fica na mesma linha do input do SKU (igual à comparativa).
 - [x] **UX-08**: Selecionar uma categoria no monitor dispara automaticamente a primeira varredura e exibe a lista de produtos, sem trigger manual.
 
 ### D — Frete (Cobertura Total)
@@ -93,7 +93,7 @@ Explicitamente excluído deste milestone, com motivo.
 | UX-01 | Phase 38 | Complete |
 | UX-02 | Phase 38 | Complete |
 | UX-06 | Phase 38 | Complete |
-| UX-07 | Phase 38 | Pending |
+| UX-07 | Phase 38 | Complete |
 | UX-08 | Phase 38 | Complete |
 | COMP-06 | Phase 39 | Complete |
 | COMP-07 | Phase 39 | Deferred (NO-GO → backlog) |
