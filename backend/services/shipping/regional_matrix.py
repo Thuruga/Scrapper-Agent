@@ -68,7 +68,9 @@ def _load_cache(path: Path) -> dict:
 def _save_cache(path: Path, cache: dict) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(cache, indent=2, ensure_ascii=False), encoding="utf-8")
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    tmp_path.write_text(json.dumps(cache, indent=2, ensure_ascii=False), encoding="utf-8")
+    tmp_path.replace(path)
 
 
 def _read_matrix_cache(cache: dict, key: str, ttl_seconds: float) -> dict | None:

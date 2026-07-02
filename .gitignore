@@ -17,7 +17,6 @@ backend/data/banners/
 !/backend/data/brands.json
 !/backend/data/nlp_vocabulary.json
 !/backend/data/cep_matrix.json
-!/backend/data/shipping_matrix_cache.json
 !/frontend/*.json
 !/frontend/**/*.json
 .DS_Store
