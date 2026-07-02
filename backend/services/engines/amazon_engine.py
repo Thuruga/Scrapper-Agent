@@ -498,13 +498,46 @@ class AmazonEngine(BaseEngine):
                 continue
         return "\n".join(dict.fromkeys(parts))
 
+    def _parse_delivery_time(self, text: str) -> Dict[str, Any]:
+        """Extrai prazo de entrega do MESMO texto ja lido (D-02) — sem novas leituras de pagina."""
+        delivery: Dict[str, Any] = {}
+
+        day_patterns = [
+            r'(?:receba|chegar[aá])[^\n\r]{0,40}?em\s+at[eé]\s+(\d{1,2})\s+dias?',
+            r'chegar[aá]\s+entre\s+\d{1,2}\s+e\s+(\d{1,2})\s+dias?',
+            r'entrega\s+em\s+at[eé]\s+(\d{1,2})\s+dias?',
+        ]
+        for pattern in day_patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                try:
+                    delivery["estimated_delivery_days"] = int(match.group(1))
+                except (TypeError, ValueError):
+                    pass
+                break
+
+        if re.search(r'\bamanh[aã]\b', text, re.IGNORECASE):
+            delivery.setdefault("estimated_delivery_days", 1)
+
+        raw_match = re.search(
+            r'((?:receba|chegar[aá])[^\n\r.]{0,80})',
+            text,
+            re.IGNORECASE,
+        )
+        if raw_match:
+            delivery["delivery_raw_text"] = raw_match.group(1).strip()
+
+        return delivery
+
     def _parse_shipping_text(self, text: str) -> Optional[Dict[str, Any]]:
         if not text:
             return None
 
         lower = text.lower()
         if re.search(r'(frete|entrega)\s+gr[aá]tis|gr[aá]tis\s+(?:de\s+)?(?:frete|entrega)', lower):
-            return {"is_free_shipping": True, "shipping_price": 0.0}
+            result: Dict[str, Any] = {"is_free_shipping": True, "shipping_price": 0.0}
+            result.update(self._parse_delivery_time(text))
+            return result
 
         freight_patterns = [
             r'(?:frete|entrega)[^\n\r]{0,80}?R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2})',
@@ -514,7 +547,9 @@ class AmazonEngine(BaseEngine):
             match = re.search(pattern, text, re.IGNORECASE)
             if match:
                 value = match.group(1).replace(".", "").replace(",", ".")
-                return {"is_free_shipping": False, "shipping_price": float(value)}
+                result = {"is_free_shipping": False, "shipping_price": float(value)}
+                result.update(self._parse_delivery_time(text))
+                return result
 
         return None
 

@@ -25,6 +25,7 @@ def test_amazon_parses_free_shipping_text():
     assert engine._parse_shipping_text("Entrega GRÁTIS amanhã") == {
         "is_free_shipping": True,
         "shipping_price": 0.0,
+        "estimated_delivery_days": 1,
     }
 
 

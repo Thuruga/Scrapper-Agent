@@ -13,12 +13,14 @@ class ShippingState:
     UNAVAILABLE_FOR_CEP = "unavailable_for_cep"
     TEMPORARY_FAILURE = "temporary_failure"
     UNSUPPORTED = "unsupported"
+    BLOCKED = "blocked"
 
 
 DEFAULT_MESSAGES = {
     ShippingState.UNAVAILABLE_FOR_CEP: "Entrega indisponivel para este CEP",
     ShippingState.TEMPORARY_FAILURE: "Frete temporariamente indisponivel",
     ShippingState.UNSUPPORTED: "Frete nao suportado para este engine",
+    ShippingState.BLOCKED: "Bloqueado (anti-bot)",
 }
 
 

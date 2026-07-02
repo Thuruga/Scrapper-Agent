@@ -16,4 +16,16 @@ def resolve_shipping_provider(brand: Any):
         from services.shipping.wake import WakeShipping
 
         return WakeShipping()
+    if engine == "mercadolivre":
+        from services.shipping.mercado_livre import MercadoLivreShipping
+
+        return MercadoLivreShipping()
+    if engine == "amazon":
+        from services.shipping.amazon import AmazonShipping
+
+        return AmazonShipping()
+    if engine == "netshoes":
+        from services.shipping.netshoes import NetshoesShipping
+
+        return NetshoesShipping()
     return UnsupportedShipping(reason=f"Frete nao suportado para engine '{engine or 'unknown'}'")
