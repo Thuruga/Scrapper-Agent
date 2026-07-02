@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from typing import Any, Callable
+from urllib.parse import quote
+from urllib.request import Request, urlopen
 
 from config import settings
 from core.browser_manager import BrowserManager
@@ -10,6 +13,7 @@ from core.models import StockDepthResult
 from services.stock_depth.base import (
     BaseStockDepthProvider,
     StockDepthState,
+    brand_domain,
     get_field,
     is_url_allowed_for_brand,
 )
@@ -42,6 +46,10 @@ class VtexStockDepthProvider(BaseStockDepthProvider):
                 source="vtex-cart-probe",
                 message="Produto sem URL valida para a marca persistida.",
             )
+
+        api_result = self._probe_product_api(product, brand, quantity)
+        if api_result is not None:
+            return api_result
 
         page = None
         context = None
@@ -91,6 +99,90 @@ class VtexStockDepthProvider(BaseStockDepthProvider):
                     resource.close()
                 except Exception:
                     logger.debug("[stock-depth:vtex] cleanup failed", exc_info=True)
+
+    def _probe_product_api(
+        self,
+        product: dict[str, Any] | Any,
+        brand: Any,
+        quantity: int,
+    ) -> StockDepthResult | None:
+        product_id = str(
+            get_field(product, "review_product_id")
+            or get_field(product, "product_id")
+            or ""
+        ).strip()
+        domain = brand_domain(brand)
+        if not product_id or not domain:
+            return None
+
+        url = (
+            f"https://{domain}/api/catalog_system/pub/products/search"
+            f"?fq=productId:{quote(product_id)}"
+        )
+        request = Request(
+            url,
+            headers={
+                "Accept": "application/json",
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/125.0.0.0 Safari/537.36"
+                ),
+            },
+        )
+        try:
+            with urlopen(
+                request,
+                timeout=settings.STOCK_PROBE_TIMEOUT_SECONDS,
+            ) as response:
+                data = json.loads(response.read().decode("utf-8"))
+        except Exception as exc:
+            logger.debug("[stock-depth:vtex] product API probe failed: %s", exc)
+            return None
+
+        if not isinstance(data, list) or not data:
+            return None
+
+        quantities = self._extract_available_quantities(data[0])
+        if not quantities:
+            return None
+
+        max_quantity = max(quantities)
+        if max_quantity <= 0:
+            return self._result(
+                StockDepthState.UNAVAILABLE,
+                estimate=0,
+                source="vtex-product-api",
+                message="VTEX API retornou estoque indisponivel.",
+            )
+
+        return self._result(
+            StockDepthState.ESTIMATED,
+            estimate=min(max_quantity, quantity),
+            source="vtex-product-api",
+            message="Estimativa pelo AvailableQuantity da VTEX API publica.",
+        )
+
+    @staticmethod
+    def _extract_available_quantities(product_data: Any) -> list[int]:
+        quantities: list[int] = []
+        if not isinstance(product_data, dict):
+            return quantities
+
+        for item in product_data.get("items") or []:
+            if not isinstance(item, dict):
+                continue
+            for seller in item.get("sellers") or []:
+                if not isinstance(seller, dict):
+                    continue
+                offer = seller.get("commertialOffer") or {}
+                if not isinstance(offer, dict):
+                    continue
+                try:
+                    quantities.append(int(offer.get("AvailableQuantity") or 0))
+                except (TypeError, ValueError):
+                    continue
+        return quantities
 
     def _sync_playwright(self):
         if self._playwright_factory is not None:

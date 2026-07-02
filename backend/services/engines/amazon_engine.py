@@ -154,6 +154,7 @@ class AmazonEngine(BaseEngine):
             avail_text = avail_tag.get_text(strip=True).lower()
             if any(s in avail_text for s in ["indisponível", "esgotado", "unavailable", "out of stock"]):
                 available = False
+        rating, review_count = self._extract_review_summary(soup)
 
         if not title or price_full is None or price_full <= 0:
             # Loga QUAL campo faltou — a próxima iteração ao vivo fica diagnosticável
@@ -173,7 +174,51 @@ class AmazonEngine(BaseEngine):
             "price_full": price_full,
             "image_url": image_url or None,
             "stock_availability": available,
+            "rating": rating,
+            "review_count": review_count,
         }
+
+    def _extract_review_summary(self, soup: BeautifulSoup) -> tuple[Optional[float], Optional[int]]:
+        rating = None
+        for node in (
+            soup.select_one("#acrPopover"),
+            soup.select_one("span[data-hook='rating-out-of-text']"),
+            soup.select_one("i.a-icon-star span.a-icon-alt"),
+        ):
+            text = (node.get("title") or node.get_text(" ", strip=True)) if node else ""
+            rating = self._parse_rating(text)
+            if rating is not None:
+                break
+
+        review_count = None
+        count_node = soup.select_one("#acrCustomerReviewText")
+        if count_node:
+            review_count = self._parse_review_count(count_node.get_text(" ", strip=True))
+        return rating, review_count
+
+    @staticmethod
+    def _parse_rating(text: Optional[str]) -> Optional[float]:
+        if not text:
+            return None
+        match = re.search(r"(\d+(?:[,.]\d+)?)\s*(?:de|out of)\s*5", text, re.IGNORECASE)
+        if not match:
+            return None
+        try:
+            return round(float(match.group(1).replace(",", ".")), 1)
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _parse_review_count(text: Optional[str]) -> Optional[int]:
+        if not text:
+            return None
+        match = re.search(r"([\d\.]+)", text)
+        if not match:
+            return None
+        try:
+            return int(match.group(1).replace(".", ""))
+        except ValueError:
+            return None
 
     def _extract_pdp_price(self, soup: BeautifulSoup) -> Optional[float]:
         """Extrai o preço da PDP tentando os contêineres da PDP, do mais específico

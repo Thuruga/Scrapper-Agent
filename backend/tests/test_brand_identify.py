@@ -201,3 +201,53 @@ async def test_identify_rejects_ssrf():
             f"Expected 400 for SSRF URL '{bad_url}', "
             f"got {exc_info.value.status_code}"
         )
+
+
+# ---------------------------------------------------------------------------
+# REGRESSÃO (monitor-marketplace-pendente Round 2): identify de marketplace
+# ---------------------------------------------------------------------------
+# detect_engine resolve o marketplace por domínio (Step 0) e identify_brand
+# NORMALIZA o `domain` retornado para o registrável canônico, de modo que o match
+# por domínio do frontend resolva a marca cadastrada MESMO em subdomínios
+# (produto.mercadolivre.com.br → mercadolivre.com.br). Isto é o que dispara o
+# POST /monitor/start do ML — que antes nunca acontecia.
+
+@_xfail_if_missing
+@pytest.mark.asyncio
+async def test_identify_ml_subdomain_normalizes_to_canonical_domain():
+    """produto.mercadolivre.com.br → engine 'mercadolivre' + domain 'mercadolivre.com.br'.
+
+    Sem rede: detect_marketplace_engine (Step 0) resolve antes de qualquer fetch.
+    """
+    import api.routes_brands as rb
+
+    request_obj = MagicMock()
+    request_obj.url = "https://produto.mercadolivre.com.br/MLB-123456-tenis-aramis"
+
+    result = await rb.identify_brand(request_obj)
+    data = result.model_dump() if hasattr(result, "model_dump") else dict(result.__dict__)
+
+    assert data["engine"] == "mercadolivre"
+    assert data["domain"] == "mercadolivre.com.br", (
+        "o domínio deve ser normalizado p/ o registrável canônico (casa brands.json)"
+    )
+    assert data["warning"] is None, "marketplace identificado não deve emitir warning D-03"
+
+
+@_xfail_if_missing
+@pytest.mark.asyncio
+async def test_identify_amazon_and_netshoes_hosts_normalize():
+    """www.amazon.com.br e www.netshoes.com.br → engine + domain canônico de brands.json."""
+    import api.routes_brands as rb
+
+    cases = {
+        "https://www.amazon.com.br/dp/B0FZD1GZHN": ("amazon", "amazon.com.br"),
+        "https://www.netshoes.com.br/p/tenis-x-G06": ("netshoes", "netshoes.com.br"),
+    }
+    for url, (expected_engine, expected_domain) in cases.items():
+        request_obj = MagicMock()
+        request_obj.url = url
+        result = await rb.identify_brand(request_obj)
+        data = result.model_dump() if hasattr(result, "model_dump") else dict(result.__dict__)
+        assert data["engine"] == expected_engine, url
+        assert data["domain"] == expected_domain, url

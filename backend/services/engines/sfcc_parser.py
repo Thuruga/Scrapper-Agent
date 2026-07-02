@@ -212,6 +212,28 @@ def parse_availability(value: Any) -> Optional[bool]:
     return None
 
 
+def parse_aggregate_rating(product_ld: Dict[str, Any]) -> tuple[Optional[float], Optional[int]]:
+    """Extract rating/count from JSON-LD aggregateRating."""
+    aggregate = product_ld.get("aggregateRating")
+    if not isinstance(aggregate, dict):
+        return None, None
+    rating = None
+    count = None
+    try:
+        if aggregate.get("ratingValue") is not None:
+            rating = round(float(str(aggregate.get("ratingValue")).replace(",", ".")), 1)
+    except (TypeError, ValueError):
+        rating = None
+    for key in ("reviewCount", "ratingCount"):
+        try:
+            if aggregate.get(key) is not None:
+                count = int(str(aggregate.get(key)).replace(".", ""))
+                break
+        except (TypeError, ValueError):
+            continue
+    return rating, count
+
+
 # ---------------------------------------------------------------------------
 # Brand extraction helper
 # ---------------------------------------------------------------------------
@@ -289,6 +311,7 @@ def parse_pdp(html: str, source_url: str) -> Optional[Dict[str, Any]]:
 
     # --- brand ---
     brand = _extract_brand(product_ld, og_meta)
+    rating, review_count = parse_aggregate_rating(product_ld)
 
     # --- description ---
     raw_description = ""
@@ -309,6 +332,8 @@ def parse_pdp(html: str, source_url: str) -> Optional[Dict[str, Any]]:
         "stock_availability": stock_availability,
         "available_colors": [],
         "available_sizes": [],
+        "rating": rating,
+        "review_count": review_count,
         "specifications": {},
     }
 

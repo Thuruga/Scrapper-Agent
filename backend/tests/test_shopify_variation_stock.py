@@ -65,9 +65,10 @@ def test_map_to_bronze_false_when_all_variants_are_unavailable(monkeypatch):
 
 
 class _FakeResp:
-    def __init__(self, status, payload):
+    def __init__(self, status, payload=None, text_body=None):
         self.status = status
         self._payload = payload
+        self._text_body = text_body or ""
 
     async def __aenter__(self):
         return self
@@ -77,6 +78,9 @@ class _FakeResp:
 
     async def json(self, content_type=None):
         return self._payload
+
+    async def text(self):
+        return self._text_body
 
 
 class _FakeSession:
@@ -164,3 +168,78 @@ def test_search_json_maps_available_from_variants(monkeypatch):
 
     assert len(result.products) == 1
     assert result.products[0].available is True
+
+
+def test_get_product_by_url_enriches_availability_and_rating_from_json_ld(monkeypatch):
+    monkeypatch.setattr(
+        shopify_module.brand_service,
+        "get_brand",
+        lambda brand_key: SimpleNamespace(domain="shop.example.com", brand_name="Shop"),
+    )
+    session = _FakeSession(
+        [
+            _FakeResp(
+                200,
+                {
+                    "product": _shopify_product(
+                        [
+                            {"title": "36", "price": "199.90"},
+                            {"title": "40", "price": "199.90"},
+                        ]
+                    )
+                },
+            ),
+            _FakeResp(
+                200,
+                text_body="""
+                <html>
+                  <head>
+                    <script type="application/ld+json">
+                    {
+                      "@context": "https://schema.org",
+                      "@type": "ProductGroup",
+                      "aggregateRating": {
+                        "ratingValue": "4,8",
+                        "reviewCount": "1.234"
+                      },
+                      "hasVariant": [
+                        {
+                          "@type": "Product",
+                          "name": "Polo Regular - 36",
+                          "offers": {
+                            "@type": "Offer",
+                            "availability": "http://schema.org/OutOfStock"
+                          }
+                        },
+                        {
+                          "@type": "Product",
+                          "name": "Polo Regular - 40",
+                          "offers": {
+                            "@type": "Offer",
+                            "availability": "http://schema.org/InStock"
+                          }
+                        }
+                      ]
+                    }
+                    </script>
+                  </head>
+                </html>
+                """,
+            ),
+        ]
+    )
+
+    async def fake_get_session():
+        return session
+
+    monkeypatch.setattr(shopify_module.SessionManager, "get_session", staticmethod(fake_get_session))
+
+    product = asyncio.run(
+        ShopifyApiClient("shop").get_product_by_url("https://shop.example.com/products/polo-regular")
+    )
+
+    assert product is not None
+    assert product.stock_availability is True
+    assert product.available_sizes == ["40"]
+    assert product.rating == 4.8
+    assert product.review_count == 1234

@@ -216,6 +216,7 @@ class MercadoLivreEngine(BaseEngine):
             image = image[0] if image else ""
 
         description = product_block.get("description") or title
+        rating, review_count = self._aggregate_rating(product_block.get("aggregateRating"))
 
         if not title or price_full is None or price_full <= 0:
             return None
@@ -228,6 +229,8 @@ class MercadoLivreEngine(BaseEngine):
             "price_full": price_full,
             "image_url": image or None,
             "stock_availability": bool(available),
+            "rating": rating,
+            "review_count": review_count,
         }
 
     def _pdp_from_dom(self, html: str, product_url: str) -> Optional[Dict[str, Any]]:
@@ -260,6 +263,7 @@ class MercadoLivreEngine(BaseEngine):
 
         if not title or price_full is None or price_full <= 0:
             return None
+        rating, review_count = self._dom_rating_summary(soup)
 
         return {
             "url": product_url,
@@ -269,7 +273,52 @@ class MercadoLivreEngine(BaseEngine):
             "price_full": price_full,
             "image_url": image or None,
             "stock_availability": True,
+            "rating": rating,
+            "review_count": review_count,
         }
+
+    @staticmethod
+    def _aggregate_rating(raw: Any) -> tuple[Optional[float], Optional[int]]:
+        if not isinstance(raw, dict):
+            return None, None
+        rating = None
+        count = None
+        try:
+            if raw.get("ratingValue") is not None:
+                rating = round(float(str(raw.get("ratingValue")).replace(",", ".")), 1)
+        except (TypeError, ValueError):
+            rating = None
+        for key in ("reviewCount", "ratingCount"):
+            try:
+                if raw.get(key) is not None:
+                    count = int(str(raw.get(key)).replace(".", ""))
+                    break
+            except (TypeError, ValueError):
+                continue
+        return rating, count
+
+    @staticmethod
+    def _dom_rating_summary(soup: BeautifulSoup) -> tuple[Optional[float], Optional[int]]:
+        text = soup.get_text(" ", strip=True)
+        rating = None
+        count = None
+        rating_match = re.search(r"(\d+(?:[,.]\d+)?)\s*(?:de|/)\s*5", text, re.IGNORECASE)
+        if rating_match:
+            try:
+                rating = round(float(rating_match.group(1).replace(",", ".")), 1)
+            except ValueError:
+                rating = None
+        count_match = re.search(
+            r"([\d\.]+)\s+(?:opini(?:o|õ)es|avalia(?:c|ç)(?:o|õ)es)",
+            text,
+            re.IGNORECASE,
+        )
+        if count_match:
+            try:
+                count = int(count_match.group(1).replace(".", ""))
+            except ValueError:
+                count = None
+        return rating, count
 
     def _extract_seo_json(self, html: str) -> List[Dict]:
         soup = BeautifulSoup(html, "html.parser")

@@ -9,6 +9,7 @@ from core.models import StockDepthResult
 
 class StockDepthState:
     ESTIMATED = "estimated"
+    AVAILABILITY_ONLY = "availability_only"
     UNAVAILABLE = "unavailable"
     UNSUPPORTED = "unsupported"
     BLOCKED = "blocked"

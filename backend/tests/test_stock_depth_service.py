@@ -23,6 +23,7 @@ def test_stock_depth_states_are_exact_contract():
 
     assert states == {
         "estimated",
+        "availability_only",
         "unavailable",
         "unsupported",
         "blocked",
@@ -37,15 +38,23 @@ def test_resolver_returns_vtex_provider_for_vtex_engine():
     assert isinstance(resolve_stock_depth_provider(_brand("vtex")), VtexStockDepthProvider)
 
 
-def test_resolver_returns_unsupported_for_non_vtex_engines():
+def test_resolver_returns_availability_provider_for_supported_non_vtex_engines():
+    from services.stock_depth.resolver import resolve_stock_depth_provider
+    from services.stock_depth.availability import AvailabilityStockDepthProvider
+
+    for engine in ("wake", "shopify", "sfcc", "mercadolivre", "netshoes", "amazon", "zara"):
+        assert isinstance(
+            resolve_stock_depth_provider(_brand(engine)),
+            AvailabilityStockDepthProvider,
+        )
+
+
+def test_resolver_returns_unsupported_for_unknown_engines():
     from services.stock_depth.resolver import resolve_stock_depth_provider
     from services.stock_depth.unsupported import UnsupportedStockDepthProvider
 
-    for engine in ("wake", "shopify", "sfcc", "unknown", ""):
-        assert isinstance(
-            resolve_stock_depth_provider(_brand(engine)),
-            UnsupportedStockDepthProvider,
-        )
+    for engine in ("unknown", ""):
+        assert isinstance(resolve_stock_depth_provider(_brand(engine)), UnsupportedStockDepthProvider)
 
 
 def test_unsupported_provider_returns_explicit_unsupported_state():
@@ -62,6 +71,72 @@ def test_unsupported_provider_returns_explicit_unsupported_state():
     assert result.stock_depth_state == "unsupported"
     assert result.stock_depth_estimate is None
     assert result.stock_depth_source == "unsupported"
+
+
+def test_availability_provider_confirms_live_availability_without_quantity():
+    from services.stock_depth.availability import AvailabilityStockDepthProvider
+
+    provider = AvailabilityStockDepthProvider(
+        engine_factory=lambda brand_key: _FakeDetailEngine(
+            {"stock_availability": True}
+        )
+    )
+
+    result = asyncio.run(
+        provider.probe(
+            {"url": "https://www.richards.com.br/produto/camisa-123"},
+            _brand("wake", "www.richards.com.br"),
+            quantity=999,
+        )
+    )
+
+    assert result.stock_depth_state == "availability_only"
+    assert result.stock_depth_estimate is None
+    assert result.stock_depth_source == "pdp-availability"
+
+
+def test_availability_provider_maps_live_out_of_stock_to_unavailable():
+    from services.stock_depth.availability import AvailabilityStockDepthProvider
+
+    provider = AvailabilityStockDepthProvider(
+        engine_factory=lambda brand_key: _FakeDetailEngine(
+            {"stock_availability": False}
+        )
+    )
+
+    result = asyncio.run(
+        provider.probe(
+            {"url": "https://www.zara.com/br/pt/produto-p123.html"},
+            _brand("zara", "www.zara.com"),
+            quantity=999,
+        )
+    )
+
+    assert result.stock_depth_state == "unavailable"
+    assert result.stock_depth_estimate == 0
+    assert result.stock_depth_source == "pdp-availability"
+
+
+def test_availability_provider_falls_back_to_persisted_availability():
+    from services.stock_depth.availability import AvailabilityStockDepthProvider
+
+    provider = AvailabilityStockDepthProvider(
+        engine_factory=lambda brand_key: _FakeDetailEngine(None)
+    )
+
+    result = asyncio.run(
+        provider.probe(
+            {
+                "url": "https://www.netshoes.com.br/produto/p",
+                "stock_availability": True,
+            },
+            _brand("netshoes", "netshoes.com.br"),
+            quantity=999,
+        )
+    )
+
+    assert result.stock_depth_state == "availability_only"
+    assert result.stock_depth_source == "persisted-availability"
 
 
 def test_vtex_provider_maps_timeout_to_temporary_failure_not_zero():
@@ -121,6 +196,68 @@ def test_vtex_provider_closes_page_context_and_browser_on_success():
     assert fake.page.closed is True
     assert fake.context.closed is True
     assert fake.browser.closed is True
+
+
+def test_vtex_provider_uses_product_api_quantity_before_browser(monkeypatch):
+    import json
+    import services.stock_depth.vtex as vtex_module
+    from services.stock_depth.vtex import VtexStockDepthProvider
+
+    class _Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return json.dumps(
+                [
+                    {
+                        "items": [
+                            {
+                                "sellers": [
+                                    {"commertialOffer": {"AvailableQuantity": 10}}
+                                ]
+                            },
+                            {
+                                "sellers": [
+                                    {"commertialOffer": {"AvailableQuantity": 100}}
+                                ]
+                            },
+                        ]
+                    }
+                ]
+            ).encode("utf-8")
+
+    calls = []
+
+    def fake_urlopen(request, timeout):
+        calls.append((request.full_url, timeout))
+        return _Response()
+
+    monkeypatch.setattr(vtex_module, "urlopen", fake_urlopen)
+
+    fake_playwright = _FakePlaywright(evaluate_result={"state": "estimated", "estimate": 1})
+    provider = VtexStockDepthProvider(playwright_factory=lambda: fake_playwright)
+
+    result = asyncio.run(
+        provider.probe(
+            {
+                "url": "https://www.aramis.com.br/produto/p",
+                "review_product_id": "74291",
+            },
+            _brand("vtex", "www.aramis.com.br"),
+            quantity=999,
+        )
+    )
+
+    assert result.stock_depth_state == "estimated"
+    assert result.stock_depth_estimate == 100
+    assert result.stock_depth_source == "vtex-product-api"
+    assert calls
+    assert "fq=productId:74291" in calls[0][0]
+    assert fake_playwright.browser.closed is False
 
 
 def test_vtex_provider_closes_page_context_and_browser_on_exception():
@@ -272,6 +409,51 @@ def test_probe_scan_product_enforces_throttle_and_run_cap_without_sleep(
     assert persisted[2]["stock_depth_source"] == "probe-limit"
 
 
+def test_probe_scan_product_run_cap_is_brand_wide_across_monitors(
+    tmp_path,
+    monkeypatch,
+):
+    import services.stock_depth_service as stock_depth_service
+    from services.brand_service import brand_service
+
+    provider = _RecordingProvider()
+    clock = _FakeClock([100.0, 101.0])
+    monkeypatch.setattr(stock_depth_service, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(stock_depth_service.settings, "STOCK_PROBE_THROTTLE_SECONDS", 0.0)
+    monkeypatch.setattr(stock_depth_service.settings, "MAX_STOCK_DEPTH_PROBES_PER_BRAND", 1)
+    monkeypatch.setattr(stock_depth_service, "_now_monotonic", clock)
+    monkeypatch.setattr(stock_depth_service, "_PROBE_GUARDS", {})
+    monkeypatch.setattr(brand_service, "get_brand", lambda key: _brand("vtex", "www.aramis.com.br"))
+    monkeypatch.setattr(stock_depth_service, "resolve_stock_depth_provider", lambda brand: provider)
+    _write_monitors(
+        tmp_path,
+        [
+            {"id": "monitor-1", "brand": "aramis"},
+            {"id": "monitor-2", "brand": "aramis"},
+        ],
+    )
+    _write_products(
+        tmp_path,
+        "monitor-1",
+        [{"scan_product_id": "p1", "url": "https://www.aramis.com.br/p1"}],
+    )
+    _write_products(
+        tmp_path,
+        "monitor-2",
+        [{"scan_product_id": "p2", "url": "https://www.aramis.com.br/p2"}],
+    )
+
+    asyncio.run(stock_depth_service.probe_scan_product_stock_depth("monitor-1", "p1"))
+
+    capped = asyncio.run(
+        stock_depth_service.probe_scan_product_stock_depth("monitor-2", "p2")
+    )
+
+    assert capped.stock_depth_state == "blocked"
+    assert capped.stock_depth_source == "probe-limit"
+    assert [call["product"]["scan_product_id"] for call in provider.calls] == ["p1"]
+
+
 def test_probe_scan_product_updates_only_matching_record(tmp_path, monkeypatch):
     import services.stock_depth_service as stock_depth_service
     from services.brand_service import brand_service
@@ -318,6 +500,38 @@ def test_probe_scan_product_updates_only_matching_record(tmp_path, monkeypatch):
     assert result.stock_depth_state == "estimated"
     assert result.stock_depth_checked_at == checked_at
     assert result.stock_depth_label == "maximo observado/estimativa via cart-probe"
+
+
+def test_probe_scan_product_preserves_provider_label_and_source(tmp_path, monkeypatch):
+    import services.stock_depth_service as stock_depth_service
+    from services.brand_service import brand_service
+
+    provider = _RecordingProvider(
+        state="estimated",
+        estimate=100,
+        source="vtex-product-api",
+        label="Estimativa pelo AvailableQuantity da VTEX API publica.",
+    )
+    monkeypatch.setattr(stock_depth_service, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(stock_depth_service, "_PROBE_GUARDS", {})
+    monkeypatch.setattr(brand_service, "get_brand", lambda key: _brand("vtex", "www.aramis.com.br"))
+    monkeypatch.setattr(stock_depth_service, "resolve_stock_depth_provider", lambda brand: provider)
+    _write_monitors(tmp_path, [{"id": "monitor-1", "brand": "aramis"}])
+    _write_products(
+        tmp_path,
+        "monitor-1",
+        [{"scan_product_id": "p1", "url": "https://www.aramis.com.br/p1"}],
+    )
+
+    result = asyncio.run(
+        stock_depth_service.probe_scan_product_stock_depth("monitor-1", "p1")
+    )
+
+    [persisted] = _read_products(tmp_path, "monitor-1")
+    assert result.stock_depth_source == "vtex-product-api"
+    assert result.stock_depth_label == "Estimativa pelo AvailableQuantity da VTEX API publica."
+    assert persisted["stock_depth_source"] == "vtex-product-api"
+    assert persisted["stock_depth_label"] == "Estimativa pelo AvailableQuantity da VTEX API publica."
 
 
 def test_probe_scan_product_persists_non_estimated_state_without_estimate(
@@ -385,9 +599,17 @@ class _FakeBrowser:
 
 
 class _RecordingProvider:
-    def __init__(self, state="estimated", estimate=5):
+    def __init__(
+        self,
+        state="estimated",
+        estimate=5,
+        source="vtex-cart-probe",
+        label=None,
+    ):
         self._state = state
         self._estimate = estimate
+        self._source = source
+        self._label = label
         self.calls = []
 
     async def probe(self, product, brand, quantity):
@@ -397,8 +619,17 @@ class _RecordingProvider:
         return StockDepthResult(
             stock_depth_estimate=self._estimate if self._state == "estimated" else None,
             stock_depth_state=self._state,
-            stock_depth_source="vtex-cart-probe",
+            stock_depth_source=self._source,
+            stock_depth_label=self._label,
         )
+
+
+class _FakeDetailEngine:
+    def __init__(self, detail):
+        self._detail = detail
+
+    async def get_pdp_product(self, url):
+        return self._detail
 
 
 class _FakeClock:

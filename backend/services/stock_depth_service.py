@@ -18,7 +18,7 @@ from services.stock_depth.resolver import resolve_stock_depth_provider
 
 logger = logging.getLogger("StockDepthService")
 
-_PROBE_GUARDS: dict[tuple[str, str], dict[str, float | int]] = {}
+_PROBE_GUARDS: dict[str, dict[str, float | int]] = {}
 _STOCK_DEPTH_LABEL = "maximo observado/estimativa via cart-probe"
 
 
@@ -114,9 +114,9 @@ def _find_scan_product(
 
 def _enforce_probe_guard(
     brand_key: str,
-    monitor_id: str,
+    _monitor_id: str,
 ) -> StockDepthResult | None:
-    key = (brand_key, monitor_id)
+    key = brand_key
     now = _now_monotonic()
     guard = _PROBE_GUARDS.get(key)
     if guard is None:
@@ -152,7 +152,13 @@ def _normalize_result(
 ) -> StockDepthResult:
     state = result.stock_depth_state
     estimate = result.stock_depth_estimate
-    if state not in (StockDepthState.ESTIMATED, StockDepthState.UNAVAILABLE):
+    if state not in (
+        StockDepthState.ESTIMATED,
+        StockDepthState.AVAILABILITY_ONLY,
+        StockDepthState.UNAVAILABLE,
+    ):
+        estimate = None
+    if state == StockDepthState.AVAILABILITY_ONLY:
         estimate = None
     if state == StockDepthState.UNAVAILABLE and estimate not in (0, None):
         estimate = None
@@ -161,7 +167,7 @@ def _normalize_result(
         stock_depth_state=state,
         stock_depth_checked_at=checked_at,
         stock_depth_source=result.stock_depth_source or "stock-depth-provider",
-        stock_depth_label=_STOCK_DEPTH_LABEL,
+        stock_depth_label=result.stock_depth_label or _STOCK_DEPTH_LABEL,
     )
 
 

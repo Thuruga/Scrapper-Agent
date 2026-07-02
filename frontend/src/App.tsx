@@ -2688,6 +2688,7 @@ const SettingsPage = ({ brands, onRefresh }: { brands: any[], onRefresh: () => v
 const stockDepthStateLabel = (state?: string | null) => {
   const labels: Record<string, string> = {
     estimated: 'estimado',
+    availability_only: 'disponibilidade confirmada',
     unavailable: 'indisponivel',
     unsupported: 'nao suportado',
     blocked: 'bloqueado',
@@ -2703,6 +2704,11 @@ const reviewsStateLabel = (state?: string | null) => {
     temporary_failure: 'falha temporaria',
   };
   return state ? (labels[state] || state) : '';
+};
+
+const stockDepthDisplayValue = (product: any) => {
+  if (product?.stock_depth_state === 'availability_only') return '1+';
+  return product?.stock_depth_estimate ?? '-';
 };
 
 const productReviewComments = (product: any) => {
@@ -2947,7 +2953,7 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
     try {
       const result = await ApiClient.requestMonitoredProductStockDepth(selectedMonitor.id, scanProductId);
       mergeMonitorProductResult(scanProductId, result);
-      if (result.stock_depth_state === 'estimated') {
+      if (result.stock_depth_state === 'estimated' || result.stock_depth_state === 'availability_only') {
         toast.success('Profundidade de estoque atualizada');
       } else {
         toast.info(`Profundidade: ${stockDepthStateLabel(result.stock_depth_state)}`);
@@ -3244,7 +3250,7 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
                         {p.stock_availability == null && <span>Estoque nao verificado</span>}
                         {p.stock_depth_state && (
                           <span>
-                            Profundidade: {p.stock_depth_estimate ?? '-'} ({stockDepthStateLabel(p.stock_depth_state)})
+                            Profundidade: {stockDepthDisplayValue(p)} ({stockDepthStateLabel(p.stock_depth_state)})
                           </span>
                         )}
                         {p.reviews_state && (

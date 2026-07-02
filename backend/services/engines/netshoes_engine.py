@@ -154,6 +154,7 @@ class NetshoesEngine(BaseEngine):
             if isinstance(image, list):
                 image = image[0] if image else ""
             availability = str(offers.get("availability", "")).lower()
+            rating, review_count = self._aggregate_rating(block.get("aggregateRating"))
             return {
                 "url": product_url,
                 "brand": self.brand_key,
@@ -163,6 +164,8 @@ class NetshoesEngine(BaseEngine):
                 "image_url": image or None,
                 "stock_availability": ("instock" in availability) if availability else True,
                 "available_sizes": [],
+                "rating": rating,
+                "review_count": review_count,
             }
         return None
 
@@ -283,6 +286,7 @@ class NetshoesEngine(BaseEngine):
 
         if not title or price_full is None:
             return None
+        rating, review_count = self._product_state_rating(product_state)
 
         return {
             "url": product_url,
@@ -293,7 +297,49 @@ class NetshoesEngine(BaseEngine):
             "image_url": image_url or None,
             "stock_availability": bool(available),
             "available_sizes": sizes,
+            "rating": rating,
+            "review_count": review_count,
         }
+
+    @staticmethod
+    def _aggregate_rating(raw: Any) -> tuple[Optional[float], Optional[int]]:
+        if not isinstance(raw, dict):
+            return None, None
+        rating = None
+        count = None
+        try:
+            if raw.get("ratingValue") is not None:
+                rating = round(float(str(raw.get("ratingValue")).replace(",", ".")), 1)
+        except (TypeError, ValueError):
+            rating = None
+        for key in ("reviewCount", "ratingCount"):
+            try:
+                if raw.get(key) is not None:
+                    count = int(str(raw.get(key)).replace(".", ""))
+                    break
+            except (TypeError, ValueError):
+                continue
+        return rating, count
+
+    @staticmethod
+    def _product_state_rating(product_state: dict[str, Any]) -> tuple[Optional[float], Optional[int]]:
+        rating = None
+        count = None
+        for key in ("rating", "ratingValue", "averageRating"):
+            try:
+                if product_state.get(key) is not None:
+                    rating = round(float(str(product_state.get(key)).replace(",", ".")), 1)
+                    break
+            except (TypeError, ValueError):
+                continue
+        for key in ("reviewCount", "reviewsCount", "ratingCount"):
+            try:
+                if product_state.get(key) is not None:
+                    count = int(str(product_state.get(key)).replace(".", ""))
+                    break
+            except (TypeError, ValueError):
+                continue
+        return rating, count
 
     def _extract_seller_price(self, state: Optional[dict]) -> Dict[str, Any]:
         """

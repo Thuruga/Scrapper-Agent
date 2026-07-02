@@ -17,6 +17,7 @@ from services.shipping.base import (
     normalize_zipcode,
     sorted_shipping_options,
 )
+from services.wake_token import resolve_wake_access_token_override
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +84,9 @@ class WakeShipping(BaseShipping):
                 message="URL do produto nao pertence ao dominio da marca",
             )
 
-        token = get_field(brand, "wake_access_token")
+        token = get_field(brand, "wake_access_token") or resolve_wake_access_token_override(
+            brand
+        )
         if not token:
             return ShippingCalculation(
                 state=ShippingState.UNSUPPORTED,

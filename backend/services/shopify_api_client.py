@@ -4,6 +4,7 @@ import logging
 from typing import Optional, List, Dict, Any, Callable
 from urllib.parse import urljoin
 import yarl
+from bs4 import BeautifulSoup
 
 from core.models import RawProductBronze, BrandSearchResult, SearchProductResult
 from services.brand_service import brand_service
@@ -232,16 +233,210 @@ class ShopifyApiClient(BaseScraper):
         """Extrai dados de um único produto via URL (append .json)."""
         json_url = product_url.split("?")[0] + ".json"
         session = await SessionManager.get_session()
+        product_data = None
         try:
             async with session.get(json_url, timeout=aiohttp.ClientTimeout(total=15), headers=self.headers) as resp:
                 if resp.status == 200:
                     data = await resp.json()
-                    p = data.get("product")
-                    if p:
-                        return self._map_to_bronze(p, "Detalhes")
+                    product_data = data.get("product")
         except Exception as e:
             logger.error(f"Erro ao buscar detalhes do produto Shopify: {e}")
+        mapped = self._map_to_bronze(product_data, "Detalhes") if product_data else None
+        if not mapped:
+            return None
+
+        if self._should_enrich_product_details(product_data, mapped):
+            enrichment = await self._fetch_product_page_enrichment(product_url, mapped.raw_title)
+            if enrichment:
+                mapped = self._merge_product_enrichment(mapped, enrichment)
+
+        return mapped
+
+    @staticmethod
+    def _should_enrich_product_details(
+        product_data: Dict[str, Any],
+        mapped: RawProductBronze,
+    ) -> bool:
+        variants = product_data.get("variants", []) if isinstance(product_data, dict) else []
+        has_explicit_variant_availability = any(
+            isinstance(variant.get("available"), bool)
+            for variant in variants
+            if isinstance(variant, dict)
+        )
+        return (
+            not has_explicit_variant_availability
+            or mapped.rating is None
+            or mapped.review_count is None
+        )
+
+    async def _fetch_product_page_enrichment(
+        self,
+        product_url: str,
+        raw_title: str,
+    ) -> Dict[str, Any]:
+        session = await SessionManager.get_session()
+        try:
+            async with session.get(
+                product_url,
+                timeout=aiohttp.ClientTimeout(total=15),
+                headers=self.headers,
+            ) as resp:
+                if resp.status != 200:
+                    return {}
+                html = await resp.text()
+        except Exception as e:
+            logger.debug(f"[{self.brand_key}] Falha ao enriquecer PDP Shopify via HTML: {e}")
+            return {}
+        return self._extract_product_page_enrichment(html, raw_title)
+
+    @classmethod
+    def _extract_product_page_enrichment(
+        cls,
+        html: str,
+        raw_title: str,
+    ) -> Dict[str, Any]:
+        soup = BeautifulSoup(html, "html.parser")
+        enrichment: Dict[str, Any] = {}
+
+        for script in soup.find_all("script", attrs={"type": "application/ld+json"}):
+            content = script.string or script.get_text(" ", strip=True)
+            if not content:
+                continue
+            try:
+                payload = json.loads(content)
+            except json.JSONDecodeError:
+                continue
+            for node in cls._iter_json_ld_nodes(payload):
+                cls._merge_json_ld_node_into_enrichment(node, enrichment, raw_title)
+
+        return enrichment
+
+    @staticmethod
+    def _iter_json_ld_nodes(payload: Any) -> List[Dict[str, Any]]:
+        if isinstance(payload, list):
+            return [item for item in payload if isinstance(item, dict)]
+        if isinstance(payload, dict):
+            nodes = []
+            graph = payload.get("@graph")
+            if isinstance(graph, list):
+                nodes.extend(item for item in graph if isinstance(item, dict))
+            nodes.append(payload)
+            return nodes
+        return []
+
+    @classmethod
+    def _merge_json_ld_node_into_enrichment(
+        cls,
+        node: Dict[str, Any],
+        enrichment: Dict[str, Any],
+        raw_title: str,
+    ) -> None:
+        node_type = node.get("@type")
+        if isinstance(node_type, list):
+            node_types = {str(item).lower() for item in node_type}
+        else:
+            node_types = {str(node_type).lower()}
+        if "product" not in node_types and "productgroup" not in node_types:
+            return
+
+        aggregate = node.get("aggregateRating")
+        if isinstance(aggregate, dict):
+            rating = cls._parse_rating_value(aggregate.get("ratingValue"))
+            review_count = cls._parse_review_count_value(
+                aggregate.get("reviewCount") or aggregate.get("ratingCount")
+            )
+            if rating is not None:
+                enrichment["rating"] = rating
+            if review_count is not None:
+                enrichment["review_count"] = review_count
+
+        variants = node.get("hasVariant")
+        if isinstance(variants, list):
+            available_sizes: List[str] = list(enrichment.get("available_sizes") or [])
+            any_in_stock = False
+            found_availability = False
+            for variant in variants:
+                if not isinstance(variant, dict):
+                    continue
+                in_stock = cls._offers_in_stock(variant.get("offers"))
+                if in_stock is None:
+                    continue
+                found_availability = True
+                if in_stock:
+                    any_in_stock = True
+                    display_name = cls._variant_display_name(variant, raw_title)
+                    if display_name and display_name not in available_sizes:
+                        available_sizes.append(display_name)
+            if found_availability:
+                enrichment["stock_availability"] = any_in_stock
+            if available_sizes:
+                enrichment["available_sizes"] = available_sizes
+            return
+
+        offer_state = cls._offers_in_stock(node.get("offers"))
+        if offer_state is not None:
+            enrichment["stock_availability"] = offer_state
+
+    @staticmethod
+    def _offers_in_stock(offers: Any) -> Optional[bool]:
+        if isinstance(offers, list):
+            states = [ShopifyApiClient._offers_in_stock(item) for item in offers]
+            states = [state for state in states if state is not None]
+            if not states:
+                return None
+            return any(states)
+        if not isinstance(offers, dict):
+            return None
+        availability = str(offers.get("availability") or "").lower()
+        if availability.endswith("/instock"):
+            return True
+        if availability.endswith("/outofstock"):
+            return False
         return None
+
+    @staticmethod
+    def _variant_display_name(variant: Dict[str, Any], raw_title: str) -> Optional[str]:
+        name = str(variant.get("name") or "").strip()
+        if not name:
+            return None
+        prefix = f"{raw_title.strip()} - "
+        if raw_title and name.lower().startswith(prefix.lower()):
+            return name[len(prefix):].strip() or None
+        return name
+
+    @staticmethod
+    def _parse_rating_value(value: Any) -> Optional[float]:
+        if value in (None, ""):
+            return None
+        try:
+            return round(float(str(value).replace(",", ".")), 1)
+        except Exception:
+            return None
+
+    @staticmethod
+    def _parse_review_count_value(value: Any) -> Optional[int]:
+        if value in (None, ""):
+            return None
+        digits = re.sub(r"[^\d]", "", str(value))
+        if not digits:
+            return None
+        try:
+            return int(digits)
+        except Exception:
+            return None
+
+    @staticmethod
+    def _merge_product_enrichment(
+        product: RawProductBronze,
+        enrichment: Dict[str, Any],
+    ) -> RawProductBronze:
+        payload = product.model_dump()
+        for key in ("stock_availability", "rating", "review_count"):
+            if enrichment.get(key) is not None:
+                payload[key] = enrichment[key]
+        if enrichment.get("available_sizes"):
+            payload["available_sizes"] = enrichment["available_sizes"]
+        return RawProductBronze.model_validate(payload)
 
     async def scrape_category_paged(
         self, 

@@ -54,13 +54,20 @@ def test_unsupported_review_provider_brands_have_rationale():
         assert row.get("review_unsupported_reason")
 
 
+def test_brands_json_does_not_commit_wake_access_tokens():
+    rows = _load_brand_rows()
+
+    for brand_key, row in rows.items():
+        assert row.get("wake_access_token") in (None, ""), brand_key
+
+
 def test_aramis_remains_trustvox_with_existing_store_id():
     rows = _load_brand_rows()
 
     aramis = rows["aramis"]
 
     assert aramis["review_provider"] == "trustvox"
-    assert aramis["review_store_id"] == "78800"
+    assert aramis["review_store_id"] == "114327"
     assert aramis.get("review_provider_evidence")
 
 
@@ -181,6 +188,117 @@ def test_review_comment_key_hashes_comments_without_stable_id():
     assert key != review_service.review_comment_key({**first, "text": "Outro"})
 
 
+def test_trustvox_opinion_items_normalize_nested_user_author():
+    import services.review_service as review_service
+
+    data = {
+        "items": [
+            {
+                "id": 35297171,
+                "rate": 5,
+                "created_at": "01/06/2026",
+                "user": {"name": "Wendell C."},
+                "comments": [],
+            }
+        ]
+    }
+
+    [entry] = review_service._extract_comment_entries(data)
+    comment = review_service._normalize_comment(
+        entry,
+        provider="trustvox",
+        product_id="74291",
+    )
+
+    assert comment.review_id == "35297171"
+    assert comment.rating == 5.0
+    assert comment.author == "Wendell C."
+    assert comment.created_at == "01/06/2026"
+    assert comment.source_provider == "trustvox"
+
+
+def test_fetch_trustvox_comments_reads_root_summary_and_opinion_items(monkeypatch):
+    import services.review_service as review_service
+
+    calls = []
+    session = _FakeAiohttpSession(
+        [
+            (200, {"rate": {"average": 5, "count": 3}}),
+            (
+                200,
+                {
+                    "items": [
+                        {
+                            "id": 35297171,
+                            "rate": 5,
+                            "created_at": "01/06/2026",
+                            "user": {"name": "Wendell C."},
+                            "comments": [],
+                        }
+                    ]
+                },
+            ),
+        ],
+        calls,
+    )
+    monkeypatch.setattr(
+        review_service.aiohttp,
+        "ClientSession",
+        lambda timeout: session,
+    )
+
+    result = asyncio.run(
+        review_service._fetch_trustvox_comments(
+            _brand(store_id="114327"),
+            "74291",
+            max_pages=1,
+        )
+    )
+
+    assert [call["url"] for call in calls] == [
+        "https://trustvox.com.br/widget/root",
+        "https://trustvox.com.br/widget/opinions",
+    ]
+    assert calls[1]["params"] == {"store_id": "114327", "code": "74291", "page": 1}
+    assert result.reviews_state == "available"
+    assert result.rating == 5.0
+    assert result.review_count == 3
+    assert len(result.comments) == 1
+    assert result.comments[0].author == "Wendell C."
+
+
+def test_fetch_trustvox_comments_treats_opinion_failure_as_temporary_failure(
+    monkeypatch,
+):
+    import services.review_service as review_service
+
+    session = _FakeAiohttpSession(
+        [
+            (200, {"rate": {"average": 5, "count": 3}}),
+            (500, {"error": "temporarily unavailable"}),
+        ],
+        [],
+    )
+    monkeypatch.setattr(
+        review_service.aiohttp,
+        "ClientSession",
+        lambda timeout: session,
+    )
+
+    result = asyncio.run(
+        review_service._fetch_trustvox_comments(
+            _brand(store_id="114327"),
+            "74291",
+            max_pages=1,
+        )
+    )
+
+    assert result.reviews_state == "temporary_failure"
+    assert result.rating == 5.0
+    assert result.review_count == 3
+    assert result.comments == []
+
+
 def test_get_review_comments_returns_only_compact_comment_fields(monkeypatch):
     import services.review_service as review_service
 
@@ -265,7 +383,15 @@ def test_fetch_scan_product_review_comments_rejects_missing_identity(
         called["count"] += 1
         raise AssertionError("provider should not be called")
 
+    async def fake_engine_summary(*args, **kwargs):
+        return None
+
     monkeypatch.setattr(review_service, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(
+        review_service,
+        "_fetch_engine_review_summary",
+        fake_engine_summary,
+    )
     monkeypatch.setattr(
         review_service,
         "get_review_comments",
@@ -279,6 +405,85 @@ def test_fetch_scan_product_review_comments_rejects_missing_identity(
     assert result.reviews_state == "unsupported"
     assert result.comments == []
     assert called["count"] == 0
+
+
+def test_fetch_scan_product_review_comments_uses_engine_summary_without_provider(
+    tmp_path, monkeypatch
+):
+    import services.review_service as review_service
+
+    (tmp_path / "monitored_categories.json").write_text(
+        json.dumps(
+            [
+                {
+                    "id": "monitor-1",
+                    "brand": "amazon",
+                    "url": "https://www.amazon.com.br/s?k=camisa",
+                    "status": "active",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "monitored_products_monitor-1.json").write_text(
+        json.dumps(
+            [
+                {
+                    "scan_product_id": "scan-1",
+                    "url": "https://www.amazon.com.br/dp/B123",
+                    "raw_title": "Camisa",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    class _Engine:
+        async def get_pdp_product(self, url):
+            return {"rating": 4.6, "review_count": 128}
+
+    import services.engines.factory as engine_factory_module
+
+    monkeypatch.setattr(review_service, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(
+        engine_factory_module.engine_factory,
+        "get_engine",
+        lambda brand_key: _Engine(),
+    )
+
+    result = asyncio.run(
+        review_service.fetch_scan_product_review_comments("monitor-1", "scan-1")
+    )
+
+    assert result.reviews_state == "available"
+    assert result.rating == 4.6
+    assert result.review_count == 128
+    assert result.comments == []
+    products = json.loads(
+        (tmp_path / "monitored_products_monitor-1.json").read_text(encoding="utf-8")
+    )
+    assert products[0]["reviews_state"] == "available"
+    assert products[0]["review_count"] == 128
+
+
+def test_summary_result_from_product_reads_aggregate_rating():
+    import services.review_service as review_service
+
+    result = review_service._summary_result_from_product(
+        {
+            "aggregateRating": {
+                "ratingValue": "4,7",
+                "reviewCount": "1.234",
+            }
+        },
+        provider="engine-summary",
+        max_pages=1,
+    )
+
+    assert result is not None
+    assert result.reviews_state == "available"
+    assert result.rating == 4.7
+    assert result.review_count == 1234
 
 
 def test_fetch_scan_product_review_comments_updates_only_matching_product(
@@ -439,3 +644,37 @@ def test_vtex_search_sets_review_product_id_without_full_comment_fetch(monkeypat
     result = asyncio.run(VtexApiClient("Aramis").search("camisa", max_results=1))
 
     assert result.products[0].review_product_id == "12345"
+
+
+class _FakeAiohttpResponse:
+    def __init__(self, status, payload):
+        self.status = status
+        self._payload = payload
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
+
+    async def json(self, content_type=None):
+        return self._payload
+
+
+class _FakeAiohttpSession:
+    def __init__(self, responses, calls):
+        self._responses = list(responses)
+        self._calls = calls
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
+
+    def get(self, url, params=None, headers=None):
+        self._calls.append({"url": url, "params": params, "headers": headers})
+        if not self._responses:
+            raise AssertionError(f"No fake response for {url}")
+        status, payload = self._responses.pop(0)
+        return _FakeAiohttpResponse(status, payload)

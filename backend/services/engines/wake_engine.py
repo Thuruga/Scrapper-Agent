@@ -8,8 +8,8 @@ a TCS-Access-Token per store.  Target: Richards (www.richards.com.br).
 Design decisions from Phase 32 CONTEXT.md and confirmed by spike 007:
   - D-05: Auto-extract TCS-Access-Token from the storefront home page via
           regex; cache per instance; support manual override via brand field.
-  - D-06: Optional field wake_access_token in DynamicBrandCreate allows
-          operators to hard-code the token without relying on auto-extraction.
+  - D-06: Optional field wake_access_token in DynamicBrandCreate remains
+          backward-compatible; committed brand data should use env overrides.
   - D-07: Token not resolved -> raise ValueError (clear diagnostic message);
           captured by factory._search_one as BrandSearchResult.error —
           never 0 products silently.
@@ -54,6 +54,7 @@ from core.session_manager import SessionManager
 from services.engines.base_engine import BaseEngine
 from services.shipping.base import ShippingCalculation, apply_shipping_calculation
 from services.shipping.resolver import resolve_shipping_provider
+from services.wake_token import resolve_wake_access_token_override
 
 logger = logging.getLogger(__name__)
 
@@ -350,16 +351,17 @@ class WakeEngine(BaseEngine):
     async def _resolve_token(self, brand: Any = None, domain: str = "") -> Optional[str]:
         """Resolve TCS-Access-Token with strict precedence (Armadilha 1):
 
-        1. Manual override from brand.wake_access_token (D-06)
+        1. Manual/env override (D-06)
         2. In-memory instance cache (T-32-06 — per-instance, not class-level)
         3. Auto-extraction via GET to the store home page (D-05 / T-32-01)
         4. Return None -> caller raises ValueError (D-07)
         """
-        # 1. Manual override
+        # 1. Manual/env override
         if brand is not None:
             override: Optional[str] = getattr(brand, "wake_access_token", None) or (
                 brand.get("wake_access_token") if isinstance(brand, dict) else None
             )
+            override = override or resolve_wake_access_token_override(brand)
             if override:
                 # WR-03: seed the instance cache so the documented
                 # "override > cache > auto-extract" precedence holds consistently

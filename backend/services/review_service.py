@@ -49,7 +49,7 @@ def _safe_float(value: Any) -> Optional[float]:
     if value in (None, ""):
         return None
     try:
-        return float(value)
+        return float(str(value).replace(",", "."))
     except (TypeError, ValueError):
         return None
 
@@ -58,7 +58,7 @@ def _safe_int(value: Any) -> Optional[int]:
     if value in (None, ""):
         return None
     try:
-        return int(value)
+        return int(str(value).replace(".", "").replace(",", "").strip())
     except (TypeError, ValueError):
         return None
 
@@ -176,6 +176,8 @@ def _normalize_comment(
     author = _safe_str(
         _first_value(item, ("author", "name", "customerName", "userName"))
     )
+    if author is None and isinstance(item.get("user"), dict):
+        author = _safe_str(item["user"].get("name"))
     created_at = _safe_str(
         _first_value(item, ("created_at", "createdAt", "date", "created", "publishedAt"))
     )
@@ -227,6 +229,25 @@ def _unsupported_result(
     return ReviewCommentsResult(
         reviews_state=ReviewState.UNSUPPORTED,
         comments=[],
+        review_product_id=product_id,
+        source_provider=provider,
+        max_pages=max_pages,
+    )
+
+
+def _temporary_failure_result(
+    *,
+    provider: str,
+    product_id: str,
+    max_pages: int,
+    rating: Optional[float] = None,
+    review_count: Optional[int] = None,
+) -> ReviewCommentsResult:
+    return ReviewCommentsResult(
+        reviews_state=ReviewState.TEMPORARY_FAILURE,
+        comments=[],
+        rating=rating,
+        review_count=review_count,
         review_product_id=product_id,
         source_provider=provider,
         max_pages=max_pages,
@@ -400,40 +421,64 @@ async def _fetch_trustvox_comments(
                     params=params,
                     headers=headers,
                 ) as resp:
+                    if resp.status in (401, 403, 404):
+                        return _unsupported_result(
+                            provider="trustvox",
+                            product_id=product_id,
+                            max_pages=max_pages,
+                        )
                     if resp.status != 200:
                         logger.debug(
                             "[Trustvox] HTTP %s ao buscar comentarios de %s",
                             resp.status,
                             product_id,
                         )
-                        return ReviewCommentsResult(
-                            reviews_state=ReviewState.TEMPORARY_FAILURE,
-                            comments=[],
-                            review_product_id=product_id,
-                            source_provider="trustvox",
+                        return _temporary_failure_result(
+                            provider="trustvox",
+                            product_id=product_id,
                             max_pages=max_pages,
                         )
                     data = await resp.json(content_type=None)
             except Exception as exc:
                 logger.debug("[Trustvox] Erro ao buscar comentarios: %s", exc)
-                return ReviewCommentsResult(
-                    reviews_state=ReviewState.TEMPORARY_FAILURE,
-                    comments=[],
-                    review_product_id=product_id,
-                    source_provider="trustvox",
+                return _temporary_failure_result(
+                    provider="trustvox",
+                    product_id=product_id,
                     max_pages=max_pages,
                 )
 
             if page == 1:
                 rating, review_count = _extract_summary(data)
 
-            entries = _extract_comment_entries(data)
+            entries, opinions_ok = await _fetch_trustvox_opinion_entries(
+                session,
+                store_id,
+                product_id,
+                page,
+                headers,
+            )
+            if not opinions_ok:
+                return _temporary_failure_result(
+                    provider="trustvox",
+                    product_id=product_id,
+                    max_pages=max_pages,
+                    rating=rating,
+                    review_count=review_count,
+                )
+            if not entries:
+                if page == 1 and (review_count or 0) > 0:
+                    return _temporary_failure_result(
+                        provider="trustvox",
+                        product_id=product_id,
+                        max_pages=max_pages,
+                        rating=rating,
+                        review_count=review_count,
+                    )
+                break
             comments.extend(
                 _normalize_comment(entry, provider="trustvox", product_id=product_id)
                 for entry in entries
             )
-            if not entries:
-                break
 
     comments = dedupe_review_comments(comments)
     return ReviewCommentsResult(
@@ -445,6 +490,38 @@ async def _fetch_trustvox_comments(
         source_provider="trustvox",
         max_pages=max_pages,
     )
+
+
+async def _fetch_trustvox_opinion_entries(
+    session: aiohttp.ClientSession,
+    store_id: str,
+    product_id: str,
+    page: int,
+    headers: dict[str, str],
+) -> tuple[List[dict[str, Any]], bool]:
+    params = {
+        "store_id": store_id,
+        "code": product_id,
+        "page": page,
+    }
+    try:
+        async with session.get(
+            "https://trustvox.com.br/widget/opinions",
+            params=params,
+            headers=headers,
+        ) as resp:
+            if resp.status != 200:
+                logger.debug(
+                    "[Trustvox] HTTP %s ao buscar opinioes de %s",
+                    resp.status,
+                    product_id,
+                )
+                return [], False
+            data = await resp.json(content_type=None)
+    except Exception as exc:
+        logger.debug("[Trustvox] Erro ao buscar opinioes: %s", exc)
+        return [], False
+    return _extract_comment_entries(data), True
 
 
 async def _fetch_vtex_native_comments(
@@ -608,13 +685,28 @@ async def fetch_scan_product_review_comments(
 
     products = _load_products(monitor_id)
     product_index, product = _find_scan_product(products, scan_product_id)
+    configured_max = max(1, int(settings.MAX_REVIEW_PAGES))
+    requested_pages = configured_max if max_pages is None else max(1, int(max_pages))
+    capped_pages = min(requested_pages, configured_max)
     review_product_id = _safe_str(product.get("review_product_id"))
     if not review_product_id:
-        result = _unsupported_result(
-            provider=None,
-            product_id=None,
-            max_pages=0,
+        result = await _fetch_engine_review_summary(
+            brand_key,
+            product,
+            max_pages=capped_pages,
         )
+        if result is None:
+            result = _summary_result_from_product(
+                product,
+                provider="persisted-summary",
+                max_pages=capped_pages,
+            )
+        if result is None:
+            result = _unsupported_result(
+                provider=None,
+                product_id=None,
+                max_pages=0,
+            )
         products[product_index] = _apply_review_result(product, result)
         _write_products(monitor_id, products)
         return result
@@ -622,11 +714,107 @@ async def fetch_scan_product_review_comments(
     result = await get_review_comments(
         brand_key,
         review_product_id,
-        max_pages=max_pages,
+        max_pages=capped_pages,
     )
+    if result.reviews_state == ReviewState.UNSUPPORTED:
+        summary_result = await _fetch_engine_review_summary(
+            brand_key,
+            product,
+            max_pages=capped_pages,
+        )
+        if summary_result is None:
+            summary_result = _summary_result_from_product(
+                product,
+                provider="persisted-summary",
+                max_pages=capped_pages,
+            )
+        if summary_result is not None:
+            result = summary_result
     products[product_index] = _apply_review_result(product, result)
     _write_products(monitor_id, products)
     return result
+
+
+async def _fetch_engine_review_summary(
+    brand_key: str,
+    product: dict[str, Any],
+    *,
+    max_pages: int,
+) -> ReviewCommentsResult | None:
+    url = _safe_str(product.get("url"))
+    if not url:
+        return None
+    try:
+        from services.engines.factory import engine_factory
+
+        engine = engine_factory.get_engine(brand_key)
+        detail = None
+        if hasattr(engine, "get_pdp_product"):
+            detail = await engine.get_pdp_product(url)
+        if not detail and hasattr(engine, "get_product_details"):
+            detail = await engine.get_product_details(url)
+    except Exception as exc:
+        logger.debug("[ReviewService] Erro ao buscar resumo via engine: %s", exc)
+        return None
+    if not detail:
+        return None
+    return _summary_result_from_product(
+        detail,
+        provider="engine-summary",
+        max_pages=max_pages,
+    )
+
+
+def _summary_result_from_product(
+    product: dict[str, Any] | Any,
+    *,
+    provider: str,
+    max_pages: int,
+) -> ReviewCommentsResult | None:
+    rating = _safe_float(
+        _first_product_value(product, ("rating", "rating_value", "ratingValue"))
+    )
+    review_count = _safe_int(
+        _first_product_value(
+            product,
+            (
+                "review_count",
+                "reviews_count",
+                "reviewCount",
+                "rating_count",
+                "ratingCount",
+            ),
+        )
+    )
+    if rating is None and review_count is None:
+        return None
+    return ReviewCommentsResult(
+        reviews_state=ReviewState.AVAILABLE,
+        comments=[],
+        rating=round(rating, 1) if rating is not None else None,
+        review_count=review_count,
+        review_product_id=_safe_str(_first_product_value(product, ("review_product_id",))),
+        source_provider=provider,
+        max_pages=max_pages,
+    )
+
+
+def _first_product_value(product: dict[str, Any] | Any, keys: tuple[str, ...]) -> Any:
+    for key in keys:
+        value = product.get(key) if isinstance(product, dict) else getattr(product, key, None)
+        if value not in (None, ""):
+            return value
+    aggregate = (
+        product.get("aggregateRating")
+        if isinstance(product, dict)
+        else getattr(product, "aggregateRating", None)
+    )
+    if isinstance(aggregate, dict):
+        for key in keys:
+            value = aggregate.get(key)
+            if value not in (None, ""):
+                return value
+    return None
 
 
 def _find_monitor(monitor_id: str) -> dict[str, Any]:

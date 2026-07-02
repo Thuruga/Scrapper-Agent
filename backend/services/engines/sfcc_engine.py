@@ -302,6 +302,8 @@ class SFCCEngine(BaseEngine):
                         price_full=validated_dict.get("price_full"),
                         image_url=validated_dict.get("image_url"),
                         available=validated_dict.get("stock_availability"),
+                        rating=validated_dict.get("rating"),
+                        review_count=validated_dict.get("review_count"),
                         # T-31-06: do NOT set is_free_shipping or shipping_price
                     )
                 )
