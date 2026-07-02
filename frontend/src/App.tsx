@@ -422,7 +422,7 @@ const MonitorPage = ({ brands }: { brands: any[] }) => {
                   <div className="monitor-pricing">
                     {m.last_price != null ? (
                       <>
-                        {m.last_price_discount && m.last_price_discount > 0 ? (
+                        {m.last_price_discount && m.last_price_discount > 0 && m.last_price_discount < m.last_price * 5 ? (
                           <span className="price-original" style={{ textDecoration: 'line-through', color: '#999', fontSize: '0.85em' }}>
                             R$ {(m.last_price + m.last_price_discount).toFixed(2)}
                           </span>
