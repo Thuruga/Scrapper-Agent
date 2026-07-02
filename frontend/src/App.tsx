@@ -1214,6 +1214,130 @@ const BannersPage = ({ brands }: { brands: any[] }) => {
 
 // --- SearchPage ---
 
+// Ordem fixa das 5 regiões da Matriz Regional (FRET-09) — espelha cep_matrix.json.
+const SHIPPING_MATRIX_REGION_ORDER = ['Sudeste', 'Sul', 'Centro-Oeste', 'Nordeste', 'Norte'];
+
+// Formata um CEP de 8 dígitos como DDDDD-DDD para exibição (a matriz não aceita input do usuário).
+const formatCepDisplay = (cep: string): string => {
+  const digits = String(cep || '').replace(/\D/g, '');
+  return digits.length === 8 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : cep;
+};
+
+type ShippingMatrixModalProps = {
+  matrixModal: { open: boolean; brandKey: string; productUrl: string; loading: boolean; regions: any[] };
+  onClose: () => void;
+};
+
+// Modal "Frete por região" (FRET-09/D-07): sempre 5 linhas, uma por região, cada uma em
+// um estado real (available/blocked/unsupported/temporary_failure/unavailable_for_cep) —
+// nunca uma linha em branco nem um R$ 0,00 falso. Compartilhado entre SearchPage e
+// CrossMarketplacePage (mesmos dois pontos de inserção do botão "Matriz Regional").
+const ShippingMatrixModal = ({ matrixModal, onClose }: ShippingMatrixModalProps) => {
+  if (!matrixModal.open) return null;
+
+  const regionsByName: Record<string, any> = {};
+  for (const r of matrixModal.regions) {
+    regionsByName[r.region] = r;
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content shipping-matrix-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <MapPin size={18} /> Frete por região
+          </h3>
+          <button className="btn btn-icon" onClick={onClose} aria-label="Fechar"><X size={20} /></button>
+        </div>
+        <p className="text-muted" style={{ marginBottom: '12px', fontSize: '13px' }}>
+          Custo e prazo estimado de entrega para CEPs-chave das 5 regiões do Brasil.
+        </p>
+        <ul className="shipping-options-list">
+          {SHIPPING_MATRIX_REGION_ORDER.map((regionName) => {
+            const region = regionsByName[regionName];
+
+            // Ainda carregando (ou região ainda não retornou) → spinner, nunca linha em branco.
+            if (matrixModal.loading || !region) {
+              return (
+                <li key={regionName} className="shipping-option-row">
+                  <div className="shipping-option-service">
+                    <span className="shipping-service-name">{regionName}</span>
+                  </div>
+                  <div className="shipping-option-price">
+                    <span className="shipping-loading">
+                      <RefreshCw size={13} className="animate-spin" aria-hidden="true" /> Calculando…
+                    </span>
+                  </div>
+                </li>
+              );
+            }
+
+            const cep = formatCepDisplay(region.cep);
+            const shipping = region.shipping;
+            const state = region.state;
+
+            let stateContent: React.ReactNode;
+            if (state === 'available' && shipping) {
+              const isFree = shipping.is_free_shipping === true || shipping.price === 0 || shipping.price === 0.0;
+              const estimateText = shipping.estimate_display || shipping.raw_text || (shipping.estimated_delivery_days ? `Até ${shipping.estimated_delivery_days} dias úteis` : '');
+              stateContent = (
+                <div className="shipping-option-service" style={{ alignItems: 'flex-end' }}>
+                  {isFree ? (
+                    <span className="shipping-free">
+                      <CheckCircle2 size={12} aria-hidden="true" /> Frete Grátis
+                    </span>
+                  ) : (
+                    <span className="shipping-paid">R$ {(shipping.price ?? 0).toFixed(2).replace('.', ',')}</span>
+                  )}
+                  {estimateText && <span className="shipping-estimate">{estimateText}</span>}
+                </div>
+              );
+            } else if (state === 'blocked') {
+              stateContent = (
+                <span className="shipping-state-row shipping-state-blocked" title="Não foi possível calcular o frete.">
+                  <AlertTriangle size={13} aria-hidden="true" /> Bloqueado (anti-bot)
+                </span>
+              );
+            } else if (state === 'unsupported') {
+              stateContent = (
+                <span className="shipping-state-row shipping-state-warning">
+                  <AlertTriangle size={13} aria-hidden="true" /> Frete não disponível para esta marca
+                </span>
+              );
+            } else if (state === 'temporary_failure') {
+              stateContent = (
+                <span className="shipping-state-row shipping-state-warning">
+                  <AlertTriangle size={13} aria-hidden="true" /> Frete temporariamente indisponível
+                </span>
+              );
+            } else {
+              // unavailable_for_cep (ou qualquer estado não mapeado) — nunca um valor falso.
+              stateContent = (
+                <span className="shipping-state-row shipping-state-unavailable">
+                  <MapPin size={13} aria-hidden="true" /> Entrega indisponível para este CEP
+                </span>
+              );
+            }
+
+            return (
+              <li key={regionName} className="shipping-option-row">
+                <div className="shipping-option-service">
+                  <span className="shipping-service-name">{regionName}</span>
+                  <span className="shipping-estimate">{cep}</span>
+                </div>
+                <div className="shipping-option-price">{stateContent}</div>
+              </li>
+            );
+          })}
+        </ul>
+        <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+          <button type="button" className="btn btn-outline" onClick={onClose} style={{ flex: 1 }}>Fechar</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 type SearchPageProps = { brands: any[], preloadedJobId?: string | null, onClearPreloadedJob?: () => void, onReopen?: (jobId: string) => void };
 const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: SearchPageProps) => {
   // Store selectors — seletores atômicos para campos que disparam renders pesados (Armadilha 1)
@@ -1255,6 +1379,14 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
   const [loadingShipping, setLoadingShipping] = useState<Record<string, boolean>>({});
   const [expandedShipping, setExpandedShipping] = useState<Record<string, boolean>>({});
   const cepDraftRef = useRef<HTMLInputElement>(null);
+  // --- Matriz Regional (FRET-09): modal "Frete por região", 5 CEPs curados, sem input do usuário ---
+  const [matrixModal, setMatrixModal] = useState<{
+    open: boolean;
+    brandKey: string;
+    productUrl: string;
+    loading: boolean;
+    regions: any[];
+  }>({ open: false, brandKey: '', productUrl: '', loading: false, regions: [] });
 
   useEffect(() => {
     if (preloadedJobId) {
@@ -1489,6 +1621,24 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
     else if (pc?.type === 'all') runCalcAll(zip);
   };
 
+  // Matriz Regional (FRET-09): abre o modal já em loading (todas as 5 regiões
+  // simultâneas) e dispara a chamada sem CEP — os 5 CEPs curados são resolvidos
+  // no backend (D-06/D-07, nunca inline durante busca).
+  const requestMatrix = async ({ brandKey, product }: { brandKey: string; product: any }) => {
+    setMatrixModal({ open: true, brandKey, productUrl: product.url, loading: true, regions: [] });
+    try {
+      const data = await ApiClient.calculateShippingMatrix({ brand_key: brandKey, product_url: product.url });
+      setMatrixModal(prev => (
+        prev.open && prev.productUrl === product.url
+          ? { ...prev, loading: false, regions: data.regions || [] }
+          : prev
+      ));
+    } catch (err: any) {
+      toast.error('Erro ao calcular matriz de frete: ' + err.message);
+      setMatrixModal(prev => (prev.productUrl === product.url ? { ...prev, open: false, loading: false } : prev));
+    }
+  };
+
   // Expandir / recolher todos os fretes já calculados.
   const setAllExpanded = (value: boolean) => {
     const next: Record<string, boolean> = {};
@@ -1705,7 +1855,7 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
             const brandRes = Array.isArray(results.results) ? results.results.find((r: any) => r.brand_key === brandKey) : null;
             const products = brandRes?.products || [];
             const isVtex = brand?.engine === 'vtex';
-            const isBrandShippingSupported = brand?.engine === 'shopify' || brand?.engine === 'wake';
+            const isBrandShippingSupported = ['shopify', 'wake', 'mercadolivre', 'amazon', 'netshoes'].includes(brand?.engine);
 
             return (
               <div key={brandKey} className="brand-column">
@@ -1748,6 +1898,24 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
                           const isLoading = !!loadingShipping[p.url];
                           const isExpanded = !!expandedShipping[p.url];
                           const calculated = !!p._shipping_state || hasOptions || !!p.shipping;
+                          const isBlocked = p._shipping_state === 'blocked';
+
+                          // Botão "Matriz Regional" (FRET-09, D-07): sempre visível para qualquer
+                          // produto com provedor de frete — nunca gated pelas mesmas condições do
+                          // "Calcular Frete". Renderizado dentro de todo branch de retorno abaixo.
+                          const matrixButton = (
+                            <button
+                              type="button"
+                              className="shipping-matrix-trigger"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                requestMatrix({ brandKey, product: p });
+                              }}
+                            >
+                              <MapPin size={14} aria-hidden="true" /> Matriz Regional
+                            </button>
+                          );
 
                           // Estado de loading
                           if (isLoading) {
@@ -1756,26 +1924,46 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
                                 <div className="shipping-loading">
                                   <RefreshCw size={13} className="animate-spin" aria-hidden="true" /> Calculando frete…
                                 </div>
+                                <div className="shipping-actions-row">{matrixButton}</div>
+                              </div>
+                            );
+                          }
+
+                          // Bloqueado (anti-bot, ex. Netshoes) → estado explícito, nunca spinner
+                          // eterno; o botão Matriz Regional permanece visível (D-07).
+                          if (isBlocked) {
+                            return (
+                              <div className="shipping-section">
+                                <div className="shipping-state-row shipping-state-blocked">
+                                  <AlertTriangle size={13} aria-hidden="true" />
+                                  <span>Bloqueado (anti-bot)</span>
+                                </div>
+                                <div className="shipping-actions-row">{matrixButton}</div>
                               </div>
                             );
                           }
 
                           // Ainda não calculado → botão sob demanda (VTEX com sku apenas)
                           if (!calculated) {
-                            if (!(isBrandShippingSupported || (isVtex && p.sku_id))) return null;
+                            if (!(isBrandShippingSupported || (isVtex && p.sku_id))) {
+                              return <div className="shipping-section"><div className="shipping-actions-row">{matrixButton}</div></div>;
+                            }
                             return (
                               <div className="shipping-section">
-                                <button
-                                  type="button"
-                                  className="shipping-calc-btn"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    requestCalc({ type: 'one', brandKey, product: p, key: p.url });
-                                  }}
-                                >
-                                  <Truck size={14} aria-hidden="true" /> Calcular Frete
-                                </button>
+                                <div className="shipping-actions-row">
+                                  <button
+                                    type="button"
+                                    className="shipping-calc-btn"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      requestCalc({ type: 'one', brandKey, product: p, key: p.url });
+                                    }}
+                                  >
+                                    <Truck size={14} aria-hidden="true" /> Calcular Frete
+                                  </button>
+                                  {matrixButton}
+                                </div>
                               </div>
                             );
                           }
@@ -1835,6 +2023,7 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
                                     })}
                                   </ul>
                                 )}
+                                <div className="shipping-actions-row">{matrixButton}</div>
                               </div>
                             );
                           }
@@ -1866,6 +2055,7 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
                                     </button>
                                   )}
                                 </div>
+                                <div className="shipping-actions-row">{matrixButton}</div>
                               </div>
                             );
                           }
@@ -1873,17 +2063,22 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
                           // Fallback legado: registros antigos com p.shipping simples (D-08 compat)
                           if (p.shipping) {
                             return (
-                              <div className="product-meta" style={{ marginTop: '6px', color: p.shipping.status === 'Grátis' ? 'var(--success)' : 'inherit' }}>
-                                <Package size={14} aria-hidden="true" />
-                                <span>
-                                  {p.shipping.status === 'Grátis' ? 'Frete Grátis' : (p.shipping.price ? `Frete: R$ ${p.shipping.price.toFixed(2)}` : p.shipping.status)}
-                                  {p.shipping.estimated_delivery_days ? ` (${p.shipping.estimated_delivery_days} dias)` : ''}
-                                </span>
-                              </div>
+                              <>
+                                <div className="product-meta" style={{ marginTop: '6px', color: p.shipping.status === 'Grátis' ? 'var(--success)' : 'inherit' }}>
+                                  <Package size={14} aria-hidden="true" />
+                                  <span>
+                                    {p.shipping.status === 'Grátis' ? 'Frete Grátis' : (p.shipping.price ? `Frete: R$ ${p.shipping.price.toFixed(2)}` : p.shipping.status)}
+                                    {p.shipping.estimated_delivery_days ? ` (${p.shipping.estimated_delivery_days} dias)` : ''}
+                                  </span>
+                                </div>
+                                <div className="shipping-actions-row">{matrixButton}</div>
+                              </>
                             );
                           }
 
-                          return null;
+                          // Nenhum estado de frete conhecido (ex.: engine sem provedor, tipo SFCC) →
+                          // Matriz Regional continua visível (D-07); o modal comunica "unsupported".
+                          return <div className="shipping-section"><div className="shipping-actions-row">{matrixButton}</div></div>;
                         })()}
                       </div>
                       <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>
@@ -1963,6 +2158,11 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
           </div>
         </div>
       )}
+
+      <ShippingMatrixModal
+        matrixModal={matrixModal}
+        onClose={() => setMatrixModal(prev => ({ ...prev, open: false }))}
+      />
     </div>
   );
 };
@@ -1998,6 +2198,14 @@ const CrossMarketplacePage = ({ preloadedJobId, onClearPreloadedJob, onReopen }:
   const [cepError, setCepError] = useState<string | null>(null);
   const [pendingShipItem, setPendingShipItem] = useState<{ item: any; marketplace: string } | null>(null);
   const cepDraftRef = useRef<HTMLInputElement>(null);
+  // --- Matriz Regional (FRET-09): modal "Frete por região", 5 CEPs curados, sem input do usuário ---
+  const [matrixModal, setMatrixModal] = useState<{
+    open: boolean;
+    brandKey: string;
+    productUrl: string;
+    loading: boolean;
+    regions: any[];
+  }>({ open: false, brandKey: '', productUrl: '', loading: false, regions: [] });
   // --- Validação do SKU alvo (UX-07): UX gate only, backend valida independentemente (T-38-04) ---
   const [skuFieldError, setSkuFieldError] = useState<string | null>(null);
   const validateSku = (value: string): boolean => SKU_PATTERN.test(value.trim());
@@ -2132,7 +2340,12 @@ const CrossMarketplacePage = ({ preloadedJobId, onClearPreloadedJob, onReopen }:
               ...r,
               is_free_shipping: isFree,
               shipping_price: newShippingPrice,
-              landed_price: r.price + (newShippingPrice || 0)
+              landed_price: r.price + (newShippingPrice || 0),
+              // Surface delivery-time (prazo, D-05) quando o engine retorna essas chaves;
+              // .get()-equivalente via acesso opcional — nunca inventa um fallback novo.
+              ...(data.shipping_info.estimated_delivery_days !== undefined ? { estimated_delivery_days: data.shipping_info.estimated_delivery_days } : {}),
+              ...(data.shipping_info.delivery_raw_text !== undefined ? { shipping_raw_text: data.shipping_info.delivery_raw_text } : {}),
+              _shipping_state: undefined,
             };
           }
           return r;
@@ -2144,6 +2357,15 @@ const CrossMarketplacePage = ({ preloadedJobId, onClearPreloadedJob, onReopen }:
           r.is_buybox_winner = (r.landed_price ?? r.price) === minPrice;
         });
 
+        setCross({ results: { ...prev, results: newResults } });
+      } else if (marketplace === 'Netshoes') {
+        // Netshoes None-result é bloqueio anti-bot conservador (D-01) — nunca um frete
+        // grátis/zero falso, e nunca um botão "tentar novamente" enganoso (T-42-03).
+        const prev = useSearchStore.getState().cross.results;
+        if (!prev || prev !== baseResults) return;
+        const newResults = prev.results.map((r: any) =>
+          (r.url === item.url && r.marketplace === marketplace) ? { ...r, _shipping_state: 'blocked' } : r
+        );
         setCross({ results: { ...prev, results: newResults } });
       } else {
         toast.error(data.message || "Erro ao calcular frete");
@@ -2184,6 +2406,24 @@ const CrossMarketplacePage = ({ preloadedJobId, onClearPreloadedJob, onReopen }:
     const pending = pendingShipItem;
     setPendingShipItem(null);
     if (pending) runShipForItem(pending.item, pending.marketplace, zip);
+  };
+
+  // Matriz Regional (FRET-09): abre o modal já em loading (todas as 5 regiões
+  // simultâneas) e dispara a chamada sem CEP — os 5 CEPs curados são resolvidos
+  // no backend (D-06/D-07, nunca inline durante busca).
+  const requestMatrix = async ({ brandKey, product }: { brandKey: string; product: any }) => {
+    setMatrixModal({ open: true, brandKey, productUrl: product.url, loading: true, regions: [] });
+    try {
+      const data = await ApiClient.calculateShippingMatrix({ brand_key: brandKey, product_url: product.url });
+      setMatrixModal(prev => (
+        prev.open && prev.productUrl === product.url
+          ? { ...prev, loading: false, regions: data.regions || [] }
+          : prev
+      ));
+    } catch (err: any) {
+      toast.error('Erro ao calcular matriz de frete: ' + err.message);
+      setMatrixModal(prev => (prev.productUrl === product.url ? { ...prev, open: false, loading: false } : prev));
+    }
   };
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -2501,7 +2741,11 @@ const CrossMarketplacePage = ({ preloadedJobId, onClearPreloadedJob, onReopen }:
                             ) : null}
                           </div>
                           <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            {item.shipping_price === null && !item.is_free_shipping ? (
+                            {item._shipping_state === 'blocked' ? (
+                              <span className="monitor-price-blocked" title="Não foi possível calcular o frete.">
+                                Bloqueado (anti-bot)
+                              </span>
+                            ) : item.shipping_price === null && !item.is_free_shipping ? (
                               <>
                                 <span style={{ color: '#fbbf24' }}>Frete a calcular</span>
                                 <button
@@ -2526,10 +2770,28 @@ const CrossMarketplacePage = ({ preloadedJobId, onClearPreloadedJob, onReopen }:
                                 </button>
                               </>
                             ) : (
-                              <span>R$ {item.price.toFixed(2)} (Produto) + R$ {(item.shipping_price || 0).toFixed(2)} (Frete)</span>
+                              <span>
+                                R$ {item.price.toFixed(2)} (Produto) + R$ {(item.shipping_price || 0).toFixed(2)} (Frete)
+                                {(() => {
+                                  const estimateText = item.shipping_raw_text || (item.estimated_delivery_days ? `Até ${item.estimated_delivery_days} dias úteis` : '');
+                                  return estimateText ? <span className="shipping-estimate" style={{ display: 'block', marginTop: '2px' }}>{estimateText}</span> : null;
+                                })()}
+                              </span>
                             )}
                           </div>
-                          <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>
+                          <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <button
+                              type="button"
+                              className="shipping-matrix-trigger"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                const brandKey = MARKETPLACE_BRAND_KEY[marketplace] || marketplace.toLowerCase().replace(/\s+/g, '_');
+                                requestMatrix({ brandKey, product: item });
+                              }}
+                            >
+                              <MapPin size={14} aria-hidden="true" /> Matriz Regional
+                            </button>
                             <button
                               type="button"
                               className="btn-icon btn-sm"
@@ -2608,6 +2870,10 @@ const CrossMarketplacePage = ({ preloadedJobId, onClearPreloadedJob, onReopen }:
         </div>
       )}
 
+      <ShippingMatrixModal
+        matrixModal={matrixModal}
+        onClose={() => setMatrixModal(prev => ({ ...prev, open: false }))}
+      />
     </div>
   );
 };

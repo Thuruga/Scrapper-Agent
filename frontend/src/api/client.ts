@@ -150,6 +150,15 @@ export class ApiClient {
     });
   }
 
+  // Matriz de frete multi-regional sob demanda (FRET-09). Sem CEP no payload —
+  // os 5 CEPs curados (uma capital por região) são resolvidos no backend.
+  static calculateShippingMatrix(payload: { brand_key: string; product_url: string }) {
+    return this.request<{ regions: Array<{ region: string; capital: string; cep: string; state: string; shipping?: any; message?: string; cached?: boolean }> }>('/search/calculate-shipping-matrix', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
   static search(payload: { query: string; brands?: string[]; max_per_brand?: number; sort?: string; only_in_stock?: boolean; zipcode?: string; include_shipping?: boolean }, signal?: AbortSignal) {
     return this.request<any>('/search', {
       method: 'POST',
