@@ -1,0 +1,7 @@
+[
+  {"region": "Sudeste", "capital": "São Paulo-SP", "cep": "01310100"},
+  {"region": "Sul", "capital": "Porto Alegre-RS", "cep": "90010150"},
+  {"region": "Centro-Oeste", "capital": "Brasília-DF", "cep": "70040010"},
+  {"region": "Nordeste", "capital": "Salvador-BA", "cep": "40020000"},
+  {"region": "Norte", "capital": "Manaus-AM", "cep": "69010001"}
+]

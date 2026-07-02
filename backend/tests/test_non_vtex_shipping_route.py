@@ -1,3 +1,4 @@
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -144,3 +145,131 @@ def test_existing_vtex_endpoint_still_registered(monkeypatch):
 
     paths = {route.path for route in client.app.routes}
     assert "/search/calculate-shipping-vtex" in paths
+
+
+def _marketplace_brand(engine: str) -> DynamicBrand:
+    domains = {
+        "mercadolivre": "www.mercadolivre.com.br",
+        "amazon": "www.amazon.com.br",
+        "netshoes": "www.netshoes.com.br",
+    }
+    return DynamicBrand(
+        brand_key=engine,
+        brand_name=engine,
+        domain=domains[engine],
+        engine=engine,
+    )
+
+
+@pytest.mark.parametrize("engine", ["mercadolivre", "amazon", "netshoes"])
+def test_calculate_shipping_brand_accepts_marketplace_engines(monkeypatch, engine):
+    provider = FakeProvider(ShippingCalculation(state=ShippingState.AVAILABLE))
+    brand = _marketplace_brand(engine)
+    client = _client(monkeypatch, brand=brand, provider=provider)
+
+    response = client.post(
+        "/search/calculate-shipping-brand",
+        json={
+            "brand_key": engine,
+            "product_url": f"https://{brand.domain}/produto/a",
+            "zipcode": "01415000",
+        },
+    )
+
+    assert response.status_code == 200
+    assert len(provider.calls) == 1
+
+
+FAKE_REGIONS = [
+    {"region": "Sudeste", "capital": "São Paulo-SP", "cep": "01310100", "state": "available", "shipping": None, "message": None, "cached": False},
+    {"region": "Sul", "capital": "Porto Alegre-RS", "cep": "90010150", "state": "available", "shipping": None, "message": None, "cached": False},
+    {"region": "Centro-Oeste", "capital": "Brasília-DF", "cep": "70040010", "state": "available", "shipping": None, "message": None, "cached": False},
+    {"region": "Nordeste", "capital": "Salvador-BA", "cep": "40020000", "state": "available", "shipping": None, "message": None, "cached": False},
+    {"region": "Norte", "capital": "Manaus-AM", "cep": "69010001", "state": "available", "shipping": None, "message": None, "cached": False},
+]
+
+
+def _matrix_client(monkeypatch, brand=None, matrix_result=None, matrix_spy=None):
+    import api.routes_search as routes_search
+
+    app = FastAPI()
+    app.include_router(routes_search.router)
+
+    monkeypatch.setattr(routes_search.brand_service, "get_brand", lambda key: brand)
+    monkeypatch.setattr(routes_search, "load_cep_matrix", lambda: FAKE_REGIONS)
+
+    async def _fake_calculate_regional_matrix(product, brand_arg, cep_list, *, triggered_by, **kwargs):
+        if matrix_spy is not None:
+            matrix_spy(triggered_by=triggered_by)
+        return matrix_result if matrix_result is not None else FAKE_REGIONS
+
+    monkeypatch.setattr(
+        routes_search, "calculate_regional_matrix", _fake_calculate_regional_matrix
+    )
+
+    return TestClient(app)
+
+
+def test_calculate_shipping_matrix_returns_regions(monkeypatch):
+    brand = _brand("shopify")
+    client = _matrix_client(monkeypatch, brand=brand, matrix_result=FAKE_REGIONS)
+
+    response = client.post(
+        "/search/calculate-shipping-matrix",
+        json={"brand_key": "bck", "product_url": "https://buckmanbck.com.br/products/blazer"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["regions"]) == 5
+
+
+def test_calculate_shipping_matrix_rejects_host_mismatch(monkeypatch):
+    brand = _brand("shopify")
+    called = []
+    client = _matrix_client(
+        monkeypatch, brand=brand, matrix_spy=lambda **kwargs: called.append(kwargs)
+    )
+
+    response = client.post(
+        "/search/calculate-shipping-matrix",
+        json={"brand_key": "bck", "product_url": "https://evil.example/products/blazer"},
+    )
+
+    assert response.status_code == 400
+    assert called == []
+
+
+def test_calculate_shipping_matrix_unknown_brand(monkeypatch):
+    client = _matrix_client(monkeypatch, brand=None)
+
+    response = client.post(
+        "/search/calculate-shipping-matrix",
+        json={"brand_key": "missing", "product_url": "https://missing.example/products/a"},
+    )
+
+    assert response.status_code == 404
+
+
+def test_calculate_shipping_matrix_passes_on_demand_trigger(monkeypatch):
+    brand = _brand("shopify")
+    called = []
+    client = _matrix_client(
+        monkeypatch, brand=brand, matrix_spy=lambda **kwargs: called.append(kwargs)
+    )
+
+    response = client.post(
+        "/search/calculate-shipping-matrix",
+        json={"brand_key": "bck", "product_url": "https://buckmanbck.com.br/products/blazer"},
+    )
+
+    assert response.status_code == 200
+    assert len(called) == 1
+    assert called[0]["triggered_by"] == "on_demand_matrix_button"
+
+
+def test_matrix_route_registered(monkeypatch):
+    client = _matrix_client(monkeypatch, brand=_brand("shopify"))
+
+    paths = {route.path for route in client.app.routes}
+    assert "/search/calculate-shipping-matrix" in paths
