@@ -29,6 +29,11 @@ logger = logging.getLogger(__name__)
 
 
 class AmazonEngine(BaseEngine):
+    # Tier 2 calculate_shipping() below is a permanent stub that always returns
+    # None (no anti-bot attempt is made) — a None result here means "unimplemented",
+    # not "blocked". See BaseEngine.SHIPPING_TIER2_BLOCKS_ON_NONE.
+    SHIPPING_TIER2_BLOCKS_ON_NONE = False
+
     def __init__(self, brand_key: str = "amazon"):
         self.brand_key = brand_key
         self.headers = {

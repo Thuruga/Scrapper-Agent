@@ -11,6 +11,12 @@ class BaseEngine(ABC):
     Define o contrato para orquestração de scraping e inteligência.
     """
 
+    # Whether a None return from calculate_shipping() (Tier 2) means the engine
+    # genuinely attempted and was blocked (anti-bot) vs. Tier 2 being an
+    # unimplemented stub for this engine. Callers (e.g. cross_marketplace_service)
+    # use this to avoid labeling an unimplemented engine as "blocked".
+    SHIPPING_TIER2_BLOCKS_ON_NONE: bool = True
+
     @abstractmethod
     async def run_bulk_scrape(
         self,

@@ -412,6 +412,43 @@ class TestEnrichDeliveryTimeAndBlockedState:
         assert item["shipping_price"] == 0.0
         assert item.get("_shipping_state") != "blocked"
 
+    def test_enrich_none_from_unimplemented_engine_is_not_labeled_blocked(self, monkeypatch):
+        """Amazon Tier 2 e um stub que sempre retorna None (nao uma tentativa real
+        de calculo bloqueada por anti-bot). Rotular isso como 'blocked' seria uma
+        alegacao falsa exibida ao operador (achado da verificacao goal-backward
+        da Phase 42). Engines com SHIPPING_TIER2_BLOCKS_ON_NONE=False (Amazon)
+        nao devem setar _shipping_state='blocked' quando calculate_shipping()
+        retorna None."""
+
+        class UnimplementedTier2Engine(FakeEngine):
+            SHIPPING_TIER2_BLOCKS_ON_NONE = False
+
+        _pin_settings(monkeypatch)
+        _patch_nlp(monkeypatch, {self.TITLE: 0.90})
+
+        url = "http://amz/1"
+        service = _inject_engines(CrossMarketplaceService(), {
+            "Mercado Livre": FakeEngine([]),
+            "Netshoes": FakeEngine([]),
+            "Amazon": UnimplementedTier2Engine(
+                [_prod("Amazon", self.TITLE, 100.0, url)],
+                shipping_by_url={url: None},
+            ),
+        })
+
+        result = asyncio.run(
+            service.compare_product(
+                broad_query=self.BROAD,
+                strict_query=self.STRICT,
+                target_sku=None,
+                min_score=70.0,
+                zipcode="01001000",
+            )
+        )
+        by_mp = {r["marketplace"]: r for r in result["results"]}
+        item = by_mp["Amazon"]
+        assert item.get("_shipping_state") != "blocked"
+
 
 class TestInactiveMarketplaceExcluded:
     """UX-05 / D-11: deactivating a marketplace excludes it from the NEXT search.

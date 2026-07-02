@@ -520,10 +520,14 @@ class CrossMarketplaceService:
                             p["estimated_delivery_days"] = shipping_info.get("estimated_delivery_days")
                         if "delivery_raw_text" in shipping_info:
                             p["shipping_raw_text"] = shipping_info.get("delivery_raw_text")
-                    else:
+                    elif getattr(engine, "SHIPPING_TIER2_BLOCKS_ON_NONE", True):
                         # Marketplace engine mapped to None => anti-bot block (Netshoes).
                         # Never fake a free/zero shipping value for a block (T-42-03).
                         p["_shipping_state"] = "blocked"
+                    # else: engine's Tier 2 calculate_shipping is a known unimplemented
+                    # stub (e.g. Amazon) — None here means "not attempted", not "blocked".
+                    # Leave _shipping_state unset; the manual "Calcular Frete" click path
+                    # (calculate_shipping_advanced) is unaffected and still works.
                 except Exception as e:
                     logger.debug(f"Erro ao calcular frete para {plat}: {e}")
 
