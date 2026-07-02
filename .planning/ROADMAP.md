@@ -140,7 +140,17 @@ Plans:
   3. A matriz de frete usa uma lista curada de CEPs configuráveis (`backend/data/cep_matrix.json`), aplica throttle entre requisições e armazena cache por `(sku, cep)` — a segunda solicitação para o mesmo par é servida do cache sem nova requisição.
   4. O cálculo da matriz nunca é executado inline durante uma varredura ou busca ao vivo — apenas on-demand ou em batch controlado — garantido por guard na chamada e coberto por teste.
 
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+
+**Wave 1**
+
+- [ ] 42-01-PLAN.md — Backend: ShippingState.BLOCKED + resolver branches + ML/Amazon/Netshoes providers com prazo (FRET-08; D-01/D-02/D-03)
+
+**Wave 2** *(depends on 42-01)*
+
+- [ ] 42-02-PLAN.md — Backend: matriz regional (throttle + cache TTL + guard inline) + rota /calculate-shipping-matrix (FRET-09; D-04/D-08/D-09/D-10)
+- [ ] 42-03-PLAN.md — Frontend: prazo + estado blocked + botão/modal "Matriz Regional" (FRET-08/FRET-09; D-05/D-06/D-07)
 
 ### Phase 43: Violação de MAP & Selos de Promoção
 
