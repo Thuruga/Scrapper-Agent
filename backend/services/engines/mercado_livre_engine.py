@@ -701,9 +701,47 @@ class MercadoLivreEngine(BaseEngine):
             logger.debug(f"ML: erro ao resolver item_id via PDP: {e}")
         return None
 
+    def _parse_delivery_time(self, options: list) -> Dict[str, Any]:
+        """
+        Extrai prazo de entrega das opcoes de frete (D-02). Confianca MEDIA
+        (RESEARCH.md A1): o campo estimated_delivery_time e opcional e seu
+        shape pode variar (unit/time_frame/date); toda leitura usa .get()
+        para degradar graciosamente a cost-only quando ausente.
+        """
+        delivery: Dict[str, Any] = {}
+        for opt in options:
+            estimate = opt.get("estimated_delivery_time") or {}
+            if not isinstance(estimate, dict):
+                continue
+            try:
+                logger.debug("ML: estimated_delivery_time shape=%s", list(estimate.keys()))
+            except Exception:
+                pass
+
+            date_str = estimate.get("date")
+            time_frame = estimate.get("time_frame") or {}
+            unit = estimate.get("unit")
+
+            if isinstance(time_frame, dict) and time_frame.get("to") is not None:
+                try:
+                    delivery["estimated_delivery_days"] = int(time_frame["to"])
+                except (TypeError, ValueError):
+                    pass
+            elif unit and str(unit).lower() in ("day", "dias", "d") and estimate.get("time") is not None:
+                try:
+                    delivery["estimated_delivery_days"] = int(estimate["time"])
+                except (TypeError, ValueError):
+                    pass
+
+            if date_str:
+                delivery["delivery_raw_text"] = str(date_str)
+            if delivery:
+                break
+        return delivery
+
     async def _fetch_shipping_options(self, item_id: str, zipcode: str) -> Optional[Dict[str, Any]]:
         api_url = f"https://api.mercadolibre.com/items/{item_id}/shipping_options?zip_code={zipcode}"
-        
+
         try:
             async with AsyncSession(impersonate="chrome120", timeout=10) as session:
                 response = await session.get(api_url)
@@ -712,27 +750,29 @@ class MercadoLivreEngine(BaseEngine):
                     options = data.get("options", [])
                     if not options:
                         return {"is_free_shipping": False, "shipping_price": None}
-                        
+
                     # Pega a opção mais barata, ou a padrão
                     prices = [float(opt.get("cost", 0.0)) for opt in options]
                     highest_price = max(prices) if prices else 0.0 # user context: assume highest for ranges/options to be safe
-                    
+
                     is_free = any(opt.get("cost") == 0 for opt in options)
-                    # If free is available, maybe shipping_price is 0? The user said "pior cenário". 
+                    # If free is available, maybe shipping_price is 0? The user said "pior cenário".
                     # But if free shipping is an option, it's free. Let's use the max price of the options if it's not strictly free
-                    
-                    # Actually, ML usually returns 1-2 options (normal, expresso). 
+
+                    # Actually, ML usually returns 1-2 options (normal, expresso).
                     # We will take the max cost if it's not free shipping.
                     shipping_price = 0.0 if is_free else highest_price
-                    
-                    return {
+
+                    result: Dict[str, Any] = {
                         "is_free_shipping": is_free,
                         "shipping_price": shipping_price
                     }
+                    result.update(self._parse_delivery_time(options))
+                    return result
                 logger.debug(f"ML: shipping_options HTTP {response.status_code} para {item_id}")
         except Exception as e:
             logger.debug(f"Erro ao calcular frete no ML para {item_id}: {e}")
-            
+
         return None
 
     def _run_playwright_shipping(self, url: str, zipcode: str) -> Optional[Dict[str, Any]]:
