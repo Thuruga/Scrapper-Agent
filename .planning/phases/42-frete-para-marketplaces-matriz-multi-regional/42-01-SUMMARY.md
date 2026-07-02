@@ -128,3 +128,10 @@ None - no external service configuration required.
 ---
 *Phase: 42-frete-para-marketplaces-matriz-multi-regional*
 *Completed: 2026-07-02*
+
+## Self-Check: PASSED
+
+- All created files verified present on disk (mercado_livre.py, amazon.py, netshoes.py, test_marketplace_shipping.py, this SUMMARY.md).
+- All 4 task/metadata commit hashes (50b2d10, fc6de92, ce46bcb, 78700e6) verified present in git log.
+- All plan-level `<acceptance_criteria>` re-verified passing (resolver dispatch, BLOCKED state/message, config settings, CAPTCHA-not-BLOCKED, no CEP in logs).
+- Plan-level `<verification>` commands re-run: `pytest tests/test_shipping_resolver.py tests/test_marketplace_shipping.py tests/test_shipping_engines.py -x -q` (25 passed) and full suite `pytest -q` (490 passed).
