@@ -30,6 +30,17 @@ Extração automatizada e resiliente de dados de mercado com mínima intervenç�
 
 _Requisitos v4.0 a serem definidos em REQUIREMENTS.md após a pesquisa de domínio._
 
+### Validated (v4.0)
+
+- ✓ **UX-01**: Monitor de categoria e varredura por categoria são responsivos em viewports menores (768px), sem overflow horizontal ou sobreposição de elementos. (Phase 38)
+- ✓ **UX-02**: Lista de monitoramento exibe o valor da promoção (`last_price_discount`, preço efetivo via D-01) além do preço cheio, sem chamada de rede adicional. (Phase 38)
+- ✓ **UX-06**: Histórico de busca acessível por ícone no canto superior direito, com badge type-scoped, em ambas as abas (comparativa e SKU). (Phase 38)
+- ✓ **UX-07**: Busca por SKU valida o padrão `ML.05.XXXXXXX` no frontend; CEP inline na mesma linha do SKU. (Phase 38)
+- ✓ **UX-08**: Selecionar uma categoria no monitor dispara a primeira varredura automaticamente (reaproveitando o trigger de background já existente) e abre a lista de produtos ao concluir. (Phase 38)
+- ✓ **COMP-08**: Lacoste não aparece como opção selecionável em nenhuma superfície de busca; garantido pelo chokepoint `list_brands(active_only=True)` + teste de regressão. (Phase 38)
+
+**Nota:** o code review da Phase 38 (`38-REVIEW.md`) encontrou 1 bug crítico pré-existente fora de escopo (`CR-01`, comparação `available_colors`/`available_sizes` em `price_monitor_service.py` pode lançar `TypeError` em dados mistos/`None`) — registrado como dívida técnica, não bloqueou a phase. Manual UAT (`38-HUMAN-UAT.md`) permanece `partial`/pendente de confirmação humana em browser para UX-01/UX-06/UX-07/UX-08 — todos os checks automatizados (473 testes backend + build frontend) passaram.
+
 ### Validated (v3.0)
 
 - ✓ **COMP-04**: Operador onboarda e busca produtos da **Richards** (Wake Commerce) via GraphQL com `TCS-Access-Token` por loja; spike de confirmação retornou GO contra a Richards (5 produtos reais via GraphQL + token auto-extraído), `WakeEngine` plugado na `EngineFactory`. (Phase 32)
@@ -157,4 +168,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-26 — Início do milestone v4.0 (Paridade de Dados, Cobertura Total de Frete & Inteligência Competitiva). Banners/SharePoint e Lacoste movidos ao backlog; COMP-05/FRET-05 marcados como validados (v3.0).*
+*Last updated: 2026-07-02 — Phase 38 completa (UX de Busca & Monitoramento — Quick Wins): UX-01, UX-02, UX-06, UX-07, UX-08, COMP-08 validados.*
