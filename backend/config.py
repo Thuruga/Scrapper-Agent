@@ -152,6 +152,16 @@ class Settings(BaseSettings):
         description="Limite conservador de probes de profundidade por marca/execucao.",
     )
 
+    # Phase 42 - Matriz de frete multi-regional (FRET-09)
+    SHIPPING_MATRIX_THROTTLE_SECONDS: float = Field(
+        default=2.0,
+        description="Throttle fixo entre chamadas de frete da matriz regional (uma por CEP).",
+    )
+    SHIPPING_MATRIX_CACHE_TTL_SECONDS: int = Field(
+        default=21600,
+        description="TTL do cache (produto, CEP) da matriz regional — 6h default, curto por D-09.",
+    )
+
     model_config = {
         "env_file": BASE_DIR / ".env",
         "env_file_encoding": "utf-8",
