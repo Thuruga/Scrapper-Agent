@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 import pytest
 
 from config import settings
 from core.models import DynamicBrand, SearchProductResult
 from services.engines.amazon_engine import AmazonEngine
+from services.engines.mercado_livre_engine import MercadoLivreEngine
 from services.shipping.amazon import AmazonShipping
 from services.shipping.base import DEFAULT_MESSAGES, ShippingState
 from services.shipping.mercado_livre import MercadoLivreShipping
@@ -127,6 +130,83 @@ async def test_mercado_livre_provider_none_result():
     result = await provider.calculate(product, "01310100", brand)
 
     assert result.state == ShippingState.TEMPORARY_FAILURE
+
+
+# --- MercadoLivreEngine._parse_delivery_time (live-verification finding) ----
+# Plan 42-03 Task 3 live smoke found the real /shipping_options API returns an
+# absolute ISO-8601 `date` (not time_frame.to / unit+time) for
+# estimated_delivery_time. These tests guard the fix that computes
+# estimated_delivery_days from that absolute date, and the graceful
+# degradation when no estimated_delivery_time is present at all.
+
+
+def test_parse_delivery_time_computes_days_from_absolute_iso_date():
+    engine = MercadoLivreEngine()
+    future_date = (datetime.now(timezone.utc) + timedelta(days=5)).isoformat()
+    options = [
+        {
+            "cost": 0.0,
+            "estimated_delivery_time": {"date": future_date},
+        }
+    ]
+
+    delivery = engine._parse_delivery_time(options)
+
+    assert isinstance(delivery.get("estimated_delivery_days"), int)
+    assert delivery["estimated_delivery_days"] > 0
+    # delivery_raw_text must NOT carry the raw ISO string once the days were
+    # computed successfully — the frontend's fallback chain prefers raw_text
+    # over estimated_delivery_days, so leaking the ISO string here would
+    # regress to showing "2026-07-02T00:00:00-03:00" verbatim in the UI
+    # (the exact live-verification defect this fix addresses).
+    assert "delivery_raw_text" not in delivery
+
+
+def test_parse_delivery_time_still_prefers_time_frame_when_present():
+    engine = MercadoLivreEngine()
+    options = [
+        {
+            "cost": 0.0,
+            "estimated_delivery_time": {
+                "time_frame": {"to": 3},
+                "date": (datetime.now(timezone.utc) + timedelta(days=9)).isoformat(),
+            },
+        }
+    ]
+
+    delivery = engine._parse_delivery_time(options)
+
+    # time_frame.to takes precedence over the absolute-date computation.
+    assert delivery["estimated_delivery_days"] == 3
+    # days were resolved via time_frame, so the raw ISO date must not leak.
+    assert "delivery_raw_text" not in delivery
+
+
+def test_parse_delivery_time_malformed_date_degrades_gracefully():
+    engine = MercadoLivreEngine()
+    options = [
+        {
+            "cost": 0.0,
+            "estimated_delivery_time": {"date": "not-a-real-date"},
+        }
+    ]
+
+    delivery = engine._parse_delivery_time(options)
+
+    assert "estimated_delivery_days" not in delivery
+    assert delivery["delivery_raw_text"] == "not-a-real-date"
+
+
+def test_parse_delivery_time_no_estimated_delivery_time_degrades_to_empty():
+    """Regression guard: some regions (e.g. Nordeste in live verification)
+    return no estimated_delivery_time key at all — must still degrade
+    gracefully to an empty dict (cost-only), never raise."""
+    engine = MercadoLivreEngine()
+    options = [{"cost": 15.0}]
+
+    delivery = engine._parse_delivery_time(options)
+
+    assert delivery == {}
 
 
 # --- AmazonShipping ----------------------------------------------------------

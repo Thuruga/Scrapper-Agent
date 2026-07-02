@@ -347,6 +347,72 @@ class TestSellerPrecedence:
         assert seller == "Shoestime"
 
 
+class TestEnrichDeliveryTimeAndBlockedState:
+    """
+    Task 1 (42-03, FRET-08/FRET-09 backend surfacing):
+    _enrich_pdp_and_shipping deve surfacear delivery-time (prazo) quando o
+    engine retorna essas chaves, e marcar p["_shipping_state"] = "blocked"
+    quando o engine retorna None para um marketplace bloqueado (Netshoes),
+    SEM jamais fixar um shipping_price=0.0 falso nesse caso. O caminho de
+    frete gratis existente nao pode regredir.
+    """
+
+    STRICT = "Camisa Polo Aramis Masculina"
+    BROAD = "camisa polo"
+    TITLE = "Camisa Polo Aramis Azul"
+
+    def _run(self, monkeypatch, shipping_result):
+        _pin_settings(monkeypatch)
+        _patch_nlp(monkeypatch, {self.TITLE: 0.90})
+
+        url = "http://net/1"
+        service = _inject_engines(CrossMarketplaceService(), {
+            "Mercado Livre": FakeEngine([]),
+            "Amazon": FakeEngine([]),
+            "Netshoes": FakeEngine(
+                [_prod("Netshoes", self.TITLE, 100.0, url)],
+                shipping_by_url={url: shipping_result},
+            ),
+        })
+
+        result = asyncio.run(
+            service.compare_product(
+                broad_query=self.BROAD,
+                strict_query=self.STRICT,
+                target_sku=None,
+                min_score=70.0,
+                zipcode="01001000",
+            )
+        )
+        by_mp = {r["marketplace"]: r for r in result["results"]}
+        return by_mp["Netshoes"]
+
+    def test_enrich_surfaces_delivery_time(self, monkeypatch):
+        """Quando o engine retorna chaves de prazo, elas sao surfaceadas no produto."""
+        item = self._run(monkeypatch, {
+            "is_free_shipping": False,
+            "shipping_price": 20.0,
+            "estimated_delivery_days": 5,
+            "delivery_raw_text": "Chega em ate 5 dias uteis",
+        })
+        assert item["estimated_delivery_days"] == 5
+        assert item["shipping_raw_text"] == "Chega em ate 5 dias uteis"
+        assert item["shipping_price"] == 20.0
+
+    def test_enrich_surfaces_blocked_state(self, monkeypatch):
+        """None (Netshoes bloqueado) vira _shipping_state='blocked', nunca frete 0.0 falso."""
+        item = self._run(monkeypatch, None)
+        assert item["_shipping_state"] == "blocked"
+        assert item.get("shipping_price") is None
+
+    def test_enrich_free_shipping_still_works(self, monkeypatch):
+        """Regressao: resultado de frete gratis existente continua funcionando."""
+        item = self._run(monkeypatch, {"is_free_shipping": True, "shipping_price": 0.0})
+        assert item["is_free_shipping"] is True
+        assert item["shipping_price"] == 0.0
+        assert item.get("_shipping_state") != "blocked"
+
+
 class TestInactiveMarketplaceExcluded:
     """UX-05 / D-11: deactivating a marketplace excludes it from the NEXT search.
 

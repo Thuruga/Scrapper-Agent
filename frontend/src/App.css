@@ -1427,12 +1427,78 @@ body {
   color: var(--warning);
 }
 
+/* "Bloqueado (anti-bot)" — Netshoes/Phase 42 (T-42-03): estado explícito,
+   nunca um frete grátis/zero falso. Mesmo tom de --error de .monitor-price-blocked. */
+.shipping-state-blocked {
+  color: var(--error);
+}
+
+/* Linha de ações do card de frete (Calcular Frete + Matriz Regional lado a lado, D-06) */
+.shipping-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.shipping-actions-row .shipping-calc-btn {
+  width: auto;
+  flex: 1;
+}
+
+/* Botão "Matriz Regional" (FRET-09) — mesmo tratamento outline do .shipping-calc-btn,
+   visualmente distinto por ficar sempre ao lado (nunca substitui) do "Calcular Frete". */
+.shipping-matrix-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+  padding: 6px 10px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.shipping-matrix-trigger:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--primary);
+}
+
+/* Modal "Frete por região" (FRET-09) — reusa .modal-overlay/.modal-content; aqui só o
+   necessário para a lista de 5 linhas caber confortavelmente (max-width já é inline). */
+.shipping-matrix-modal .shipping-options-list {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.shipping-matrix-modal .shipping-option-row {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 4px;
+  border-bottom: none;
+}
+
 @media (max-width: 640px) {
   /* Allow service name and estimate to wrap; price stays right-aligned */
   .shipping-service-name {
     white-space: normal;
     overflow: visible;
     text-overflow: unset;
+  }
+
+  .shipping-matrix-modal .shipping-option-row {
+    padding: 8px;
+  }
+
+  .shipping-actions-row {
+    flex-wrap: wrap;
   }
 }
 

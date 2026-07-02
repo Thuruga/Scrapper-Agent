@@ -1,8 +1,10 @@
 import json
 import logging
+import math
 import re
 import unicodedata
 import urllib.parse
+from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional, Callable
 import asyncio
 from curl_cffi.requests import AsyncSession
@@ -707,6 +709,17 @@ class MercadoLivreEngine(BaseEngine):
         (RESEARCH.md A1): o campo estimated_delivery_time e opcional e seu
         shape pode variar (unit/time_frame/date); toda leitura usa .get()
         para degradar graciosamente a cost-only quando ausente.
+
+        Verificacao ao vivo (Plan 42-03, live smoke): a API real de
+        /shipping_options nao retorna time_frame.to nem unit+time — ela
+        retorna um `date` absoluto em ISO-8601 (ex: "2026-07-02T00:00:00-03:00").
+        Quando so o `date` esta presente, calculamos estimated_delivery_days
+        a partir da diferenca (em dias, arredondada para cima) entre essa data
+        e agora. delivery_raw_text SO recebe o `date` bruto quando o parse da
+        data falha (fallback defensivo) — o frontend prefere raw_text sobre
+        estimated_delivery_days na cadeia de fallback (App.tsx), entao nunca
+        devemos deixar a string ISO crua vazar como raw_text quando ja
+        conseguimos calcular os dias com sucesso.
         """
         delivery: Dict[str, Any] = {}
         for opt in options:
@@ -721,23 +734,55 @@ class MercadoLivreEngine(BaseEngine):
             date_str = estimate.get("date")
             time_frame = estimate.get("time_frame") or {}
             unit = estimate.get("unit")
+            days_resolved = False
 
             if isinstance(time_frame, dict) and time_frame.get("to") is not None:
                 try:
                     delivery["estimated_delivery_days"] = int(time_frame["to"])
+                    days_resolved = True
                 except (TypeError, ValueError):
                     pass
             elif unit and str(unit).lower() in ("day", "dias", "d") and estimate.get("time") is not None:
                 try:
                     delivery["estimated_delivery_days"] = int(estimate["time"])
+                    days_resolved = True
                 except (TypeError, ValueError):
                     pass
+            elif date_str:
+                days = self._days_from_iso_date(str(date_str))
+                if days is not None:
+                    delivery["estimated_delivery_days"] = days
+                    days_resolved = True
 
-            if date_str:
+            # delivery_raw_text is the defensive fallback: only surface the raw
+            # value when we could NOT turn it into a usable day-count, so the
+            # frontend's raw_text-before-estimated_delivery_days fallback chain
+            # never displays a machine-formatted ISO timestamp to the user.
+            if date_str and not days_resolved:
                 delivery["delivery_raw_text"] = str(date_str)
             if delivery:
                 break
         return delivery
+
+    @staticmethod
+    def _days_from_iso_date(date_str: str) -> Optional[int]:
+        """
+        Converte uma data absoluta ISO-8601 (ex: "2026-07-02T00:00:00-03:00",
+        retornada ao vivo por /shipping_options) na quantidade de dias entre
+        agora e essa data, arredondada para cima (math.ceil) para que "mais
+        tarde hoje" ainda conte como >= 1 dia. Nunca levanta excecao — retorna
+        None em qualquer falha de parse (degradacao graciosa, cost-only).
+        """
+        try:
+            parsed = datetime.fromisoformat(date_str)
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            now = datetime.now(timezone.utc)
+            delta_seconds = (parsed - now).total_seconds()
+            days = math.ceil(delta_seconds / 86400)
+            return max(days, 0)
+        except (ValueError, TypeError, OverflowError):
+            return None
 
     async def _fetch_shipping_options(self, item_id: str, zipcode: str) -> Optional[Dict[str, Any]]:
         api_url = f"https://api.mercadolibre.com/items/{item_id}/shipping_options?zip_code={zipcode}"
