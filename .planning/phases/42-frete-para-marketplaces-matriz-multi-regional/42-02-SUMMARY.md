@@ -121,3 +121,9 @@ None - no external service configuration required.
 ---
 *Phase: 42-frete-para-marketplaces-matriz-multi-regional*
 *Completed: 2026-07-02*
+
+## Self-Check: PASSED
+
+- All created files verified present on disk (regional_matrix.py, cep_matrix.json, shipping_matrix_cache.json, test_shipping_regional_matrix.py, this SUMMARY.md).
+- All 3 task/metadata commit hashes (1718c18, 199f8d5, 677a45f) verified present in git log.
+- Plan-level `<verification>` commands re-run: `pytest tests/test_shipping_regional_matrix.py tests/test_non_vtex_shipping_route.py -x -q` (21 passed) and full suite `pytest -q` (505 passed, up from 490 baseline).
