@@ -203,7 +203,7 @@ Phases ativas executam em ordem numérica: 37 → 38 → 39 → 40 → 41 → 42
 | 35. Publicação de Banners no SharePoint | v3.0 | 0/? | Not started | - |
 | 36. Onboarding das Marcas Concorrentes Restantes | v3.0 | 3/3 | Complete (NO-GO) | 2026-06-25 |
 | 37. Paridade de Atributos & Fundação SQLite | v4.0 | 0/? | Not started | - |
-| 38. UX de Busca & Monitoramento — Quick Wins | v4.0 | 3/3 | Complete   | 2026-07-01 |
+| 38. UX de Busca & Monitoramento — Quick Wins | v4.0 | 3/3 | Complete    | 2026-07-02 |
 | 39. Cobertura de Marcas — Hugo Boss & Zara | v4.0 | 3/3 | Complete    | 2026-06-30 |
 | 40. Onboarding por URL & Workflows de Adição | v4.0 | 5/5 | Complete    | 2026-06-30 |
 | 41. Abstração de Frete & Marcas Não-VTEX | v4.0 | 0/? | Not started | - |
