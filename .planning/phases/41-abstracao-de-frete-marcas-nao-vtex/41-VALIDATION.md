@@ -1,10 +1,11 @@
 ---
 phase: 41
 slug: abstracao-de-frete-marcas-nao-vtex
-status: draft
+status: verified
 nyquist_compliant: true
-wave_0_complete: false
+wave_0_complete: true
 created: 2026-06-29
+verified: 2026-07-02
 ---
 
 # Phase 41 - Validation Strategy
@@ -42,15 +43,15 @@ created: 2026-06-29
 
 | Req ID | Behavior | Wave | Threat Ref | Test Type | Automated Command | File Exists | Status |
 |--------|----------|------|------------|-----------|-------------------|-------------|--------|
-| FRET-07-spike | Spike 011 records GO/NO-GO for Shopify/Buckman and Wake/Richards | 1 | T-live-impact | manual/spike | `cd .planning/spikes/011-non-vtex-shipping && python experiment.py` | missing | pending |
-| FRET-07-a | Resolver selects Shopify/Wake and unsupported for SFCC/unknown; VTEX not routed | 2 | T-vtex-regression | unit | `cd backend && python -m pytest tests/test_shipping_resolver.py -x -q` | missing | pending |
-| FRET-07-a | Common result contract applies primary shipping from sorted `shipping_options` | 2 | T-free-false-positive | unit | `cd backend && python -m pytest tests/test_non_vtex_shipping_integration.py -x -q` | missing | pending |
-| FRET-07-b | Wake provider parses GO response or returns unsupported/temporary failure from NO-GO evidence | 2 | T-provider-auth | unit | `cd backend && python -m pytest tests/test_wake_shipping.py -x -q` | missing | pending |
-| FRET-07-c | Shopify provider parses cart/rates response and handles async null polling | 2 | T-provider-throttle | unit | `cd backend && python -m pytest tests/test_shopify_shipping.py -x -q` | missing | pending |
-| FRET-07-inline | Wake/Shopify inline search fills shipping only with valid CEP and never on missing CEP | 2 | T-dos | integration/mock | `cd backend && python -m pytest tests/test_non_vtex_shipping_integration.py -x -q` | missing | pending |
-| FRET-07-d | VTEX path remains green and outside `BaseShipping` | 2/3 | T-vtex-regression | regression | `cd backend && python -m pytest tests/test_vtex_api_client.py tests/test_vtex_shipping.py tests/test_search_shipping_contract.py -x -q` | exists | pending |
-| FRET-07-api | `/search/calculate-shipping-brand` validates CEP, brand, product host and unsupported states | 3 | T-ssrf | route/unit | `cd backend && python -m pytest tests/test_non_vtex_shipping_route.py -x -q` | missing | pending |
-| FRET-07-ui | Frontend calls non-VTEX endpoint and reuses shipping options renderer | 3 | T-ui-regression | build | `cd frontend && npm run build` | exists | pending |
+| FRET-07-spike | Spike 011 records GO/NO-GO for Shopify/Buckman and Wake/Richards | 1 | T-live-impact | manual/spike | `python .planning/spikes/011-non-vtex-shipping/experiment.py --provider all --write-report` | exists | green |
+| FRET-07-a | Resolver selects Shopify/Wake and unsupported for SFCC/unknown; VTEX not routed | 2 | T-vtex-regression | unit | `cd backend && python -m pytest tests/test_shipping_resolver.py -x -q` | exists | green |
+| FRET-07-a | Common result contract applies primary shipping from sorted `shipping_options` | 2 | T-free-false-positive | unit | `cd backend && python -m pytest tests/test_non_vtex_shipping_integration.py -x -q` | exists | green |
+| FRET-07-b | Wake provider parses GO response or returns unsupported/temporary failure from NO-GO evidence | 2 | T-provider-auth | unit | `cd backend && python -m pytest tests/test_wake_shipping.py -x -q` | exists | green |
+| FRET-07-c | Shopify provider parses cart/rates response and handles async null polling | 2 | T-provider-throttle | unit | `cd backend && python -m pytest tests/test_shopify_shipping.py -x -q` | exists | green |
+| FRET-07-inline | Wake/Shopify inline search fills shipping only with valid CEP and never on missing CEP | 2 | T-dos | integration/mock | `cd backend && python -m pytest tests/test_non_vtex_shipping_integration.py -x -q` | exists | green |
+| FRET-07-d | VTEX path remains green and outside `BaseShipping` | 2/3 | T-vtex-regression | regression | `cd backend && python -m pytest tests/test_vtex_api_client.py tests/test_vtex_shipping.py tests/test_search_shipping_contract.py -x -q` | exists | green |
+| FRET-07-api | `/search/calculate-shipping-brand` validates CEP, brand, product host and unsupported states | 3 | T-ssrf | route/unit | `cd backend && python -m pytest tests/test_non_vtex_shipping_route.py -x -q` | exists | green |
+| FRET-07-ui | Frontend calls non-VTEX endpoint and reuses shipping options renderer | 3 | T-ui-regression | build | `cd frontend && npm run build` | exists | green |
 
 *Status: pending / green / red / flaky*
 
@@ -95,6 +96,28 @@ created: 2026-06-29
 | Wake/Richards live quote | FRET-07-b | Wake quote endpoint/token/product id must be proven against real store | Run spike 011 for Richards; record if quote endpoint accepts public token/product identity. |
 | Post-implementation smoke | FRET-07-b/c | Validates real integration after code | Start backend/frontend, search Buckman/Richards with default CEP and inspect shipping state/options. |
 | VTEX smoke | FRET-07-d | Guards real-store behavior beyond unit tests | Run one known VTEX brand search with frete and compare Phase 33 behavior. |
+
+---
+
+## Final Verification Run
+
+2026-07-02:
+
+```powershell
+cd backend
+python -m pytest tests/test_shipping_resolver.py tests/test_shopify_shipping.py tests/test_wake_shipping.py tests/test_non_vtex_shipping_integration.py tests/test_non_vtex_shipping_route.py tests/test_vtex_api_client.py tests/test_vtex_shipping.py tests/test_search_shipping_contract.py -x -q
+```
+
+Result: 86 passed.
+
+```powershell
+cd frontend
+npm run build
+```
+
+Result: passed.
+
+Manual browser smoke remains listed above as follow-up UAT, but the Phase 41 automated and live-spike gates are green.
 
 ---
 

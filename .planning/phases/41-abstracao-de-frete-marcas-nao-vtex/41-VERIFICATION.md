@@ -1,6 +1,6 @@
 ---
 phase: 41-abstracao-de-frete-marcas-nao-vtex
-verified: 2026-06-29T22:05:00Z
+verified: 2026-07-02T01:39:39Z
 status: automated_passed
 score: automated must-haves verified
 human_verification:
@@ -27,9 +27,9 @@ Phase 41 delivered non-VTEX shipping abstraction and support for Shopify/Buckman
 |------|---------|--------|
 | Spike script | `python -m py_compile .planning/spikes/011-non-vtex-shipping/experiment.py` | pass |
 | Live spike | `python .planning/spikes/011-non-vtex-shipping/experiment.py --provider all --write-report` | Shopify GO, Wake GO |
-| Provider/backend focused | `cd backend && python -m pytest tests/test_shipping_resolver.py tests/test_shopify_shipping.py tests/test_wake_shipping.py tests/test_non_vtex_shipping_integration.py tests/test_non_vtex_shipping_route.py tests/test_vtex_api_client.py tests/test_vtex_shipping.py tests/test_search_shipping_contract.py -x -q` | 82 passed |
+| Provider/backend focused | `cd backend && python -m pytest tests/test_shipping_resolver.py tests/test_shopify_shipping.py tests/test_wake_shipping.py tests/test_non_vtex_shipping_integration.py tests/test_non_vtex_shipping_route.py tests/test_vtex_api_client.py tests/test_vtex_shipping.py tests/test_search_shipping_contract.py -x -q` | 86 passed on 2026-07-02 |
 | Full backend suite | `cd backend && python -m pytest tests/ -x -q` | 339 passed |
-| Frontend build | `cd frontend && npm run build` | pass |
+| Frontend build | `cd frontend && npm run build` | pass on 2026-07-02 |
 
 ## Must-Haves
 

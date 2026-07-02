@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Paridade de Dados, Cobertura Total de Frete & Inteligência Competitiva
-status: verifying
-stopped_at: Completed 38-38-03-PLAN.md
-last_updated: "2026-07-02T01:17:00.121Z"
+status: ready_to_plan
+stopped_at: Phase 41 complete; ready to plan Phase 42
+last_updated: "2026-07-02T01:39:39.151Z"
 last_activity: 2026-07-02
 progress:
   total_phases: 9
@@ -18,10 +18,10 @@ progress:
 
 ## Project Reference
 
-See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/scrapper/.planning/PROJECT.md) (updated 2026-06-26)
+See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/scrapper/.planning/PROJECT.md) (updated 2026-07-02)
 
 **Core value:** Extração automatizada e resiliente de dados de mercado com mínima intervenção humana e alta fidelidade de dados.
-**Current focus:** Phase 38 — UX de Busca & Monitoramento — Quick Wins
+**Current focus:** Phase 42 — Frete para Marketplaces & Matriz Multi-Regional
 
 ## Current Milestone: v4.0 Paridade de Dados, Cobertura Total de Frete & Inteligência Competitiva
 
@@ -31,9 +31,9 @@ See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/sc
 
 ## Current Position
 
-Phase: 39
+Phase: 42
 Plan: Not started
-Status: Phase complete — ready for verification
+Status: Ready to plan
 Last activity: 2026-07-02
 
 ## Performance Metrics
@@ -131,12 +131,13 @@ Last activity: 2026-07-02
 - [v3.0 COMP-04]: O build do engine Wake é gated por um spike de confirmação (Wave 0 da Phase 32) do fluxo GraphQL + `TCS-Access-Token` contra a Richards/Shop2gether — Wake é HIGH confidence documentalmente mas NÃO foi testado empiricamente. GO/NO-GO registrado antes do engine completo.
 - [v3.0 COMP-03]: Caminho SFCC é público via browser (JSON-LD/OpenGraph), validado por spikes 003-006 — HTTP direto é 403. Escopo: catálogo + preço APENAS. SEM frete/checkout, estoque por CEP, OCAPI/SCAPI ou bypass de anti-bot.
 - [v3.0 FRET-05]: Frete VTEX continua via `VtexApiClient` interno — NÃO rotear pelo hook `calculate_shipping` (decisão arquitetural herdada do v2.0 para evitar regressão).
-- [v3.0 scope]: Zara/Inditex IOP (COMP-FUT-03) permanece fora do milestone, mas Phase 36 encontrou páginas públicas carregáveis; promover para fase futura dedicada. Auth segue API key compartilhada (PROFILE-FUT-01 adiado); FRET-06 (Shopify shipping) segue Future.
+- [v3.0 scope]: Zara/Inditex IOP (COMP-FUT-03) permanece fora do milestone, mas Phase 36 encontrou páginas públicas carregáveis; promover para fase futura dedicada. Auth segue API key compartilhada (PROFILE-FUT-01 adiado). FRET-06 foi absorvido por FRET-07 na Phase 41.
 - [v3.0 banners]: BANNER-FUT-01 foi promovido para BANNER-01..06. Phase 34 entrega extração desktop (todos os slides de imagem do hero, arquivos originais, metadados e relatório); Phase 35 entrega publicação idempotente no SharePoint com gate de acesso/permissões.
 - [v3.0 banners scope]: Viewport desktop `1366×768` apenas. Mobile, download de vídeos e agendamento recorrente ficam fora do milestone; vídeos intercalados são contabilizados para que a navegação não pare antes de banners posteriores.
 - [v3.0 banners spike]: Protótipo `testes/extrair_banners.py` validado em 13/13 sites ativos: 37 imagens extraídas, 3 slides em vídeo identificados e zero falhas de download na rodada de 2026-06-23.
 - [v4.0 ARCH/SQLite]: Dados analíticos (assortment snapshots, review corpora, price/stock series) migram para SQLite (stdlib, zero-dep); JSON permanece para config (brands, monitors, MAP rules, CEP matrix). Introduzido na Phase 37; consumido por Phase 45.
 - [v4.0 ARCH/shipping]: Abstração `BaseShipping` em `services/shipping/`; VTEX permanece em `VtexApiClient` (D-03 herdada); novos providers (Wake, Shopify, marketplace) implementam a interface. Introduzida na Phase 41.
+- [41/FRET-07-complete]: Shopify/Buckman e Wake/Richards têm frete real via providers não-VTEX; `/search/calculate-shipping-brand` valida marca, CEP e host persistido; estados unsupported/temporary nunca viram frete grátis; VTEX segue em `/search/calculate-shipping-vtex`.
 - [v4.0 COMP-07/spike-gate]: COMP-07 (Zara) é gated por spike de viabilidade GO/NO-GO (spike 010); engine só construído em GO — espelha o padrão da Phase 32 (Richards). Spike documenta produto+preço acessíveis publicamente antes de qualquer commit de engine.
 - [v4.0 STOCK-02/guard-rails]: Cart-probe de 999 unidades usa sessões Playwright efêmeras e isoladas com cleanup garantido, throttle entre requisições, e é invocado APENAS em varreduras controladas explícitas — nunca inline em buscas ao vivo.
 - [v4.0 FRET-09/guard-rails]: Matriz Multi-Regional é on-demand/batched, com throttle e cache por (sku, cep); lista de CEPs curada em `backend/data/cep_matrix.json`; nunca executada inline durante buscas.
@@ -197,7 +198,7 @@ Last activity: 2026-07-02
 - [v4.0/COMP-07 — Zara REVISADO 2026-07-01] Phase 39-02's spike 010 NO-GO (2026-06-29) has been **reversed** by operator live retest: Zara BR product+price extraction confirmed working (category scan export `dados_zara_categoria.xlsx`). `ZaraEngine`/`zara_parser.py` built and committed; `brands.json` `zara` entry (`is_active: true`) — already present since commit `d05b6eb` — is now backed by a real implementation (that commit had wired `factory.py`'s zara branch and activated the brand without ever committing the engine module, leaving this branch broken for any Zara search since 2026-06-29). No fresh automated spike report was produced for the reversal (unlike Lacoste's spike 009); `proxy_url` remains unset, so the same IP-reputation anti-bot risk documented for Lacoste applies if run from a datacenter/corporate egress. See `.planning/todos/pending/zara-comp07-deferred.md`.
 - [v3.0/COMP-03 — Lacoste REVISADO 2026-06-25 (spike 009)] Lacoste (`sfcc`) permanece **inativa em produção**, mas o NO-GO da Phase 36 foi **REVERTIDO**: o anti-bot Akamai é por **reputação de IP** (não fingerprint — stealth não muda nada). De um **IP limpo (4G)** a busca retorna **32 produtos reais server-side**. O NO-GO original vinha de DUAS causas: (1) IP corporativo da Aramis bloqueado; (2) URL de busca errada. Host canônico: `www.lacoste.com/br/` (o `lacoste.com.br` redireciona à home e perde o `?q=`); endpoint `…/search?q=`. **Engine SFCC já CORRIGIDA e testada offline** contra o HTML real capturado: `parse_search_tiles` (extrai do tile), `brand.search_url_template`, hook `brand.proxy_url`→`BrowserManager` (259 testes verdes). Trava ÚNICA p/ ativar — sobretudo no **Azure (IP datacenter, bloqueado mais forte)**: **egress de IP limpo** (proxy residencial/móvel barato OU dispositivo dedicado em link residencial). Sem verba no momento → mantida dormente; setar `proxy_url` + validar D-06 ao vivo antes de `is_active=true`. Evidência: `.planning/spikes/009-lacoste-headed-mobile/FINDINGS.md`.
 - [31-REVIEW/HIGH — RESOLVIDO 2026-06-25] SFCC double-www: corrigido em `sfcc_engine.py` (helper `_strip_www` remove prefixo `www.` antes dos builders de search/home URL + teste de regressão `test_search_url_no_double_www_when_domain_has_www`). Commit 83dfdba. O bloqueio remanescente da Lacoste é anti-bot, não mais o double-www.
-- FRET-06 (Shopify): permanece adiado — smoke test necessário antes de comprometer (sessão/cookie no AJAX Cart pode requerer Playwright). Fora do escopo do v3.0. Pode ser absorvido pela abstração de frete (FRET-07) no v4.0.
+- [Phase 41] Manual browser UAT de frete ainda é desejável: inspecionar um produto Buckman e um Richards com CEP válido no frontend, além de um smoke VTEX, para confirmar a experiência visual em ambiente rodando. A evidência automatizada e o spike live estão verdes.
 - [v3.0/BANNER-05] SharePoint: site/biblioteca de destino, credenciais e permissões ainda não foram fornecidos. Phase 35 deve começar por um gate de conectividade e acesso antes do publicador completo.
 
 ### Quick Tasks Completed
@@ -217,18 +218,18 @@ Last activity: 2026-07-02
 | Exportação | EXPORT-HIST-01 (export do histórico) | Deferred | v1.12 init |
 | Exportação | EXPORT-UNIFY-01 (unificar com export por marca) | Deferred | v1.12 init |
 | Acesso | PROFILE-FUT-01 (perfis por equipe) | Deferred | v2.0 init |
-| Frete | FRET-06 (Shopify checkout shipping) | Deferred (viabilidade) | v2.0 init; may absorb into FRET-07 |
+| Frete | FRET-06 (Shopify checkout shipping) | Absorbed by FRET-07 | Phase 41 |
 | Banners | BANNER-05/06 (SharePoint) | Blocked (credenciais/permissões) | v4.0 init |
 
 ## Session Continuity
 
-Last session: 2026-07-01T18:49:58.384Z
-Stopped at: Completed 38-38-03-PLAN.md
+Last session: 2026-07-02T01:39:39.151Z
+Stopped at: Phase 41 complete; ready to plan Phase 42
 Resume file: None
 
 ## Operator Next Steps
 
-- Phase 37: `/gsd-plan-phase 37` (Paridade de Atributos & Fundação SQLite — foundational, start here)
-- Phase 38: pode rodar em paralelo lógico com Phase 37 (UX quick wins — frontend-only)
+- Phase 42: `/gsd-plan-phase 42` (Frete para Marketplaces & Matriz Multi-Regional — depende da abstração concluída na Phase 41)
+- Phase 37: ainda aberto no roadmap; revisar antes de qualquer trabalho que dependa diretamente de atributos canônicos/SQLite
 - Phase 35: ainda pendente (banners SharePoint) — gate de acesso ao SharePoint necessário primeiro
 - Lacoste: ativar quando houver egress de IP limpo (proxy residencial/móvel); setar `proxy_url` e validar D-06 ao vivo antes de `is_active=true`

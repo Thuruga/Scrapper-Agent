@@ -38,6 +38,7 @@ _Requisitos v4.0 a serem definidos em REQUIREMENTS.md após a pesquisa de domín
 - ✓ **UX-07**: Busca por SKU valida o padrão `ML.05.XXXXXXX` no frontend; CEP inline na mesma linha do SKU. (Phase 38)
 - ✓ **UX-08**: Selecionar uma categoria no monitor dispara a primeira varredura automaticamente (reaproveitando o trigger de background já existente) e abre a lista de produtos ao concluir. (Phase 38)
 - ✓ **COMP-08**: Lacoste não aparece como opção selecionável em nenhuma superfície de busca; garantido pelo chokepoint `list_brands(active_only=True)` + teste de regressão. (Phase 38)
+- ✓ **FRET-07**: Frete não-VTEX entregue por abstração `BaseShipping` com providers Shopify/Buckman e Wake/Richards, endpoint sob demanda para marcas não-VTEX, busca inline com CEP, estados unsupported/temporary sem falso grátis, e VTEX preservado no `VtexApiClient`. (Phase 41)
 
 **Nota:** o code review da Phase 38 (`38-REVIEW.md`) encontrou 1 bug crítico pré-existente fora de escopo (`CR-01`, comparação `available_colors`/`available_sizes` em `price_monitor_service.py` pode lançar `TypeError` em dados mistos/`None`) — registrado como dívida técnica, não bloqueou a phase. Manual UAT (`38-HUMAN-UAT.md`) permanece `partial`/pendente de confirmação humana em browser para UX-01/UX-06/UX-07/UX-08 — todos os checks automatizados (473 testes backend + build frontend) passaram.
 
@@ -149,6 +150,7 @@ _Requisitos v4.0 a serem definidos em REQUIREMENTS.md após a pesquisa de domín
 | Extração em Streaming | Evitar saturação de RAM em jobs massivos. | ✓ Implementado |
 | Fallback para Playwright | Garantir coleta mesmo em sites com WAF agressivo. | ✓ Implementado |
 | JWT Authentication | Proteger dados sensíveis e gerenciar sessões. | ✓ Implementado |
+| Abstração de Frete por Engine | Permitir frete real em Shopify/Wake sem mover VTEX para o novo resolver. | ✓ Implementado na Phase 41 |
 
 ## Evolution
 
@@ -168,4 +170,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-02 — Phase 38 completa (UX de Busca & Monitoramento — Quick Wins): UX-01, UX-02, UX-06, UX-07, UX-08, COMP-08 validados.*
+*Last updated: 2026-07-02 — Phase 41 completa (Abstração de Frete & Marcas Não-VTEX): FRET-07 validado com providers Shopify/Wake, endpoint sob demanda, regressão VTEX e build frontend verdes.*
