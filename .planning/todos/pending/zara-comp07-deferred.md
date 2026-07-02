@@ -1,10 +1,29 @@
 ---
 created: 2026-06-29
+updated: 2026-07-01
 area: backend (engine) + research
-source: 39-02 spike 010 (NO-GO verdict, operator-ratified)
+source: 39-02 spike 010 (NO-GO verdict, operator-ratified); REVISADO 2026-07-01 (operator live retest, GO)
 priority: medium
-resolves_phase:
+resolves_phase: 39
+status: resolved
 ---
+
+# COMP-07 (Zara) — REVISADO 2026-07-01: GO, engine built and active
+
+**Update (2026-07-01):** Operator re-tested Zara BR extraction live and confirmed
+product + price are extractable (mirrors the Lacoste spike-009 pattern — the
+original NO-GO was environment-dependent, not a structural block). `ZaraEngine`
++ `zara_parser.py` were built and `brands.json`'s `zara` entry (`engine: "zara"`,
+`is_active: true`) is now backed by a real implementation — closing a latent gap
+where `factory.py` (commit `d05b6eb`) referenced `services.engines.zara_engine`
+before that module existed in git history. No fresh automated spike report was
+generated for this reversal; evidence is the operator's live retest plus a
+category scan export (`dados_zara_categoria.xlsx`) and the full backend suite
+(473 tests) passing with the new engine wired in. `proxy_url` is still unset for
+Zara — if the anti-bot block reappears from a datacenter/corporate IP (as with
+Lacoste), the same clean-egress remediation applies.
+
+Original NO-GO record preserved below for context.
 
 # COMP-07 (Zara) deferred — public extraction blocked by anti-bot
 
