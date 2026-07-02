@@ -277,6 +277,12 @@ def build_formatted_results(produtos: List[Dict[str, Any]]) -> List[Dict[str, An
                 "landed_price": price + p.get("shipping_price")
                 if p.get("shipping_price") is not None
                 else price,
+                # Delivery-time (prazo) + blocked-state surfacing (FRET-08/FRET-09,
+                # Phase 42 Plan 03) — only set when present upstream; a missing key
+                # degrades gracefully (no fake value substituted).
+                **({"estimated_delivery_days": p["estimated_delivery_days"]} if "estimated_delivery_days" in p else {}),
+                **({"shipping_raw_text": p["shipping_raw_text"]} if "shipping_raw_text" in p else {}),
+                **({"_shipping_state": p["_shipping_state"]} if "_shipping_state" in p else {}),
             }
         )
     return formatted

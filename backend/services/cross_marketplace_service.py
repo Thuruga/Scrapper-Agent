@@ -513,6 +513,17 @@ class CrossMarketplaceService:
                     if shipping_info:
                         p["is_free_shipping"] = shipping_info.get("is_free_shipping", False)
                         p["shipping_price"] = shipping_info.get("shipping_price")
+                        # Surface delivery-time (prazo) onto the product when the
+                        # engine result carries it (T-42-03 / FRET-08 UI surface).
+                        # .get() guards keep a missing field degrading to cost-only.
+                        if "estimated_delivery_days" in shipping_info:
+                            p["estimated_delivery_days"] = shipping_info.get("estimated_delivery_days")
+                        if "delivery_raw_text" in shipping_info:
+                            p["shipping_raw_text"] = shipping_info.get("delivery_raw_text")
+                    else:
+                        # Marketplace engine mapped to None => anti-bot block (Netshoes).
+                        # Never fake a free/zero shipping value for a block (T-42-03).
+                        p["_shipping_state"] = "blocked"
                 except Exception as e:
                     logger.debug(f"Erro ao calcular frete para {plat}: {e}")
 
