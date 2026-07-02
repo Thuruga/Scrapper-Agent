@@ -29,7 +29,7 @@ Phases 19-36 pertencem a milestones CONCLUÍDOS (v1.10-v3.0). As phases ativas d
 - [x] **Phase 39: Cobertura de Marcas — Hugo Boss & Zara** - Varredura e monitoramento por categoria da Hugo Boss funcionando; spike-gated onboarding da Zara (GO/NO-GO antes do engine) (COMP-06, COMP-07) (completed 2026-06-30)
 - [x] **Phase 40: Onboarding por URL & Workflows de Adição ao Monitoramento** - Cadastro de marca só pela URL, detecção automática de engine + nome, botão "adicionar ao monitoramento" nas três superfícies de busca e toggles de ativar/desativar para marketplaces virtuais (UX-03, UX-04, UX-05) (completed 2026-06-30)
 - [x] **Phase 41: Abstração de Frete & Marcas Não-VTEX** - Camada de abstração de frete por engine (BaseShipping + implementações Wake/Shopify), fechamento do gap de frete do Buckman (VTEX) e VTEX permanece no VtexApiClient (FRET-07) (completed 2026-07-02)
-- [ ] **Phase 42: Frete para Marketplaces & Matriz Multi-Regional** - Cálculo de frete para Mercado Livre, Netshoes e Amazon; Matriz de Frete Multi-Regional com CEPs-chave das 5 regiões do Brasil, on-demand com throttle e cache (FRET-08, FRET-09)
+- [x] **Phase 42: Frete para Marketplaces & Matriz Multi-Regional** - Cálculo de frete para Mercado Livre, Netshoes e Amazon; Matriz de Frete Multi-Regional com CEPs-chave das 5 regiões do Brasil, on-demand com throttle e cache (FRET-08, FRET-09) (completed 2026-07-02)
 - [ ] **Phase 43: Violação de MAP & Selos de Promoção** - Regras de preço mínimo (MAP) por produto/marca/categoria com sinalização de vendedores infratores; extração estruturada de selos de oferta e condições de pagamento (MAP-01, PROMO-01)
 - [x] **Phase 44: Ruptura de Estoque & Avaliações Reforçadas** - Percentual de produtos esgotados por marca na varredura; profundidade de estoque via cart-probe de 999 unidades (sessões efêmeras + throttle); notas e comentários reforçados para todas as marcas com paginação e dedup (STOCK-01, STOCK-02, REVW-01) (completed 2026-06-30)
 - [ ] **Phase 45: Análise de Sortimento** - Cron que varre categorias e contabiliza produtos por atributo canônico, gerando snapshots para identificar buracos no catálogo; depende dos atributos canônicos (PARID) e da persistência SQLite (SORT-01)
@@ -149,8 +149,8 @@ Plans:
 
 **Wave 2** *(depends on 42-01)*
 
-- [ ] 42-02-PLAN.md — Backend: matriz regional (throttle + cache TTL + guard inline) + rota /calculate-shipping-matrix (FRET-09; D-04/D-08/D-09/D-10)
-- [ ] 42-03-PLAN.md — Frontend: prazo + estado blocked + botão/modal "Matriz Regional" (FRET-08/FRET-09; D-05/D-06/D-07)
+- [x] 42-02-PLAN.md — Backend: matriz regional (throttle + cache TTL + guard inline) + rota /calculate-shipping-matrix (FRET-09; D-04/D-08/D-09/D-10)
+- [x] 42-03-PLAN.md — Frontend: prazo + estado blocked + botão/modal "Matriz Regional" (FRET-08/FRET-09; D-05/D-06/D-07)
 
 ### Phase 43: Violação de MAP & Selos de Promoção
 
@@ -217,7 +217,7 @@ Phases ativas executam em ordem numérica: 37 → 38 → 39 → 40 → 41 → 42
 | 39. Cobertura de Marcas — Hugo Boss & Zara | v4.0 | 3/3 | Complete    | 2026-06-30 |
 | 40. Onboarding por URL & Workflows de Adição | v4.0 | 5/5 | Complete    | 2026-06-30 |
 | 41. Abstração de Frete & Marcas Não-VTEX | v4.0 | 3/3 | Complete | 2026-07-02 |
-| 42. Frete para Marketplaces & Matriz Multi-Regional | v4.0 | 1/3 | In Progress|  |
+| 42. Frete para Marketplaces & Matriz Multi-Regional | v4.0 | 3/3 | Complete   | 2026-07-02 |
 | 43. Violação de MAP & Selos de Promoção | v4.0 | 0/? | Not started | - |
 | 44. Ruptura de Estoque & Avaliações Reforçadas | v4.0 | 5/5 | Complete   | 2026-06-30 |
 | 45. Análise de Sortimento | v4.0 | 0/? | Not started | - |
