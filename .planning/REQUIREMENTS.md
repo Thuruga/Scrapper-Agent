@@ -35,8 +35,8 @@ Requisitos comprometidos para este milestone. Cada um mapeia para uma phase no R
 ### D — Frete (Cobertura Total)
 
 - [ ] **FRET-07**: O sistema calcula frete para marcas não-VTEX (Wake/Shopify/SFCC) via uma abstração de frete por engine, e fecha o gap de frete do **Buckman** (VTEX). VTEX permanece no `VtexApiClient` (D-03).
-- [ ] **FRET-08**: O sistema calcula frete para os marketplaces (Mercado Livre, Netshoes, Amazon).
-- [ ] **FRET-09**: **Matriz de Frete Multi-Regional** — o sistema calcula frete para CEPs-chave das 5 regiões do Brasil. _Guard-rails: on-demand/batched (nunca inline na varredura), throttle, cache por (sku, cep), lista de CEPs curada._
+- [x] **FRET-08**: O sistema calcula frete para os marketplaces (Mercado Livre, Netshoes, Amazon).
+- [x] **FRET-09**: **Matriz de Frete Multi-Regional** — o sistema calcula frete para CEPs-chave das 5 regiões do Brasil. _Guard-rails: on-demand/batched (nunca inline na varredura), throttle, cache por (sku, cep), lista de CEPs curada._
 
 ### E — Inteligência Competitiva
 
@@ -101,8 +101,8 @@ Explicitamente excluído deste milestone, com motivo.
 | UX-04 | Phase 40 (P03 backend complete; P05 frontend pending) | Partial |
 | UX-05 | Phase 40 | Complete |
 | FRET-07 | Phase 41 | Pending |
-| FRET-08 | Phase 42 | Pending |
-| FRET-09 | Phase 42 | Pending |
+| FRET-08 | Phase 42 | Complete |
+| FRET-09 | Phase 42 | Complete |
 | MAP-01 | Phase 43 | Pending |
 | PROMO-01 | Phase 43 | Pending |
 | STOCK-01 | Phase 44 | Complete |

@@ -217,7 +217,7 @@ Phases ativas executam em ordem numérica: 37 → 38 → 39 → 40 → 41 → 42
 | 39. Cobertura de Marcas — Hugo Boss & Zara | v4.0 | 3/3 | Complete    | 2026-06-30 |
 | 40. Onboarding por URL & Workflows de Adição | v4.0 | 5/5 | Complete    | 2026-06-30 |
 | 41. Abstração de Frete & Marcas Não-VTEX | v4.0 | 3/3 | Complete | 2026-07-02 |
-| 42. Frete para Marketplaces & Matriz Multi-Regional | v4.0 | 3/3 | Complete   | 2026-07-02 |
+| 42. Frete para Marketplaces & Matriz Multi-Regional | v4.0 | 3/3 | Complete    | 2026-07-02 |
 | 43. Violação de MAP & Selos de Promoção | v4.0 | 0/? | Not started | - |
 | 44. Ruptura de Estoque & Avaliações Reforçadas | v4.0 | 5/5 | Complete   | 2026-06-30 |
 | 45. Análise de Sortimento | v4.0 | 0/? | Not started | - |
