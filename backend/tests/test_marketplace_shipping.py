@@ -8,6 +8,7 @@ from services.engines.amazon_engine import AmazonEngine
 from services.shipping.amazon import AmazonShipping
 from services.shipping.base import DEFAULT_MESSAGES, ShippingState
 from services.shipping.mercado_livre import MercadoLivreShipping
+from services.shipping.netshoes import NetshoesShipping
 
 
 def test_shipping_state_blocked_exists():
@@ -154,3 +155,59 @@ async def test_amazon_provider_captcha_is_temporary_not_blocked():
     result = await provider.calculate(product, "01310100", brand)
 
     assert result.state == ShippingState.TEMPORARY_FAILURE
+
+
+# --- NetshoesShipping --------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_netshoes_provider_blocked_when_engine_returns_none():
+    engine = _FakeEngine(None)
+    provider = NetshoesShipping(engine=engine)
+    brand = _brand("netshoes", "netshoes.com.br")
+    product = _product("https://www.netshoes.com.br/produto-x")
+
+    result = await provider.calculate(product, "01310100", brand)
+
+    assert result.state == ShippingState.BLOCKED
+    assert result.message == "Bloqueado (anti-bot)"
+    assert result.shipping_options == []
+
+
+@pytest.mark.asyncio
+async def test_netshoes_provider_available_when_engine_returns_price():
+    engine = _FakeEngine({"is_free_shipping": False, "shipping_price": 19.9})
+    provider = NetshoesShipping(engine=engine)
+    brand = _brand("netshoes", "netshoes.com.br")
+    product = _product("https://www.netshoes.com.br/produto-x")
+
+    result = await provider.calculate(product, "01310100", brand)
+
+    assert result.state == ShippingState.AVAILABLE
+    assert result.shipping_options[0].price == 19.9
+
+
+@pytest.mark.asyncio
+async def test_netshoes_provider_invalid_cep():
+    engine = _FakeEngine(None)
+    provider = NetshoesShipping(engine=engine)
+    brand = _brand("netshoes", "netshoes.com.br")
+    product = _product("https://www.netshoes.com.br/produto-x")
+
+    result = await provider.calculate(product, "123", brand)
+
+    assert result.state == ShippingState.UNAVAILABLE_FOR_CEP
+    assert engine.calls == []
+
+
+@pytest.mark.asyncio
+async def test_netshoes_provider_url_host_mismatch():
+    engine = _FakeEngine(None)
+    provider = NetshoesShipping(engine=engine)
+    brand = _brand("netshoes", "netshoes.com.br")
+    product = _product("https://www.outrosite.com.br/produto-x")
+
+    result = await provider.calculate(product, "01310100", brand)
+
+    assert result.state == ShippingState.UNSUPPORTED
+    assert engine.calls == []
