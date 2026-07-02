@@ -26,6 +26,7 @@ from services.cross_marketplace_service import cross_marketplace_service
 from services.search_history_service import search_history_service
 from services.shipping.base import apply_shipping_calculation, is_url_allowed_for_brand
 from services.shipping.resolver import resolve_shipping_provider
+from services.shipping.regional_matrix import calculate_regional_matrix, load_cep_matrix
 
 router = APIRouter(prefix="/search", tags=["search"])
 
@@ -125,6 +126,27 @@ class CalculateBrandShippingResponse(BaseModel):
     shipping_price: Optional[float] = None
     is_free_shipping: bool = False
     message: Optional[str] = None
+
+
+class CalculateShippingMatrixRequest(BaseModel):
+    """Matriz de frete multi-regional sob demanda para um produto (FRET-09)."""
+
+    brand_key: str = Field(..., min_length=1, description="Chave da marca.")
+    product_url: str = Field(..., min_length=1, description="URL do produto na marca.")
+
+
+class ShippingMatrixRegionResult(BaseModel):
+    region: str
+    capital: str
+    cep: str
+    state: str
+    shipping: Optional[ShippingInfo] = None
+    message: Optional[str] = None
+    cached: bool = False
+
+
+class CalculateShippingMatrixResponse(BaseModel):
+    regions: List[ShippingMatrixRegionResult] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -677,8 +699,8 @@ async def calculate_shipping_vtex(request: CalculateVtexShippingRequest):
     response_model=CalculateBrandShippingResponse,
     summary="Calculo de frete nao-VTEX sob demanda",
     description=(
-        "Calcula frete para marcas Wake/Shopify usando o resolver nao-VTEX. "
-        "VTEX permanece no endpoint /calculate-shipping-vtex."
+        "Calcula frete para marcas Wake/Shopify/Mercado Livre/Amazon/Netshoes "
+        "usando o resolver nao-VTEX. VTEX permanece no endpoint /calculate-shipping-vtex."
     ),
 )
 async def calculate_shipping_brand(request: CalculateBrandShippingRequest):
@@ -719,3 +741,38 @@ async def calculate_shipping_brand(request: CalculateBrandShippingRequest):
         is_free_shipping=product.is_free_shipping,
         message=calculation.message,
     )
+
+
+@router.post(
+    "/calculate-shipping-matrix",
+    response_model=CalculateShippingMatrixResponse,
+    summary="Matriz de frete multi-regional sob demanda (FRET-09)",
+    description=(
+        "Calcula frete/prazo para um produto nos 5 CEPs curados (uma capital por regiao). "
+        "On-demand/batched apenas — nunca chamado durante varredura/busca ao vivo (D-10)."
+    ),
+)
+async def calculate_shipping_matrix(request: CalculateShippingMatrixRequest):
+    brand_key = request.brand_key.lower()
+    brand = brand_service.get_brand(brand_key)
+    if not brand:
+        raise HTTPException(status_code=404, detail=f"Marca '{brand_key}' nao encontrada.")
+
+    if not is_url_allowed_for_brand(request.product_url, brand):
+        raise HTTPException(
+            status_code=400,
+            detail="URL do produto nao pertence ao dominio da marca.",
+        )
+
+    product = SearchProductResult(
+        brand=brand_key,
+        product_name="Produto",
+        url=request.product_url,
+        price_full=None,
+    )
+    cep_list = load_cep_matrix()
+    results = await calculate_regional_matrix(
+        product, brand, cep_list, triggered_by="on_demand_matrix_button"
+    )
+
+    return CalculateShippingMatrixResponse(regions=results)
