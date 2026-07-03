@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Paridade de Dados, Cobertura Total de Frete & Inteligência Competitiva
 status: executing
-stopped_at: Phase 42 UI-SPEC approved
-last_updated: "2026-07-02T14:11:41.720Z"
+stopped_at: Phase 37 context gathered
+last_updated: "2026-07-03T13:11:51.114Z"
 last_activity: 2026-07-02
 progress:
   total_phases: 9
@@ -223,9 +223,9 @@ Last activity: 2026-07-02
 
 ## Session Continuity
 
-Last session: 2026-07-02T02:39:01.195Z
-Stopped at: Phase 42 UI-SPEC approved
-Resume file: .planning/phases/42-frete-para-marketplaces-matriz-multi-regional/42-UI-SPEC.md
+Last session: 2026-07-03T13:11:51.078Z
+Stopped at: Phase 37 context gathered
+Resume file: .planning/phases/37-paridade-de-atributos-funda-o-sqlite/37-CONTEXT.md
 
 ## Operator Next Steps
 
