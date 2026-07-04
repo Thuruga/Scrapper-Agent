@@ -49,10 +49,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# O browser so pode chamar a API a partir dos servidores locais do Vite.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],
+    allow_origins=["*"],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -117,7 +116,7 @@ else:
 
     @app.get("/")
     async def local_frontend_hint():
-        return {"message": "Frontend local em http://127.0.0.1:5173"}
+        return {"message": "Backend em :8500 — Frontend local em http://127.0.0.1:5173"}
 
 
 if __name__ == "__main__":

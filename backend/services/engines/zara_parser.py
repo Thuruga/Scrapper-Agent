@@ -17,6 +17,7 @@ from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 
+from services.promotion_parser import derive_discount_promotions
 
 _BR_MONEY_RE = re.compile(
     r"R\$\s*([\d]{1,3}(?:\.[\d]{3})*,[\d]{2}|[\d]+,[\d]{2})"
@@ -112,6 +113,10 @@ def _product_dict(
         "raw_description": name,
         "price_full": price_full,
         "price_discount": price_discount,
+        "promotions": [
+            promo.model_dump(mode="json")
+            for promo in derive_discount_promotions(price_full, price_discount)
+        ],
         "stock_availability": available,
         "image_url": image_url,
         "available_colors": [],

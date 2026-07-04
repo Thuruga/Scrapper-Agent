@@ -14,6 +14,7 @@ from config import relevance_settings
 from services.engines.base_engine import BaseEngine
 from core.models import BrandSearchResult, SearchProductResult, ShippingInfo
 from services.engines.seller_extraction import parse_ml_seller_from_html, MARKETPLACE_DEFAULT_SELLER
+from services.promotion_parser import derive_discount_promotions
 
 logger = logging.getLogger(__name__)
 
@@ -632,6 +633,10 @@ class MercadoLivreEngine(BaseEngine):
                 url=item["url"],
                 price_full=item["preco"],
                 price_discount=item.get("preco_desconto"),
+                promotions=derive_discount_promotions(
+                    item["preco"],
+                    item.get("preco_desconto"),
+                ),
                 image_url=item["imagem"],
                 available=True,
                 seller=item.get("seller", "Mercado Livre"),

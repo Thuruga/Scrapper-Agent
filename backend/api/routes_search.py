@@ -7,8 +7,9 @@ POST /search  —  Busca um termo em todas as marcas simultaneamente e retorna
 Não usa Playwright — chama a API VTEX full-text diretamente (HTTP puro).
 """
 
-from typing import List, Optional
+from typing import Any, List, Optional
 import io
+import json
 import re
 import pandas as pd
 import asyncio
@@ -23,12 +24,135 @@ from services.brand_service import brand_service
 from core.models import ComparisonResult, SearchProductResult, ShippingInfo
 from services.engines.factory import engine_factory
 from services.cross_marketplace_service import cross_marketplace_service
+from services.map_evaluator_service import evaluate_map_violation
+from services.map_rules_service import map_rules_service
+from services.product_contract import build_canonical_export_dataframe
 from services.search_history_service import search_history_service
 from services.shipping.base import apply_shipping_calculation, is_url_allowed_for_brand
 from services.shipping.resolver import resolve_shipping_provider
 from services.shipping.regional_matrix import calculate_regional_matrix, load_cep_matrix
 
 router = APIRouter(prefix="/search", tags=["search"])
+
+
+def _has_export_value(value: Any) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, str):
+        cleaned = value.strip()
+        return bool(cleaned) and cleaned.lower() != "none"
+    if isinstance(value, (list, tuple, set, dict)):
+        return bool(value)
+    return True
+
+
+def _seed_search_export_product(
+    product: SearchProductResult,
+    brand_name: str,
+) -> dict[str, Any]:
+    return {
+        "brand": brand_name or product.brand,
+        "url": product.url,
+        "product_name": product.product_name,
+        "price_full": product.price_full,
+        "price_discount": product.price_discount,
+        "price_discount_is_delta": product.price_discount_is_delta,
+        "image_url": product.image_url,
+        "category": product.category,
+        "available": product.available,
+        "rating": product.rating,
+        "review_count": product.review_count,
+        "available_colors": product.available_colors,
+        "available_sizes": product.available_sizes,
+        "seller": product.seller,
+        "sku_id": product.sku_id,
+        "seller_id": product.seller_id,
+        "is_free_shipping": product.is_free_shipping,
+        "shipping_price": product.shipping_price,
+        "landed_price": product.landed_price,
+        "promotions": [p.model_dump(mode="json") for p in product.promotions],
+        "map_violation": product.map_violation,
+        "map_price_floor": product.map_price_floor,
+        "map_rule_scope": product.map_rule_scope,
+        "map_rule_id": product.map_rule_id,
+        "map_infractor": product.map_infractor,
+        "map_infractor_is_default": product.map_infractor_is_default,
+    }
+
+
+def _merge_search_export_product(
+    product: SearchProductResult,
+    brand_name: str,
+    details: Optional[dict[str, Any]],
+) -> dict[str, Any]:
+    merged = _seed_search_export_product(product, brand_name)
+    detail_payload = dict(details or {})
+    detail_price = detail_payload.pop("price", None)
+    if _has_export_value(detail_price) and not _has_export_value(
+        detail_payload.get("price_full")
+    ):
+        detail_payload["price_full"] = detail_price
+
+    for key, value in detail_payload.items():
+        if _has_export_value(value):
+            merged[key] = value
+
+    merged["brand"] = brand_name or merged.get("brand")
+    return merged
+
+
+def _normalize_search_product_price(product: SearchProductResult) -> SearchProductResult:
+    if (
+        not product.price_discount_is_delta
+        or product.price_full is None
+        or product.price_discount is None
+    ):
+        return product
+
+    payload = product.model_dump(mode="json")
+    payload["price_full"] = round(product.price_full + product.price_discount, 2)
+    payload["price_discount"] = round(product.price_full, 2)
+    payload["price_discount_is_delta"] = False
+    payload["landed_price"] = None
+    return SearchProductResult.model_validate(payload)
+
+
+def _normalize_brand_results_for_response(
+    brand_results: List[Any],
+) -> List[Any]:
+    normalized: list[Any] = []
+    for brand_result in brand_results:
+        normalized.append(
+            brand_result.model_copy(
+                update={
+                    "products": [
+                        _normalize_search_product_price(product)
+                        for product in brand_result.products
+                    ]
+                }
+            )
+        )
+    return normalized
+
+
+def _enrich_brand_results_for_phase43(brand_results: List[Any]) -> List[Any]:
+    rules = map_rules_service.list_rules(active_only=True)
+    enriched: list[Any] = []
+    for brand_result in brand_results:
+        products = []
+        for product in brand_result.products:
+            promotions = product.promotions
+            map_metadata = evaluate_map_violation(
+                product,
+                rules,
+                brand_name=getattr(brand_result, "brand_name", None),
+                marketplace=getattr(brand_result, "brand_name", None) or product.brand,
+            )
+            products.append(
+                product.model_copy(update={**map_metadata, "promotions": promotions})
+            )
+        enriched.append(brand_result.model_copy(update={"products": products}))
+    return enriched
 
 
 # ---------------------------------------------------------------------------
@@ -175,6 +299,13 @@ class ExportItem(BaseModel):
     match_score: float = 0.0
     is_similar: bool = False
     url: str
+    promotions: List[dict[str, Any]] = Field(default_factory=list)
+    map_violation: bool = False
+    map_price_floor: Optional[float] = None
+    map_rule_scope: Optional[str] = None
+    map_rule_id: Optional[str] = None
+    map_infractor: Optional[str] = None
+    map_infractor_is_default: bool = False
     display_order: Optional[int] = Field(None, alias="_display_order")
 
     model_config = {"extra": "allow", "populate_by_name": True}
@@ -184,6 +315,24 @@ class CrossMarketplaceExportRequest(BaseModel):
     items: List[ExportItem] = Field(..., min_length=1, max_length=500)
     search_query: Optional[str] = None
     target_sku: str = Field(..., min_length=1)
+
+
+def _serialize_promotions_for_export(promotions: List[dict[str, Any]]) -> str:
+    if not promotions:
+        return ""
+    return json.dumps(promotions, ensure_ascii=False, sort_keys=True)
+
+
+def _has_phase43_cross_export_data(items: List[ExportItem]) -> bool:
+    return any(
+        item.promotions
+        or item.map_violation
+        or item.map_price_floor is not None
+        or item.map_rule_scope
+        or item.map_rule_id
+        or item.map_infractor
+        for item in items
+    )
 
 # ---------------------------------------------------------------------------
 # Endpoints
@@ -252,6 +401,8 @@ async def search_products(request: SearchRequest) -> ComparisonResult:
             zipcode=clean_zipcode,
             include_shipping=request.include_shipping
         )
+        brand_results = _enrich_brand_results_for_phase43(brand_results)
+        brand_results = _normalize_brand_results_for_response(brand_results)
 
         result = ComparisonResult(
             query=request.query,
@@ -303,6 +454,8 @@ async def search_products_get(
         zipcode=clean_zipcode,
         include_shipping=include_shipping
     )
+    brand_results = _enrich_brand_results_for_phase43(brand_results)
+    brand_results = _normalize_brand_results_for_response(brand_results)
 
     # search_all_brands roda com brands=None → usa list_brands(active_only=True)
     # como fonte única. Montar brands_searched da MESMA fonte (sem .extend) mantém
@@ -374,55 +527,38 @@ async def export_search_products(request: SearchRequest):
         zipcode=clean_zipcode,
         include_shipping=request.include_shipping
     )
+    brand_results = _enrich_brand_results_for_phase43(brand_results)
+    brand_results = _normalize_brand_results_for_response(brand_results)
 
     # -------------------------------------------------------------------------
-    # Busca os detalhes completos de cada produto para garantir que o Excel
-    # tenha as mesmas colunas/formato da varredura por categoria.
+    # Enriquece cada card de busca com PDP quando esse detalhe realmente agrega
+    # dados, mas preserva a linha original para engines parciais/sparsos.
     # -------------------------------------------------------------------------
     tasks = []
 
-    async def fetch_full_product(brand_key, brand_name, url):
+    async def fetch_full_product(brand_key, brand_name, product):
         try:
             engine = engine_factory.get_engine(brand_key)
-            prod_dict = await engine.get_product_details(url)
-            if prod_dict:
-                prod_dict["brand"] = brand_name
-                return prod_dict
+            prod_dict = await engine.get_product_details(product.url)
+            return _merge_search_export_product(product, brand_name, prod_dict)
         except Exception as e:
             import logging
-            logging.getLogger("routes_search").warning(f"Erro ao buscar detalhes de {url}: {e}")
-        return None
+            logging.getLogger("routes_search").warning(
+                f"Erro ao buscar detalhes de {product.url}: {e}"
+            )
+        return _merge_search_export_product(product, brand_name, None)
 
     for brand_res in brand_results:
         brand_key = brand_res.brand_key
         brand_name = brand_res.brand_name
         for p in brand_res.products:
-            tasks.append(fetch_full_product(brand_key, brand_name, p.url))
+            tasks.append(fetch_full_product(brand_key, brand_name, p))
 
     full_products = await asyncio.gather(*tasks)
     data = [p for p in full_products if p]
 
-    if not data:
-        # Tabela genérica caso a busca não traga nenhum resultado válido
-        df = pd.DataFrame(columns=["brand", "url", "raw_title", "price_full", "stock_availability"])
-    else:
-        df = pd.DataFrame(data)
-
-        # Formatação idêntica ao orchestrator_multi.py
-        for col in ["available_colors", "available_sizes"]:
-            if col in df.columns:
-                df[col] = df[col].apply(lambda x: ", ".join(x) if isinstance(x, list) else x)
-
-        cols = df.columns.tolist()
-        if "brand" in cols:
-            cols.remove("brand")
-            cols.insert(0, "brand")
-            df = df[cols]
-
-        if "specifications" in df.columns:
-            specs_df = df["specifications"].apply(pd.Series)
-            df = pd.concat([df.drop("specifications", axis=1), specs_df], axis=1)
-
+    df = build_canonical_export_dataframe(data)
+    if not df.empty:
         sort_cols = []
         if "brand" in df.columns:
             sort_cols.append("brand")
@@ -541,7 +677,8 @@ async def cross_marketplace_search(request: CrossMarketplaceRequest):
         job_id=job_id,
         query=f"SKU: {display_query}",
         brands=["mercadolivre", "netshoes", "amazon"],
-        type="cross"
+        type="cross",
+        target_sku=request.target_sku
     )
 
     try:
@@ -580,6 +717,7 @@ async def export_cross_marketplace(request: CrossMarketplaceExportRequest):
         request.items,
         key=lambda i: i.display_order if i.display_order is not None else float('inf'),
     )
+    include_phase43 = _has_phase43_cross_export_data(sorted_items)
 
     rows = []
     for item in sorted_items:
@@ -595,7 +733,7 @@ async def export_cross_marketplace(request: CrossMarketplaceExportRequest):
             frete_display = item.shipping_price
             total_display = item.landed_price
 
-        rows.append({
+        row = {
             "Plataforma":     _sanitize_cell(item.marketplace),
             "Vendedor":       _sanitize_cell(item.seller),
             "Título":         _sanitize_cell(item.title),
@@ -606,7 +744,20 @@ async def export_cross_marketplace(request: CrossMarketplaceExportRequest):
             "Score de Match": score,
             "Similar":        "Sim" if item.is_similar else "Não",
             "URL":            _sanitize_cell(item.url),
-        })
+        }
+        if include_phase43:
+            row.update(
+                {
+                    "Violacao MAP": "Sim" if item.map_violation else "Nao",
+                    "Piso MAP": item.map_price_floor,
+                    "Escopo MAP": item.map_rule_scope,
+                    "Regra MAP": item.map_rule_id,
+                    "Infrator MAP": _sanitize_cell(item.map_infractor),
+                    "Infrator Default": "Sim" if item.map_infractor_is_default else "Nao",
+                    "Promocoes": _sanitize_cell(_serialize_promotions_for_export(item.promotions)),
+                }
+            )
+        rows.append(row)
 
     df = pd.DataFrame(rows)
     output = io.BytesIO()

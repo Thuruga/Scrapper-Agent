@@ -11,6 +11,7 @@ from typing import Optional, Callable
 
 import pandas as pd
 
+from services.product_contract import build_canonical_export_dataframe
 from services.stock_summary_service import (
     compute_stock_summary,
     ensure_scan_product_ids,
@@ -102,19 +103,10 @@ async def run_orchestrator(
             persist_category_job_stock_summaries(job_id, [stock_summary])
 
         if produtos_validos:
-            df = pd.DataFrame([_product_dict(produto) for produto in produtos_validos])
-            
-            # Converter listas para strings separadas por vírgula
-            for col in ["available_colors", "available_sizes"]:
-                if col in df.columns:
-                    df[col] = df[col].apply(lambda x: ", ".join(x) if isinstance(x, list) else x)
+            df = build_canonical_export_dataframe(
+                [_product_dict(produto) for produto in produtos_validos]
+            )
 
-            if "specifications" in df.columns:
-                # Tratar NaNs antes de expandir para evitar erros com pd.Series
-                df["specifications"] = df["specifications"].apply(lambda x: x if isinstance(x, dict) else {})
-                specs_df = df["specifications"].apply(pd.Series)
-                df = pd.concat([df.drop("specifications", axis=1), specs_df], axis=1)
-            
             # Offload da operação de I/O bloqueante (to_excel) para uma thread
             await asyncio.to_thread(df.to_excel, arquivo_saida, index=False)
 

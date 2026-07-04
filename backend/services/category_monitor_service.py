@@ -11,6 +11,8 @@ from services.stock_summary_service import (
     ensure_scan_product_ids,
     persist_monitor_stock_summary,
 )
+from services.map_evaluator_service import evaluate_map_violation
+from services.map_rules_service import map_rules_service
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 MONITORS_FILE = DATA_DIR / "monitored_categories.json"
@@ -40,6 +42,28 @@ def load_monitored_categories() -> List[Dict[str, Any]]:
     return [item for item in _load_local() if item.get("status") == "active"]
 
 
+def apply_map_metadata_to_products(
+    products: List[Dict[str, Any]],
+    brand: str | None,
+) -> List[Dict[str, Any]]:
+    rules = map_rules_service.list_rules(active_only=True)
+    enriched: List[Dict[str, Any]] = []
+    for product in products:
+        item = dict(product)
+        if brand and not item.get("brand"):
+            item["brand"] = brand
+        item.update(
+            evaluate_map_violation(
+                item,
+                rules,
+                brand_name=brand or item.get("brand"),
+                marketplace=brand or item.get("brand"),
+            )
+        )
+        enriched.append(item)
+    return enriched
+
+
 async def run_category_scan(monitor: dict) -> None:
     from services.engines.factory import engine_factory
 
@@ -62,6 +86,8 @@ async def run_category_scan(monitor: dict) -> None:
         logger.error("Erro ao extrair %s: %s", url, exc)
 
     scraped_products = ensure_scan_product_ids(scraped_products, brand, monitor_id)
+    scraped_products = apply_map_metadata_to_products(scraped_products, brand)
+    map_violation_count = sum(1 for product in scraped_products if product.get("map_violation") is True)
     summary = compute_stock_summary(
         scraped_products,
         brand=brand,
@@ -89,6 +115,7 @@ async def run_category_scan(monitor: dict) -> None:
                 "unknown_stock_count": summary.unknown_stock_count,
                 "rupture_pct": summary.rupture_pct,
             }
+            item["last_map_violation_count"] = map_violation_count
             break
     _save_local(local_data)
 

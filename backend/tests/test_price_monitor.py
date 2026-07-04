@@ -3,7 +3,7 @@ import asyncio
 from unittest.mock import MagicMock, patch, AsyncMock
 from datetime import datetime, timezone
 from services.price_monitor_service import PriceMonitorService
-from core.models import PriceMonitorConfig, RawProductBronze
+from core.models import MapRule, PriceMonitorConfig, RawProductBronze
 
 @pytest.mark.asyncio
 async def test_price_monitor_recording_change():
@@ -255,6 +255,54 @@ async def test_price_monitor_promo_only_change_triggers_history():
     assert "price_discount" in price_update_payloads[0], (
         "Payload WS price_update deve conter o campo price_discount (D-03)"
     )
+
+
+@pytest.mark.asyncio
+async def test_price_monitor_applies_map_rule_to_state_and_ws_payload():
+    service = PriceMonitorService()
+    job_id = "test-map-monitor"
+    config = PriceMonitorConfig(
+        job_id=job_id,
+        url="http://example.com/polo",
+        brand="test-brand",
+        interval_minutes=1,
+        duration_hours=1,
+        active=True,
+    )
+    service.monitors[job_id] = config
+
+    mock_engine = MagicMock()
+    mock_engine.get_pdp_product = AsyncMock(return_value={
+        "url": config.url,
+        "brand": "test-brand",
+        "raw_title": "Polo MAP",
+        "raw_description": "Descricao",
+        "price_full": 250.0,
+        "category": "Polos",
+        "image_url": "http://example.com/img.jpg",
+        "stock_availability": True,
+    })
+
+    async def stop_after_first(*args, **kwargs):
+        config.active = False
+
+    rule = MapRule(scope="category", target="Polos", brand="test-brand", min_price=300)
+    with patch("services.price_monitor_service.engine_factory.get_engine", return_value=mock_engine), \
+         patch("services.price_monitor_service.map_rules_service.list_rules", return_value=[rule]), \
+         patch("services.price_monitor_service.manager.send_message", new_callable=AsyncMock) as mock_ws, \
+         patch.object(service, "_save_monitors"), \
+         patch("services.price_monitor_service.asyncio.sleep", new=AsyncMock(side_effect=stop_after_first)):
+        await service._monitor_loop(job_id)
+
+    assert config.map_violation is True
+    assert config.map_price_floor == 300
+    assert config.history[-1].map_violation is True
+    price_update_payloads = [
+        c.args[0] for c in mock_ws.await_args_list
+        if isinstance(c.args[0], dict) and c.args[0].get("type") == "price_update"
+    ]
+    assert price_update_payloads[0]["map_violation"] is True
+    assert price_update_payloads[0]["map_price_floor"] == 300
 
 
 @pytest.mark.asyncio

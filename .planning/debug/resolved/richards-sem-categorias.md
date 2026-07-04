@@ -97,7 +97,7 @@ A verificação humana do Cycle 1 expôs dois defeitos NÃO cobertos pelos teste
 - timestamp: 2026-06-25
   symptom: 'Console: "Erro crítico: Token Wake nao resolvido para richards..." — a varredura aborta antes de qualquer produto.'
   checked: live GET https://www.richards.com.br + WakeEngine._resolve_token / requirements.txt
-  found: "A loja Richards (Wake/Kestrel + CDN fbits) responde SEMPRE com Content-Encoding: br (Brotli), ignorando o Accept-Encoding. O aiohttp do backend só descomprime Brotli se a lib `brotli` estiver instalada — e ela NÃO estava em requirements.txt (só aiohttp>=3.9.0). Logo _resolve_token rodava o regex storefrontAccessToken em cima de bytes comprimidos, não achava nada, retornava None → ValueError. Prova: decodificando o Brotli (220KB) o token aparece: storefrontAccessToken: 'tcs_richa_35674061aaa44bc8ae2259bd37b4ae03'. Sem descomprimir vem 20KB de lixo binário."
+  found: "A loja Richards (Wake/Kestrel + CDN fbits) responde SEMPRE com Content-Encoding: br (Brotli), ignorando o Accept-Encoding. O aiohttp do backend só descomprime Brotli se a lib `brotli` estiver instalada — e ela NÃO estava em requirements.txt (só aiohttp>=3.9.0). Logo _resolve_token rodava o regex storefrontAccessToken em cima de bytes comprimidos, não achava nada, retornava None → ValueError. Prova: decodificando o Brotli (220KB) o token aparece mascarado como storefrontAccessToken: 'tcs_richa_35...'. Sem descomprimir vem 20KB de lixo binário."
   implication: "ROOT CAUSE real do erro de token. Os testes herméticos do Cycle 1 mockavam o token, então nunca exercitaram a auto-extração ao vivo — por isso passaram com o caminho quebrado."
 
 - timestamp: 2026-06-25
@@ -120,7 +120,7 @@ notes: "Limitações conhecidas: (a) a 'varredura por categoria' do Wake é busc
   checked: "Interpretador do backend vs onde brotli foi instalado; Content-Encoding do endpoint GraphQL."
   found: "O backend rodando usa um interpretador Python ONDE brotli NÃO está instalado (sem venv detectável; o reinstall do requirements foi para outro env). PORÉM o endpoint GraphQL (storefront-api.fbits.net/graphql) responde em GZIP (respeita Accept-Encoding), que o aiohttp decodifica nativamente — só a HOME força Brotli. Logo, gravar o token manual no brands.json faz _resolve_token retornar na etapa 1 (override > cache > auto) SEM buscar a home Brotli, e a busca GraphQL gzip funciona sem brotli."
   implication: "Fix decisivo e independente de ambiente."
-cycle3_fix: "brands.json: richards.wake_access_token = 'tcs_richa_35674061aaa44bc8ae2259bd37b4ae03' (override). brotli>=1.1.0 mantido no requirements como caminho durável de auto-extração quando estiver presente no env do backend."
+cycle3_fix: "brands.json: richards.wake_access_token = 'tcs_richa_35...' (override mascarado; valor real deve ficar fora do repo). brotli>=1.1.0 mantido no requirements como caminho durável de auto-extração quando estiver presente no env do backend."
 cycle3_verification: "PROVADO sem brotli: rodei o WakeEngine com o import de `brotli` bloqueado (HAS_BROTLI=False, = ambiente do backend) → _resolve_token retorna o token sem HTTP, search('camisas') → 3 produtos reais. test_wake_engine.py 24/24 verde. brands.json: token set + 15 mappings + active."
 cycle3_files_changed:
   - "backend/data/brands.json: richards.wake_access_token override (desbloqueio independente de brotli no env do backend)"

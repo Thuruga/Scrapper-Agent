@@ -10,8 +10,10 @@ Cobertura:
 Toda I/O de disco e de engine e mockada (hermetico, sem rede/arquivo real).
 """
 import pytest
+import json
 from unittest.mock import MagicMock, patch
 
+from core.models import MapRule
 from services.category_monitor_service import run_category_scan
 
 
@@ -92,3 +94,71 @@ async def test_run_category_scan_populates_last_scraped_at():
         "run_category_scan deve gravar last_scraped_at nao nulo na linha do monitor (UX-08)"
     )
     assert "last_stock_summary" in updated_row
+
+
+@pytest.mark.asyncio
+async def test_run_category_scan_persists_map_metadata_and_violation_count(tmp_path):
+    monitor_id = "monitor-map"
+    monitor_row = {
+        "id": monitor_id,
+        "url": "https://example.com/polos",
+        "brand": "test-brand",
+        "status": "active",
+    }
+
+    fixture_products = [
+        {
+            "url": "https://example.com/polo-1",
+            "brand": "test-brand",
+            "raw_title": "Polo abaixo MAP",
+            "raw_description": "Descricao",
+            "price_full": 250.0,
+            "category": "Polos",
+            "stock_availability": True,
+        },
+        {
+            "url": "https://example.com/polo-2",
+            "brand": "test-brand",
+            "raw_title": "Polo ok",
+            "raw_description": "Descricao",
+            "price_full": 350.0,
+            "category": "Polos",
+            "stock_availability": True,
+        },
+    ]
+
+    mock_engine = MagicMock()
+    mock_engine.run_bulk_scrape = _fake_bulk_scrape(fixture_products)
+    saved_data = {}
+
+    def _fake_save_local(data):
+        saved_data["value"] = data
+
+    rule = MapRule(scope="category", target="Polos", brand="test-brand", min_price=300)
+    with patch(
+        "services.engines.factory.engine_factory.get_engine",
+        return_value=mock_engine,
+    ), patch(
+        "services.category_monitor_service._load_local",
+        return_value=[dict(monitor_row)],
+    ), patch(
+        "services.category_monitor_service._save_local",
+        side_effect=_fake_save_local,
+    ), patch(
+        "services.category_monitor_service.persist_monitor_stock_summary"
+    ), patch(
+        "services.category_monitor_service.map_rules_service.list_rules",
+        return_value=[rule],
+    ), patch(
+        "services.category_monitor_service.DATA_DIR",
+        tmp_path,
+    ):
+        await run_category_scan(monitor_row)
+
+    products_file = tmp_path / f"monitored_products_{monitor_id}.json"
+    products = json.loads(products_file.read_text(encoding="utf-8"))
+    assert products[0]["map_violation"] is True
+    assert products[0]["map_price_floor"] == 300
+    assert products[1]["map_violation"] is False
+    updated_row = saved_data["value"][0]
+    assert updated_row["last_map_violation_count"] == 1

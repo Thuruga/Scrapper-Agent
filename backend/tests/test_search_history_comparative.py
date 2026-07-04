@@ -297,3 +297,38 @@ class TestSearchHistoryComparative:
         assert record.error is not None and "boom" in record.error, (
             f"Campo error deve conter 'boom', obtido: '{record.error}'"
         )
+
+
+def test_search_normalizes_legacy_vtex_delta_prices_in_response_and_history():
+    history_svc = _make_history_service()
+    helper = TestSearchHistoryComparative()
+    brand_result = BrandSearchResult(
+        brand_key="aramis",
+        brand_name="Aramis",
+        products=[
+            SearchProductResult(
+                brand="Aramis",
+                product_name="Polo Piquet",
+                url="https://www.aramis.com.br/p/polo-piquet",
+                price_full=199.9,
+                price_discount=100.0,
+                price_discount_is_delta=True,
+            )
+        ],
+        total_found=1,
+    )
+    engine_mock = helper._make_engine_mock(brand_results=[brand_result])
+    brand_svc_mock = helper._make_brand_service_mock()
+
+    result = helper._run_search(history_svc, engine_mock, brand_svc_mock)
+
+    product = result.results[0].products[0]
+    assert product.price_full == pytest.approx(299.9)
+    assert product.price_discount == pytest.approx(199.9)
+    assert product.price_discount_is_delta is False
+
+    stored = list(history_svc.history.values())[0]
+    stored_product = stored.results[0]["products"][0]
+    assert stored_product["price_full"] == pytest.approx(299.9)
+    assert stored_product["price_discount"] == pytest.approx(199.9)
+    assert stored_product["price_discount_is_delta"] is False

@@ -38,7 +38,7 @@ cd frontend
 npm run dev
 ```
 
-Acesse `http://127.0.0.1:5173`. A API fica em `http://127.0.0.1:8000`.
+Acesse `http://127.0.0.1:5173`. A API fica em `http://127.0.0.1:8500`.
 
 ## Validar
 

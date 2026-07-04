@@ -9,15 +9,31 @@ from typing import Dict
 
 from pydantic import ValidationError
 
-from core.models import PriceMonitorConfig, PriceHistoryEntry
+from core.models import (
+    PriceMonitorConfig,
+    PriceHistoryEntry,
+    resolve_effective_price,
+    resolve_original_price,
+)
 from core.websocket import manager
 from services.engines.factory import engine_factory
+from services.map_evaluator_service import EMPTY_MAP_METADATA, evaluate_map_violation
+from services.map_rules_service import map_rules_service
 
 logger = logging.getLogger("PriceMonitorService")
 
 
 # Caminho para persistência local dos monitores
 STORAGE_FILE = Path(__file__).resolve().parents[1] / "data" / "price_monitors.json"
+
+MAP_METADATA_FIELDS = (
+    "map_violation",
+    "map_price_floor",
+    "map_rule_scope",
+    "map_rule_id",
+    "map_infractor",
+    "map_infractor_is_default",
+)
 
 class PriceMonitorService:
     def __init__(self):
@@ -48,6 +64,13 @@ class PriceMonitorService:
                 json.dump(data, f, indent=2)
         except Exception as e:
             logger.error(f"Erro ao salvar monitores no disco: {e}")
+
+    def _set_map_metadata(self, config: PriceMonitorConfig, metadata: dict) -> None:
+        for field in MAP_METADATA_FIELDS:
+            setattr(config, field, metadata.get(field, EMPTY_MAP_METADATA.get(field)))
+
+    def _map_metadata_payload(self, config: PriceMonitorConfig) -> dict:
+        return {field: getattr(config, field) for field in MAP_METADATA_FIELDS}
 
 
     async def start_monitor(self, job_id: str, url: str, brand: str, interval: int, duration: int):
@@ -175,13 +198,35 @@ class PriceMonitorService:
                 if product:
                     config.last_status = "ok"
                     config.last_error = None
-                    current_price = product.price_full
+                    map_metadata = evaluate_map_violation(
+                        product,
+                        map_rules_service.list_rules(active_only=True),
+                        brand_name=config.brand,
+                        marketplace=config.brand,
+                    )
+                    self._set_map_metadata(config, map_metadata)
+                    current_price = resolve_effective_price(
+                        product.price_full,
+                        product.price_discount,
+                        product.price_discount_is_delta,
+                    )
+                    current_original_price = resolve_original_price(
+                        product.price_full,
+                        product.price_discount,
+                        product.price_discount_is_delta,
+                    )
+                    if (
+                        current_original_price is not None
+                        and current_price is not None
+                        and current_original_price <= current_price
+                    ):
+                        current_original_price = None
                     # price_discount e um DELTA (valor positivo do desconto), nao um
                     # preco final — convencao dos engines VTEX/ML/Shopify
                     # (list_price - sale_price). Normaliza 0/None para None.
                     current_discount = (
-                        product.price_discount
-                        if product.price_discount and product.price_discount > 0
+                        current_price
+                        if current_original_price is not None and current_price is not None
                         else None
                     )
                     available = product.stock_availability
@@ -199,6 +244,9 @@ class PriceMonitorService:
                     has_change = False
 
                     if config.last_price is None or config.last_price != current_price:
+                        has_change = True
+
+                    if config.last_price_original != current_original_price:
                         has_change = True
 
                     # Mudanca apenas no desconto (price_full inalterado) tambem conta
@@ -220,31 +268,37 @@ class PriceMonitorService:
                     if has_change:
                         entry = PriceHistoryEntry(
                             price=current_price,
+                            price_original=current_original_price,
                             last_price_discount=current_discount,
                             available=bool(available),
                             available_colors=current_colors,
-                            available_sizes=current_sizes
+                            available_sizes=current_sizes,
+                            **self._map_metadata_payload(config),
                         )
                         config.history.append(entry)
                         config.last_price = current_price
+                        config.last_price_original = current_original_price
                         config.last_price_discount = current_discount
 
                         # Notifica o frontend via WebSocket
                         await manager.send_message({
                             "type": "price_update",
                             "price": current_price,
-                            "price_full": current_price,
+                            "price_full": current_original_price or current_price,
                             "price_discount": current_discount,
+                            "price_original": current_original_price,
                             "available": available,
                             "available_colors": current_colors,
                             "available_sizes": current_sizes,
                             "history": [e.model_dump() for e in config.history],
+                            **self._map_metadata_payload(config),
                             "message": f"Mudança detectada! Preço: R$ {current_price:.2f} | Tamanhos: {len(current_sizes)}"
                         }, job_id)
                     else:
                         # Apenas log de "tudo igual"
                         await manager.send_message({
                             "type": "info",
+                            **self._map_metadata_payload(config),
                             "message": f"Checagem realizada às {datetime.now().strftime('%H:%M:%S')}. Sem alterações."
                         }, job_id)
                 else:
@@ -252,6 +306,7 @@ class PriceMonitorService:
                     # algo claro ("Bloqueado") em vez de "Pendente" eterno.
                     config.last_status = "blocked"
                     config.last_error = failure_reason or "Falha ao acessar o produto."
+                    self._set_map_metadata(config, EMPTY_MAP_METADATA)
                     await manager.send_message({"type": "error", "message": config.last_error}, job_id)
 
             except asyncio.CancelledError:

@@ -7,8 +7,8 @@ export default defineConfig({
     host: '127.0.0.1',
     strictPort: true,
     proxy: {
-      '^/(brands|banners|search|history|monitor|monitors|scrape-category|scrape-category-multi|canonical-categories|download-report|ws)': {
-        target: 'http://127.0.0.1:8000',
+      '^/(brands|banners|map-rules|search|history|monitor|monitors|scrape-category|scrape-category-multi|canonical-categories|download-report|ws)': {
+        target: 'http://127.0.0.1:8500',
         changeOrigin: true,
         ws: true,
       }

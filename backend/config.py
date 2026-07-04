@@ -42,7 +42,7 @@ class Settings(BaseSettings):
 
     # Server
     APP_HOST: Literal["127.0.0.1", "localhost", "::1"] = "127.0.0.1"
-    APP_PORT: int = 8000
+    APP_PORT: int = 8500
 
     # VTEX Catalog Cache
     VTEX_CACHE_TTL_SECONDS: int = Field(

@@ -50,8 +50,8 @@ class SearchHistoryService:
             self._save_history()
             logger.info(f"Cleanup removeu {len(to_delete)} registros antigos.")
 
-    def create_job(self, job_id: str, query: str, brands: List[str], type: str = "search") -> SearchHistory:
-        record = SearchHistory(job_id=job_id, query=query, brands=brands, type=type)
+    def create_job(self, job_id: str, query: str, brands: List[str], type: str = "search", target_sku: Optional[str] = None) -> SearchHistory:
+        record = SearchHistory(job_id=job_id, query=query, brands=brands, type=type, target_sku=target_sku)
         self.history[job_id] = record
         self._save_history()
         return record

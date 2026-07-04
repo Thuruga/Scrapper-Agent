@@ -15,6 +15,8 @@ from core.vtex_schemas import VtexProduct, VtexItem
 from services.review_service import get_single_review, get_bulk_reviews
 from services.brand_service import brand_service
 from services.category_resolver import resolve_query_to_vtex_category_path
+from services.product_contract import extract_canonical_spec_value, normalize_specifications_aliases
+from services.promotion_parser import derive_discount_promotions
 from services import vtex_parsing
 from services.vtex_shipping import filter_and_sort_slas, classify_result, select_candidate
 from core.base_scraper import BaseScraper
@@ -386,6 +388,13 @@ class VtexApiClient(BaseScraper):
             
             composition = specs_dict.get("Composição") or specs_dict.get("Material")
 
+            normalized_specs = normalize_specifications_aliases(specs_dict)
+            composition = (
+                normalized_specs.get("composition")
+                or composition
+            )
+            product_code = extract_canonical_spec_value(normalized_specs, "product_code")
+
             # Imagem
             image_url = None
             if p.items:
@@ -400,16 +409,23 @@ class VtexApiClient(BaseScraper):
                 raw_description=p.description or "Sem descrição",
                 price_full=price_full,
                 price_discount=price_discount,
+                price_discount_is_delta=True,
+                promotions=derive_discount_promotions(
+                    price_full,
+                    price_discount,
+                    price_discount_is_delta=True,
+                ),
                 stock_availability=has_availability,
                 category=category,
                 sub_category=sub_category,
                 composition=composition,
+                product_code=product_code,
                 available_colors=todas_as_cores,
                 available_sizes=self._extract_sizes(p.items),
                 rating=rating,
                 review_count=count,
                 review_product_id=str(p.productId),
-                specifications=specs_dict,
+                specifications=normalized_specs,
                 image_url=image_url
             )
 
@@ -1040,6 +1056,12 @@ class VtexApiClient(BaseScraper):
                             url=self._sanitize_product_url(p.get("link", ""), domain),
                             price_full=price_full,
                             price_discount=price_discount,
+                            price_discount_is_delta=True,
+                            promotions=derive_discount_promotions(
+                                price_full,
+                                price_discount,
+                                price_discount_is_delta=True,
+                            ),
                             image_url=image_url,
                             category=p.get("categories", [""])[0].split("/")[-2] if p.get("categories") else None,
                             available=available,

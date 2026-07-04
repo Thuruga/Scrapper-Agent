@@ -102,7 +102,9 @@ class TestParseProductDictCharacterization:
 
         # Composicao via specs dinamicas
         assert result.composition == "100% Algodão"
-        assert result.specifications == {"Cor": "Azul", "Composição": "100% Algodão"}
+        assert result.specifications["Cor"] == "Azul"
+        assert result.specifications["Composição"] == "100% Algodão"
+        assert result.specifications["composition"] == "100% Algodão"
 
         # Cores: extract_colors (AZUL) + _get_color_family (PRETO/AZUL), dedup
         assert sorted(result.available_colors) == ["AZUL", "PRETO"]

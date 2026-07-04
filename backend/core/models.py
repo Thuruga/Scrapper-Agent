@@ -6,8 +6,33 @@ Qualquer campo específico de uma marca que não se aplique a outra fica Optiona
 """
 
 from datetime import datetime, timezone
+from uuid import uuid4
 from pydantic import BaseModel, Field, field_validator, model_validator
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, Literal
+
+
+def resolve_effective_price(
+    price_full: float | None,
+    price_discount: float | None,
+    price_discount_is_delta: bool = False,
+) -> float | None:
+    if price_full is None:
+        return None
+    if price_discount is None:
+        return price_full
+    return price_full if price_discount_is_delta else price_discount
+
+
+def resolve_original_price(
+    price_full: float | None,
+    price_discount: float | None,
+    price_discount_is_delta: bool = False,
+) -> float | None:
+    if price_full is None:
+        return None
+    if price_discount is None:
+        return price_full
+    return price_full + price_discount if price_discount_is_delta else price_full
 
 
 class ShippingInfo(BaseModel):
@@ -99,6 +124,47 @@ class StockRuptureSummary(BaseModel):
     )
 
 
+class PromotionInfo(BaseModel):
+    """Promocao/selo comercial normalizado de forma aditiva."""
+
+    type: Literal[
+        "pix_discount",
+        "percentage_discount",
+        "bundle",
+        "installments",
+        "generic_badge",
+    ]
+    raw_text: str
+    value: Optional[float] = None
+    unit: Optional[str] = None
+    payment_method: Optional[str] = None
+    installments_count: Optional[int] = None
+    installment_amount: Optional[float] = None
+    parsed: bool = True
+
+
+class MapRule(BaseModel):
+    """Regra de preco minimo anunciado (MAP) persistida em JSON local."""
+
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    scope: Literal["product", "category", "brand"]
+    target: str = Field(min_length=1)
+    min_price: float = Field(gt=0)
+    active: bool = True
+    brand: Optional[str] = None
+    category: Optional[str] = None
+    product_code: Optional[str] = None
+    product_url: Optional[str] = None
+    normalized_url: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: str = Field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
+    updated_at: str = Field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
+
+
 class RawProductBronze(BaseModel):
     """Dado bruto de um produto concorrente, sem transformações."""
 
@@ -108,10 +174,12 @@ class RawProductBronze(BaseModel):
     raw_description: str
     price_full: float
     price_discount: Optional[float] = None
+    price_discount_is_delta: bool = False
     stock_availability: Optional[bool] = None
     category: Optional[str] = None
     sub_category: Optional[str] = None
     composition: Optional[str] = None
+    product_code: Optional[str] = None
     available_colors: List[str] = Field(default_factory=list)
     available_sizes: List[str] = Field(default_factory=list)
     rating: Optional[float] = None
@@ -128,6 +196,13 @@ class RawProductBronze(BaseModel):
     specifications: Dict[str, str] = Field(default_factory=dict)
     image_url: Optional[str] = None
     shipping: ShippingInfo | None = None
+    promotions: List[PromotionInfo] = Field(default_factory=list)
+    map_violation: bool = False
+    map_price_floor: Optional[float] = None
+    map_rule_scope: Optional[str] = None
+    map_rule_id: Optional[str] = None
+    map_infractor: Optional[str] = None
+    map_infractor_is_default: bool = False
 
     is_free_shipping: bool = False
     shipping_price: Optional[float] = None
@@ -136,10 +211,10 @@ class RawProductBronze(BaseModel):
     @model_validator(mode="after")
     def calculate_landed_price(self):
         if self.landed_price is None:
-            base_price = (
-                self.price_discount
-                if self.price_discount is not None
-                else self.price_full
+            base_price = resolve_effective_price(
+                self.price_full,
+                self.price_discount,
+                self.price_discount_is_delta,
             )
             if base_price is not None:
                 if self.shipping_price is not None:
@@ -186,6 +261,7 @@ class SearchProductResult(BaseModel):
     url: str
     price_full: Optional[float] = None
     price_discount: Optional[float] = None
+    price_discount_is_delta: bool = False
     image_url: Optional[str] = None
     category: Optional[str] = None
     available: Optional[bool] = None
@@ -231,6 +307,13 @@ class SearchProductResult(BaseModel):
         description="Todas as modalidades de entrega domiciliar válidas, "
                     "ordenadas por preço asc depois prazo asc (Phase 33 VTEX).",
     )
+    promotions: List[PromotionInfo] = Field(default_factory=list)
+    map_violation: bool = False
+    map_price_floor: Optional[float] = None
+    map_rule_scope: Optional[str] = None
+    map_rule_id: Optional[str] = None
+    map_infractor: Optional[str] = None
+    map_infractor_is_default: bool = False
 
     is_free_shipping: bool = False
     shipping_price: Optional[float] = None
@@ -239,10 +322,10 @@ class SearchProductResult(BaseModel):
     @model_validator(mode="after")
     def calculate_landed_price(self):
         if self.landed_price is None:
-            base_price = (
-                self.price_discount
-                if self.price_discount is not None
-                else self.price_full
+            base_price = resolve_effective_price(
+                self.price_full,
+                self.price_discount,
+                self.price_discount_is_delta,
             )
             if base_price is not None:
                 if self.shipping_price is not None:
@@ -285,10 +368,17 @@ class PriceHistoryEntry(BaseModel):
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
     price: float
+    price_original: Optional[float] = None
     last_price_discount: Optional[float] = None
     available: bool
     available_colors: List[str] = Field(default_factory=list)
     available_sizes: List[str] = Field(default_factory=list)
+    map_violation: bool = False
+    map_price_floor: Optional[float] = None
+    map_rule_scope: Optional[str] = None
+    map_rule_id: Optional[str] = None
+    map_infractor: Optional[str] = None
+    map_infractor_is_default: bool = False
 
 
 class PriceMonitorConfig(BaseModel):
@@ -303,6 +393,7 @@ class PriceMonitorConfig(BaseModel):
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
     last_price: Optional[float] = None
+    last_price_original: Optional[float] = None
     last_price_discount: Optional[float] = None
     # Estado da última checagem — alimenta o card do front:
     #   None      = ainda não checado (mostra "Pendente")
@@ -318,6 +409,12 @@ class PriceMonitorConfig(BaseModel):
     product_name: Optional[str] = None
     available_colors: List[str] = Field(default_factory=list)
     available_sizes: List[str] = Field(default_factory=list)
+    map_violation: bool = False
+    map_price_floor: Optional[float] = None
+    map_rule_scope: Optional[str] = None
+    map_rule_id: Optional[str] = None
+    map_infractor: Optional[str] = None
+    map_infractor_is_default: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -384,6 +481,7 @@ class SearchHistory(BaseModel):
     """Registro de uma pesquisa assíncrona (Histórico)."""
     job_id: str
     query: str
+    target_sku: Optional[str] = Field(default=None, description="SKU alvo da busca cross (exibido no histórico no lugar do nome do produto)")
     type: str = Field(default="search", description="Tipo de busca: 'search' ou 'cross'")
     brands: List[str] = Field(default_factory=list)
     status: str = Field(default="PENDING", description="PENDING, COMPLETED, FAILED")

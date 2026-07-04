@@ -30,6 +30,7 @@ class CategoryMonitorResponse(BaseModel):
     brand: str
     status: str
     last_scraped_at: Optional[str] = None
+    last_map_violation_count: Optional[int] = None
 
 
 class ReviewCommentsRequest(BaseModel):
@@ -95,9 +96,13 @@ async def get_monitored_products(monitor_id: str):
     if not products_file.exists():
         return []
     try:
-        return json.loads(products_file.read_text(encoding="utf-8"))
+        products = json.loads(products_file.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return []
+    monitor = next((item for item in _load_local() if item.get("id") == monitor_id), None)
+    from services.category_monitor_service import apply_map_metadata_to_products
+
+    return apply_map_metadata_to_products(products, monitor.get("brand") if monitor else None)
 
 
 @router.post("/category/{monitor_id}/products/{scan_product_id}/stock-depth")

@@ -40,8 +40,8 @@ Requisitos comprometidos para este milestone. Cada um mapeia para uma phase no R
 
 ### E — Inteligência Competitiva
 
-- [ ] **MAP-01**: Operador define um preço mínimo permitido (MAP) por produto/marca/categoria e o sistema sinaliza produtos anunciados abaixo dele, identificando o vendedor infrator (compara o campo de preço anunciado correto).
-- [ ] **PROMO-01**: O sistema extrai selos de oferta e condições de pagamento ("Leve 3 pague 2", "15% OFF no Pix", parcelamento) em um campo estruturado de promoções, preservando o texto bruto quando não parseável.
+- [x] **MAP-01**: Operador define um preço mínimo permitido (MAP) por produto/marca/categoria e o sistema sinaliza produtos anunciados abaixo dele, identificando o vendedor infrator (compara o campo de preço anunciado correto).
+- [x] **PROMO-01**: O sistema extrai selos de oferta e condições de pagamento ("Leve 3 pague 2", "15% OFF no Pix", parcelamento) em um campo estruturado de promoções, preservando o texto bruto quando não parseável.
 - [x] **STOCK-01**: Na varredura por categoria, o sistema registra a porcentagem de produtos esgotados por marca.
 - [x] **STOCK-02**: O sistema captura a profundidade de estoque via requisição de 999 unidades no carrinho, rotulada como "máximo observado/estimativa". _Guard-rails: só em varreduras controladas (nunca em busca), sessões efêmeras isoladas + cleanup, throttle._
 - [x] **REVW-01**: Extração de notas e comentários reforçada para todas as marcas registradas (por provider — Trustvox/VTEX native/etc.), com paginação limitada e dedup.
@@ -103,8 +103,8 @@ Explicitamente excluído deste milestone, com motivo.
 | FRET-07 | Phase 41 | Pending |
 | FRET-08 | Phase 42 | Complete |
 | FRET-09 | Phase 42 | Complete |
-| MAP-01 | Phase 43 | Pending |
-| PROMO-01 | Phase 43 | Pending |
+| MAP-01 | Phase 43 | Complete |
+| PROMO-01 | Phase 43 | Complete |
 | STOCK-01 | Phase 44 | Complete |
 | STOCK-02 | Phase 44 | Complete |
 | REVW-01 | Phase 44 | Complete |

@@ -21,6 +21,7 @@ import pandas as pd
 
 from config import settings
 from services.brand_service import brand_service
+from services.product_contract import build_canonical_export_dataframe
 from core.websocket import manager
 from core.job_manager import JOB_CANCEL_FLAGS
 from services.stock_summary_service import (
@@ -254,27 +255,7 @@ def consolidate_and_save(
 ):
     """Função auxiliar para salvar o Excel (roda em thread do executor)."""
     try:
-        df = pd.DataFrame(all_products)
-
-        # Converter listas para strings separadas por vírgula
-        for col in ["available_colors", "available_sizes"]:
-            if col in df.columns:
-                df[col] = df[col].apply(lambda x: ", ".join(x) if isinstance(x, list) else x)
-
-        # Mover coluna 'brand' para a primeira posição
-        cols = df.columns.tolist()
-        if "brand" in cols:
-            cols.remove("brand")
-            cols.insert(0, "brand")
-            df = df[cols]
-
-        # Expandir specifications
-        if "specifications" in df.columns:
-            # Tratar NaNs antes de expandir para evitar erros com pd.Series
-            df["specifications"] = df["specifications"].apply(lambda x: x if isinstance(x, dict) else {})
-            specs_df = df["specifications"].apply(pd.Series)
-            # Evita duplicatas de colunas se houver
-            df = pd.concat([df.drop("specifications", axis=1), specs_df], axis=1)
+        df = build_canonical_export_dataframe(all_products)
 
         # Ordenar
         sort_cols = []

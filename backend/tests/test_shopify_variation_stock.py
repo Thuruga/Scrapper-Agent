@@ -239,7 +239,46 @@ def test_get_product_by_url_enriches_availability_and_rating_from_json_ld(monkey
     )
 
     assert product is not None
+    assert product.category == "Polo"
     assert product.stock_availability is True
     assert product.available_sizes == ["40"]
     assert product.rating == 4.8
     assert product.review_count == 1234
+
+
+def test_get_product_by_url_leaves_category_blank_without_truthful_source_value(monkeypatch):
+    monkeypatch.setattr(
+        shopify_module.brand_service,
+        "get_brand",
+        lambda brand_key: SimpleNamespace(domain="shop.example.com", brand_name="Shop"),
+    )
+    session = _FakeSession(
+        [
+            _FakeResp(
+                200,
+                {
+                    "product": {
+                        **_shopify_product(
+                            [
+                                {"title": "U", "price": "199.90", "available": True},
+                            ]
+                        ),
+                        "product_type": "",
+                    }
+                },
+            ),
+            _FakeResp(200, text_body="<html></html>"),
+        ]
+    )
+
+    async def fake_get_session():
+        return session
+
+    monkeypatch.setattr(shopify_module.SessionManager, "get_session", staticmethod(fake_get_session))
+
+    product = asyncio.run(
+        ShopifyApiClient("shop").get_product_by_url("https://shop.example.com/products/polo-regular")
+    )
+
+    assert product is not None
+    assert product.category is None

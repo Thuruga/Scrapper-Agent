@@ -46,6 +46,34 @@ export type ReviewCommentsResult = {
   max_pages: number;
 };
 
+export type MapRule = {
+  id: string;
+  scope: 'product' | 'category' | 'brand';
+  target: string;
+  min_price: number;
+  active: boolean;
+  brand?: string | null;
+  category?: string | null;
+  product_code?: string | null;
+  product_url?: string | null;
+  normalized_url?: string | null;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MapRulePayload = {
+  scope: 'product' | 'category' | 'brand';
+  target: string;
+  min_price: number;
+  active?: boolean;
+  brand?: string | null;
+  category?: string | null;
+  product_code?: string | null;
+  product_url?: string | null;
+  notes?: string | null;
+};
+
 export class ApiClient {
 
   // ------------------------------------------------------------------
@@ -114,6 +142,33 @@ export class ApiClient {
     }>('/brands/identify', {
       method: 'POST',
       body: JSON.stringify({ url }),
+    });
+  }
+
+  // ------------------------------------------------------------------
+  // MAP rules
+  // ------------------------------------------------------------------
+  static listMapRules() {
+    return this.request<MapRule[]>('/map-rules');
+  }
+
+  static createMapRule(payload: MapRulePayload) {
+    return this.request<MapRule>('/map-rules', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  static updateMapRule(ruleId: string, payload: Partial<MapRulePayload>) {
+    return this.request<MapRule>(`/map-rules/${encodeURIComponent(ruleId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  static deleteMapRule(ruleId: string) {
+    return this.request(`/map-rules/${encodeURIComponent(ruleId)}`, {
+      method: 'DELETE',
     });
   }
 

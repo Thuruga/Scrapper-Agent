@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urlparse
 
-from core.models import SearchProductResult, ShippingInfo
+from core.models import SearchProductResult, ShippingInfo, resolve_effective_price
 
 
 class ShippingState:
@@ -116,7 +116,11 @@ def apply_shipping_calculation(
         product.shipping_price = None
         product.is_free_shipping = False
 
-    base_price = product.price_discount if product.price_discount is not None else product.price_full
+    base_price = resolve_effective_price(
+        product.price_full,
+        product.price_discount,
+        product.price_discount_is_delta,
+    )
     if base_price is not None:
         product.landed_price = (
             base_price + product.shipping_price

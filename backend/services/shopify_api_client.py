@@ -8,6 +8,8 @@ from bs4 import BeautifulSoup
 
 from core.models import RawProductBronze, BrandSearchResult, SearchProductResult
 from services.brand_service import brand_service
+from services.product_contract import normalize_specifications_aliases
+from services.promotion_parser import derive_discount_promotions
 from core.base_scraper import BaseScraper
 from core.session_manager import SessionManager
 from core.browser_manager import browser_manager
@@ -179,7 +181,7 @@ class ShopifyApiClient(BaseScraper):
                 logger.error(f"[{self.brand_key}] Erro ao buscar todos os produtos Shopify: {e}")
                 break
 
-    def _map_to_bronze(self, p: Dict[str, Any], category: str) -> Optional[RawProductBronze]:
+    def _map_to_bronze(self, p: Dict[str, Any], category: Optional[str]) -> Optional[RawProductBronze]:
         """Converte JSON nativo da Shopify para o modelo RawProductBronze."""
         try:
             handle = p.get("handle", "")
@@ -199,8 +201,28 @@ class ShopifyApiClient(BaseScraper):
             image_url = images[0].get("src") if images else None
             
             # Atributos
-            available_sizes = list(set([v.get("title") for v in variants if v.get("available")]))
+            available_colors = self._extract_available_option_values(
+                p,
+                variants,
+                {"cor", "color", "colours", "colores"},
+            )
+            available_sizes = self._extract_available_option_values(
+                p,
+                variants,
+                {"tamanho", "size", "sizes"},
+            )
+            if not available_sizes:
+                available_sizes = list(set([v.get("title") for v in variants if v.get("available")]))
             stock_availability = self._variants_available(variants, default=False)
+            specifications = normalize_specifications_aliases(
+                {
+                    "vendor": p.get("vendor", ""),
+                    "product_type": p.get("product_type", ""),
+                    "tags": ", ".join(p.get("tags", []))
+                    if isinstance(p.get("tags"), list)
+                    else p.get("tags", ""),
+                }
+            )
             
             return RawProductBronze(
                 url=urljoin(self.base_url, f"/products/{handle}"),
@@ -209,15 +231,16 @@ class ShopifyApiClient(BaseScraper):
                 raw_description=p.get("body_html", ""),
                 price_full=price_old if price_old and price_old > price_full else price_full,
                 price_discount=price_full if price_old and price_old > price_full else None,
+                promotions=derive_discount_promotions(
+                    price_old if price_old and price_old > price_full else price_full,
+                    price_full if price_old and price_old > price_full else None,
+                ),
                 stock_availability=stock_availability,
                 category=category,
                 image_url=image_url,
+                available_colors=available_colors,
                 available_sizes=available_sizes,
-                specifications={
-                    "vendor": p.get("vendor", ""),
-                    "product_type": p.get("product_type", ""),
-                    "tags": ", ".join(p.get("tags", [])) if isinstance(p.get("tags"), list) else p.get("tags", "")
-                }
+                specifications=specifications
             )
         except Exception as e:
             logger.error(f"Erro ao mapear produto Shopify: {e}")
@@ -228,6 +251,36 @@ class ShopifyApiClient(BaseScraper):
         if not variants:
             return default
         return any(variant.get("available") is True for variant in variants)
+
+    @staticmethod
+    def _extract_available_option_values(
+        product: Dict[str, Any],
+        variants: List[Dict[str, Any]],
+        accepted_names: set[str],
+    ) -> List[str]:
+        options = product.get("options", [])
+        position = None
+        for option in options:
+            name = str(option.get("name") or "").strip().lower()
+            if name in accepted_names:
+                try:
+                    position = int(option.get("position") or 0)
+                except (TypeError, ValueError):
+                    position = None
+                break
+
+        if not position:
+            return []
+
+        values: List[str] = []
+        variant_key = f"option{position}"
+        for variant in variants:
+            if variant.get("available") is not True:
+                continue
+            value = str(variant.get(variant_key) or "").strip()
+            if value and value not in values:
+                values.append(value)
+        return values
 
     async def get_product_by_url(self, product_url: str) -> Optional[RawProductBronze]:
         """Extrai dados de um único produto via URL (append .json)."""
@@ -241,7 +294,10 @@ class ShopifyApiClient(BaseScraper):
                     product_data = data.get("product")
         except Exception as e:
             logger.error(f"Erro ao buscar detalhes do produto Shopify: {e}")
-        mapped = self._map_to_bronze(product_data, "Detalhes") if product_data else None
+        detail_category = None
+        if product_data:
+            detail_category = str(product_data.get("product_type") or "").strip() or None
+        mapped = self._map_to_bronze(product_data, detail_category) if product_data else None
         if not mapped:
             return None
 

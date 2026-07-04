@@ -24,13 +24,13 @@ Com o motor multi-engine, frete VTEX e os engines Wake/SFCC entregues no v3.0, o
 
 Phases 19-36 pertencem a milestones CONCLUÍDOS (v1.10-v3.0). As phases ativas do v4.0 são **37-45**.
 
-- [ ] **Phase 37: Paridade de Atributos & Fundação SQLite** - Vocabulário canônico único, normalização/aliasing de atributos em todos os engines, relatório de cobertura por marca e introdução do SQLite para dados analíticos (PARID-01, PARID-02, PARID-03, PARID-04)
+- [ ] **Phase 37: Paridade de Atributos & Fundação SQLite** - Contrato canônico único de produto/export, normalização/aliasing aditivo de atributos em todos os engines e colunas fixas de Excel entre superfícies; `37-CONTEXT.md` remove relatório de cobertura e SQLite do escopo executável (PARID-01, PARID-02, PARID-03, PARID-04)
 - [x] **Phase 38: UX de Busca & Monitoramento — Quick Wins** - Responsividade do monitor/varredura, promoção na lista de monitoramento, histórico no canto superior direito, padrão de SKU + CEP inline, auto-trigger do monitor de categoria e remoção da Lacoste de todas as superfícies de busca (UX-01, UX-02, UX-06, UX-07, UX-08, COMP-08) (completed 2026-07-01)
 - [x] **Phase 39: Cobertura de Marcas — Hugo Boss & Zara** - Varredura e monitoramento por categoria da Hugo Boss funcionando; spike-gated onboarding da Zara (GO/NO-GO antes do engine) (COMP-06, COMP-07) (completed 2026-06-30)
 - [x] **Phase 40: Onboarding por URL & Workflows de Adição ao Monitoramento** - Cadastro de marca só pela URL, detecção automática de engine + nome, botão "adicionar ao monitoramento" nas três superfícies de busca e toggles de ativar/desativar para marketplaces virtuais (UX-03, UX-04, UX-05) (completed 2026-06-30)
 - [x] **Phase 41: Abstração de Frete & Marcas Não-VTEX** - Camada de abstração de frete por engine (BaseShipping + implementações Wake/Shopify), fechamento do gap de frete do Buckman (VTEX) e VTEX permanece no VtexApiClient (FRET-07) (completed 2026-07-02)
 - [x] **Phase 42: Frete para Marketplaces & Matriz Multi-Regional** - Cálculo de frete para Mercado Livre, Netshoes e Amazon; Matriz de Frete Multi-Regional com CEPs-chave das 5 regiões do Brasil, on-demand com throttle e cache (FRET-08, FRET-09) (completed 2026-07-02)
-- [ ] **Phase 43: Violação de MAP & Selos de Promoção** - Regras de preço mínimo (MAP) por produto/marca/categoria com sinalização de vendedores infratores; extração estruturada de selos de oferta e condições de pagamento (MAP-01, PROMO-01)
+- [x] **Phase 43: Violação de MAP & Selos de Promoção** - Regras de preço mínimo (MAP) por produto/marca/categoria com sinalização de vendedores infratores; extração estruturada de selos de oferta e condições de pagamento (MAP-01, PROMO-01) (completed 2026-07-04)
 - [x] **Phase 44: Ruptura de Estoque & Avaliações Reforçadas** - Percentual de produtos esgotados por marca na varredura; profundidade de estoque via cart-probe de 999 unidades (sessões efêmeras + throttle); notas e comentários reforçados para todas as marcas com paginação e dedup (STOCK-01, STOCK-02, REVW-01) (completed 2026-06-30)
 - [ ] **Phase 45: Análise de Sortimento** - Cron que varre categorias e contabiliza produtos por atributo canônico, gerando snapshots para identificar buracos no catálogo; depende dos atributos canônicos (PARID) e da persistência SQLite (SORT-01)
 
@@ -38,25 +38,22 @@ Phases 19-36 pertencem a milestones CONCLUÍDOS (v1.10-v3.0). As phases ativas d
 
 ### Phase 37: Paridade de Atributos & Fundação SQLite
 
-**Goal**: Todo produto retornado pelo sistema carrega o mesmo conjunto de atributos canônicos (cor, fit, tecido, tamanho, composição, gênero) independentemente da marca ou engine — e o operador consegue ver, por marca, qual porcentagem dos campos canônicos está sendo preenchida versus ausente na fonte.
+**Goal**: Todo produto retornado/exportado pelo sistema respeita o mesmo contrato canônico em inglês (`brand`, `url`, `price_full`, `price_discount`, `product_name`, `product_description`, `composition`, `available_colors`, `available_sizes`, `product_code`, `category`, `rating`, `review_count`) independentemente da marca ou engine — com blanks quando a fonte não expõe o valor.
 **Depends on**: Nothing (fase fundacional do v4.0; opera sobre engines e parsers existentes)
 **Requirements**: PARID-01, PARID-02, PARID-03, PARID-04
 **Success Criteria** (what must be TRUE):
 
-  1. Existe um vocabulário canônico de atributos documentado e centralizado (`attribute_normalizer.py`) que todos os engines chamam antes de popular `RawProductBronze.specifications`.
-  2. Para marcas hoje deficientes (Levi's, Calvin Klein, Zapalla, Austral, Track & Field, Richards, Hugo Boss), os campos canônicos (ex.: `color`, `fit`, `material`) aparecem preenchidos nos resultados de busca quando a fonte os contém — sem sobrescrever o `specifications` bruto original.
-  3. Nomes de atributos divergentes entre engines (ex.: `Cor2`, `Corte`, `Composição do produto`) são normalizados/aliasados para as chaves canônicas de forma aditiva, verificável por teste unitário por alias.
-  4. O operador acessa um relatório de cobertura de atributos (endpoint ou log estruturado) que distingue "campo canônico não extraído" de "campo ausente na fonte" para cada marca.
-  5. Dados analíticos e de série temporal (snapshots de atributos, contagens futuras de sortimento) são persistidos em SQLite (`backend/data/analytics.db`) — configuração inicial e schema validados; JSON permanece para config.
+  1. Existe um contrato canônico centralizado e testado para o produto/export (`brand`, `url`, `price_full`, `price_discount`, `product_name`, `product_description`, `composition`, `available_colors`, `available_sizes`, `product_code`, `category`, `rating`, `review_count`) que preserva os campos brutos atuais.
+  2. Para marcas hoje deficientes (Levi's, Calvin Klein, Zapalla, Austral, Track & Field, Richards, Hugo Boss), os campos canônicos aparecem preenchidos quando a fonte os contém — sem inventar valores quando a fonte não expõe o dado.
+  3. Nomes de atributos divergentes entre engines (ex.: `Cor2`, `Corte`, `Composição do produto`) são normalizados/aliasados para chaves canônicas de forma aditiva, verificável por teste.
+  4. O Excel comparativo e os exports de categoria saem com colunas fixas e consistentes em inglês, deixando blanks quando a fonte não trouxer o dado.
 
-**Plans**: 5 plans
+**Plans**: 3 plans
 Plans:
 
-- [x] 44-01-PLAN.md - Shared Phase 44 contracts, config, and rupture summary helper
-- [x] 44-02-PLAN.md - Scheduled and manual category scan rupture summary wiring
-- [x] 44-03-PLAN.md - Explicit monitor-product stock-depth cart-probe action
-- [x] 44-04-PLAN.md - On-demand compact review comments and provider states
-- [x] 44-05-PLAN.md - Monitor modal stock/review operator actions
+- [ ] 37-01-PLAN.md - Shared canonical product contract, additive aliasing, and Wave-0 contract tests
+- [ ] 37-02-PLAN.md - Engine/parser parity across VTEX, Shopify, Wake, SFCC, Zara, and marketplaces
+- [ ] 37-03-PLAN.md - Shared canonical Excel export across comparative search and category scans
 
 **UI hint**: yes
 
@@ -212,12 +209,12 @@ Phases ativas executam em ordem numérica: 37 → 38 → 39 → 40 → 41 → 42
 | 34. Extração de Banners Desktop | v3.0 | 4/4 | Complete | 2026-06-23 |
 | 35. Publicação de Banners no SharePoint | v3.0 | 0/? | Not started | - |
 | 36. Onboarding das Marcas Concorrentes Restantes | v3.0 | 3/3 | Complete (NO-GO) | 2026-06-25 |
-| 37. Paridade de Atributos & Fundação SQLite | v4.0 | 0/? | Not started | - |
+| 37. Paridade de Atributos & Fundação SQLite | v4.0 | 0/3 | Planned | - |
 | 38. UX de Busca & Monitoramento — Quick Wins | v4.0 | 3/3 | Complete    | 2026-07-02 |
 | 39. Cobertura de Marcas — Hugo Boss & Zara | v4.0 | 3/3 | Complete    | 2026-06-30 |
 | 40. Onboarding por URL & Workflows de Adição | v4.0 | 5/5 | Complete    | 2026-06-30 |
 | 41. Abstração de Frete & Marcas Não-VTEX | v4.0 | 3/3 | Complete | 2026-07-02 |
 | 42. Frete para Marketplaces & Matriz Multi-Regional | v4.0 | 3/3 | Complete    | 2026-07-02 |
-| 43. Violação de MAP & Selos de Promoção | v4.0 | 0/? | Not started | - |
+| 43. Violação de MAP & Selos de Promoção | v4.0 | 4/4 | Completed | 2026-07-04 |
 | 44. Ruptura de Estoque & Avaliações Reforçadas | v4.0 | 5/5 | Complete   | 2026-06-30 |
 | 45. Análise de Sortimento | v4.0 | 0/? | Not started | - |

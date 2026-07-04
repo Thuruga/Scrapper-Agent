@@ -11,6 +11,8 @@ from services.engines.amazon_engine import AmazonEngine
 from services.engines.brand_key_utils import normalize_brand_key
 from services.engines.seller_extraction import is_marketplace_default
 from services.brand_service import brand_service
+from services.map_evaluator_service import evaluate_map_violation
+from services.map_rules_service import map_rules_service
 
 logger = logging.getLogger(__name__)
 
@@ -289,6 +291,12 @@ class CrossMarketplaceService:
         # Colapsa produtos com a mesma (marketplace, url), incrementando variant_count.
         formatted_results = relevance_gates.dedup_results(formatted_results)
 
+        brand_hint = _detect_candidate_brand(
+            strict_query,
+            nlp_service._vocab.known_brands_for_detection,
+        )
+        self._apply_phase43_metadata(formatted_results, brand_hint)
+
         # Buybox = mais barato, mas RESTRITO aos matches estritos quando existirem: um "similar"
         # de baixo score (fallback per-plataforma) não pode ser anunciado como o melhor preço do
         # produto buscado. mark_buybox_winner trata o caso "só similares" (usa todos).
@@ -535,6 +543,27 @@ class CrossMarketplaceService:
             f"Buscando seller real via PDP e calculando frete para {len(top_filtered)} produtos com CEP {target_zipcode}..."
         )
         await asyncio.gather(*(fetch_pdp_seller_and_shipping(p) for p in top_filtered))
+
+    def _apply_phase43_metadata(
+        self,
+        formatted_results: list[dict[str, Any]],
+        brand_hint: str | None,
+    ) -> None:
+        rules = map_rules_service.list_rules(active_only=True)
+        for item in formatted_results:
+            evaluation_payload = {
+                **item,
+                "brand": brand_hint or item.get("marketplace"),
+            }
+            item.update(
+                evaluate_map_violation(
+                    evaluation_payload,
+                    rules,
+                    brand_name=brand_hint or item.get("marketplace"),
+                    marketplace=item.get("marketplace"),
+                )
+            )
+            item.setdefault("promotions", [])
 
 
 cross_marketplace_service = CrossMarketplaceService()

@@ -50,7 +50,7 @@ import {
   Tooltip,
   ResponsiveContainer
 } from 'recharts';
-import { ApiClient } from './api/client';
+import { ApiClient, type MapRule, type MapRulePayload } from './api/client';
 import { useSearchStore, withDisplayOrder } from './stores/searchStore';
 import { useBannerStore, type BannerCandidate } from './stores/bannerStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -60,10 +60,111 @@ import './App.css';
 // --- Components ---
 
 // Regex do SKU alvo (busca por marketplace) — UX gate apenas (T-38-04); backend valida independentemente.
-const SKU_PATTERN = /^ML\.05\.\d{7}$/;
-const SKU_ERROR_MSG = 'Formato inválido. Use o padrão ML.05.XXXXXXX (ex: ML.05.0326046).';
+// O prefixo varia por categoria (ML.05, CD.08, ...): duas letras + dois dígitos + sete dígitos.
+const SKU_PATTERN = /^[A-Za-z]{2}\.\d{2}\.\d{7}$/;
+const SKU_ERROR_MSG = 'Formato inválido. Use o padrão AA.NN.NNNNNNN (ex: ML.05.0326046 ou CD.08.0292007).';
 const AUTO_SWEEP_POLL_MS = 5000;
 const AUTO_SWEEP_MAX_ATTEMPTS = 20;
+
+const toPositivePrice = (value: unknown): number | null => (
+  typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null
+);
+
+const getProductPriceView = (product: any) => {
+  const priceFull = toPositivePrice(product?.price_full);
+  const priceDiscount = toPositivePrice(product?.price_discount);
+  const isDelta = product?.price_discount_is_delta === true;
+
+  if (priceFull == null) {
+    return { current: null, original: null, discountPct: null };
+  }
+
+  if (priceDiscount == null) {
+    return { current: priceFull, original: null, discountPct: null };
+  }
+
+  if (isDelta) {
+    const original = priceFull + priceDiscount;
+    return {
+      current: priceFull,
+      original: original > priceFull ? original : null,
+      discountPct: original > priceFull
+        ? Math.round(((original - priceFull) / original) * 100)
+        : null,
+    };
+  }
+
+  if (priceDiscount < priceFull) {
+    return {
+      current: priceDiscount,
+      original: priceFull,
+      discountPct: Math.round(((priceFull - priceDiscount) / priceFull) * 100),
+    };
+  }
+
+  return { current: priceFull, original: null, discountPct: null };
+};
+
+const getMonitorPriceView = (monitor: any) => {
+  const current = toPositivePrice(monitor?.last_price);
+  const original = toPositivePrice(monitor?.last_price_original);
+  if (current == null) {
+    return { current: null, original: null };
+  }
+  if (original != null && original > current) {
+    return { current, original };
+  }
+
+  const legacyDelta = toPositivePrice(monitor?.last_price_discount);
+  if (legacyDelta != null && legacyDelta < current * 5) {
+    return { current, original: current + legacyDelta };
+  }
+
+  return { current, original: null };
+};
+
+const formatMoney = (value: unknown) => (
+  typeof value === 'number' && Number.isFinite(value) ? `R$ ${value.toFixed(2)}` : ''
+);
+
+const Phase43Badges = ({ item }: { item: any }) => {
+  const promotions = Array.isArray(item?.promotions) ? item.promotions : [];
+  const hasMap = item?.map_violation === true;
+  if (!hasMap && promotions.length === 0) return null;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
+      {hasMap && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--error)', fontSize: '12px', fontWeight: 700 }}>
+          <AlertTriangle size={14} />
+          <span>
+            MAP abaixo do piso {formatMoney(item.map_price_floor)}
+            {item.map_infractor ? ` - ${item.map_infractor}` : ''}
+          </span>
+        </div>
+      )}
+      {promotions.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+          {promotions.slice(0, 3).map((promo: any, idx: number) => (
+            <span
+              key={`${promo.raw_text || promo.type}-${idx}`}
+              style={{
+                border: '1px solid rgba(6, 182, 212, 0.35)',
+                color: 'var(--accent)',
+                borderRadius: '4px',
+                padding: '2px 6px',
+                fontSize: '11px',
+                fontWeight: 700,
+              }}
+            >
+              {promo.raw_text || promo.type}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const SidebarItem = ({ icon: Icon, label, active, onClick }: any) => (
   <button
@@ -112,6 +213,418 @@ const StatusBanner = ({ type, message, onClear }: { type: 'success' | 'error' | 
   );
 };
 
+
+// Confirmação de exclusão dentro da aplicação (substitui window.confirm).
+// Cada página guarda um estado { message, action } e renderiza um único ConfirmDialog.
+type ConfirmState = { message: string; action: () => void } | null;
+
+type MapRuleFormState = {
+  scope: 'product' | 'category' | 'brand';
+  target: string;
+  min_price: string;
+  active: boolean;
+  brand: string;
+  category: string;
+  notes: string;
+};
+
+const emptyMapRuleForm = (): MapRuleFormState => ({
+  scope: 'brand',
+  target: '',
+  min_price: '',
+  active: true,
+  brand: '',
+  category: '',
+  notes: '',
+});
+
+const ConfirmDialog = ({ state, onClose, title = 'Confirmar exclusão', confirmLabel = 'Excluir' }: {
+  state: ConfirmState;
+  onClose: () => void;
+  title?: string;
+  confirmLabel?: string;
+}) => {
+  if (!state) return null;
+  const handleConfirm = () => {
+    const action = state.action;
+    onClose();
+    action();
+  };
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '420px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertTriangle size={18} className="text-error" /> {title}
+          </h3>
+          <button className="btn btn-icon" onClick={onClose} aria-label="Fechar"><X size={20} /></button>
+        </div>
+        <p className="text-muted" style={{ marginBottom: '16px', fontSize: '14px' }}>{state.message}</p>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button type="button" className="btn btn-outline" onClick={onClose} style={{ flex: 1 }}>Cancelar</button>
+          <button type="button" className="btn" onClick={handleConfirm} style={{ flex: 1, background: 'var(--error)', color: 'white' }}>
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+type MapRulesManagerMode = 'comparative' | 'sku' | 'monitors' | 'categories' | 'settings';
+
+const mapRulesManagerCopy: Record<MapRulesManagerMode, { title: string; subtitle: string }> = {
+  comparative: {
+    title: 'Regras MAP da busca comparativa',
+    subtitle: 'Pisos por marca, categoria ou produto aparecem nos resultados desta busca.',
+  },
+  sku: {
+    title: 'Regras MAP da busca por SKU',
+    subtitle: 'Use marca ou produto para alertar marketplaces abaixo do piso.',
+  },
+  monitors: {
+    title: 'Regras MAP dos monitores',
+    subtitle: 'Monitores alertam quando a checagem encontrar preco abaixo do piso.',
+  },
+  categories: {
+    title: 'Regras MAP das categorias',
+    subtitle: 'Categorias monitoradas mostram alerta em produtos abaixo do piso.',
+  },
+  settings: {
+    title: 'Regras MAP',
+    subtitle: 'Cadastre pisos de preco anunciado por marca, categoria ou produto.',
+  },
+};
+
+const mapRuleScopeLabel: Record<MapRuleFormState['scope'], string> = {
+  brand: 'Marca inteira',
+  category: 'Categoria da marca',
+  product: 'Produto',
+};
+
+const mapRulePrimaryLabel = (rule: MapRule) => {
+  if (rule.scope === 'brand') return rule.brand || rule.target;
+  if (rule.scope === 'category') return rule.category || rule.target;
+  return rule.product_code || rule.product_url || rule.target;
+};
+
+const mapRuleDetailLabel = (rule: MapRule) => {
+  if (rule.scope === 'brand') return 'Todos os produtos da marca';
+  if (rule.scope === 'category') return rule.brand ? `Marca: ${rule.brand}` : 'Todas as marcas';
+  return rule.brand ? `Marca: ${rule.brand}` : 'Produto especifico';
+};
+
+const isMapProductUrl = (value: string) => /^https?:\/\//i.test(value) || value.includes('/');
+
+const MapRulesManager = ({ mode = 'settings' }: { mode?: MapRulesManagerMode }) => {
+  const [confirmState, setConfirmState] = useState<ConfirmState>(null);
+  const [mapRules, setMapRules] = useState<MapRule[]>([]);
+  const [mapRulesLoading, setMapRulesLoading] = useState(false);
+  const [mapRulesSaving, setMapRulesSaving] = useState(false);
+  const [editingMapRuleId, setEditingMapRuleId] = useState<string | null>(null);
+  const [mapRuleForm, setMapRuleForm] = useState<MapRuleFormState>(() => emptyMapRuleForm());
+  const copy = mapRulesManagerCopy[mode];
+
+  const loadMapRules = async () => {
+    setMapRulesLoading(true);
+    try {
+      setMapRules(await ApiClient.listMapRules());
+    } catch (err: any) {
+      toast.error('Erro ao carregar regras MAP: ' + err.message);
+    } finally {
+      setMapRulesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadMapRules();
+  }, []);
+
+  const resetMapRuleForm = () => {
+    setEditingMapRuleId(null);
+    setMapRuleForm(emptyMapRuleForm());
+  };
+
+  const buildMapRulePayload = (): MapRulePayload => {
+    const minPrice = Number(mapRuleForm.min_price.replace(',', '.'));
+    const brand = mapRuleForm.brand.trim();
+    const target = mapRuleForm.target.trim();
+    const category = mapRuleForm.category.trim();
+    const notes = mapRuleForm.notes.trim() || null;
+
+    if (mapRuleForm.scope === 'brand') {
+      const brandTarget = brand || target;
+      return {
+        scope: 'brand',
+        target: brandTarget,
+        min_price: minPrice,
+        active: mapRuleForm.active,
+        brand: brandTarget,
+        category: null,
+        product_code: null,
+        product_url: null,
+        notes,
+      };
+    }
+
+    if (mapRuleForm.scope === 'category') {
+      return {
+        scope: 'category',
+        target: category,
+        min_price: minPrice,
+        active: mapRuleForm.active,
+        brand: brand || null,
+        category,
+        product_code: null,
+        product_url: null,
+        notes,
+      };
+    }
+
+    const productUrl = isMapProductUrl(target) ? target : null;
+    return {
+      scope: 'product',
+      target,
+      min_price: minPrice,
+      active: mapRuleForm.active,
+      brand: brand || null,
+      category: null,
+      product_code: productUrl ? null : target,
+      product_url: productUrl,
+      notes,
+    };
+  };
+
+  const handleSubmitMapRule = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const payload = buildMapRulePayload();
+    if (!Number.isFinite(payload.min_price) || payload.min_price <= 0) {
+      toast.error('Informe um piso MAP valido.');
+      return;
+    }
+    if (payload.scope === 'brand' && !payload.brand) {
+      toast.error('Informe a marca da regra MAP.');
+      return;
+    }
+    if (payload.scope === 'category' && (!payload.brand || !payload.category)) {
+      toast.error('Informe marca e categoria da regra MAP.');
+      return;
+    }
+    if (payload.scope === 'product' && !payload.target) {
+      toast.error('Informe codigo ou URL do produto.');
+      return;
+    }
+
+    setMapRulesSaving(true);
+    try {
+      if (editingMapRuleId) {
+        await ApiClient.updateMapRule(editingMapRuleId, payload);
+        toast.success('Regra MAP atualizada');
+      } else {
+        await ApiClient.createMapRule(payload);
+        toast.success('Regra MAP criada');
+      }
+      resetMapRuleForm();
+      await loadMapRules();
+    } catch (err: any) {
+      toast.error('Erro ao salvar regra MAP: ' + err.message);
+    } finally {
+      setMapRulesSaving(false);
+    }
+  };
+
+  const handleEditMapRule = (rule: MapRule) => {
+    setEditingMapRuleId(rule.id);
+    setMapRuleForm({
+      scope: rule.scope,
+      target: rule.product_url || rule.product_code || rule.target || '',
+      min_price: String(rule.min_price ?? ''),
+      active: rule.active,
+      brand: rule.brand || (rule.scope === 'brand' ? rule.target : ''),
+      category: rule.category || (rule.scope === 'category' ? rule.target : ''),
+      notes: rule.notes || '',
+    });
+  };
+
+  const handleDeleteMapRule = (rule: MapRule) => {
+    setConfirmState({
+      message: `Excluir regra MAP ${mapRulePrimaryLabel(rule)}?`,
+      action: async () => {
+        try {
+          await ApiClient.deleteMapRule(rule.id);
+          toast.success('Regra MAP excluida');
+          if (editingMapRuleId === rule.id) resetMapRuleForm();
+          await loadMapRules();
+        } catch (err: any) {
+          toast.error('Erro ao excluir regra MAP: ' + err.message);
+        }
+      },
+    });
+  };
+
+  const setRuleScope = (scope: MapRuleFormState['scope']) => {
+    setMapRuleForm(prev => ({ ...prev, scope }));
+  };
+
+  return (
+    <GlassCard title={copy.title} subtitle={copy.subtitle}>
+      <form onSubmit={handleSubmitMapRule} className="form-stack" style={{ gap: '1rem' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {(Object.keys(mapRuleScopeLabel) as MapRuleFormState['scope'][]).map(scope => (
+            <button
+              key={scope}
+              type="button"
+              className={`btn ${mapRuleForm.scope === scope ? 'btn-primary' : 'btn-outline'}`}
+              onClick={() => setRuleScope(scope)}
+              style={{ minHeight: '36px', padding: '8px 12px' }}
+            >
+              {mapRuleScopeLabel[scope]}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+          {mapRuleForm.scope === 'brand' && (
+            <div className="form-group">
+              <label className="label">Marca</label>
+              <input
+                className="input"
+                value={mapRuleForm.brand}
+                onChange={e => setMapRuleForm(prev => ({ ...prev, brand: e.target.value }))}
+                placeholder="aramis"
+                required
+              />
+            </div>
+          )}
+
+          {mapRuleForm.scope === 'category' && (
+            <>
+              <div className="form-group">
+                <label className="label">Marca</label>
+                <input
+                  className="input"
+                  value={mapRuleForm.brand}
+                  onChange={e => setMapRuleForm(prev => ({ ...prev, brand: e.target.value }))}
+                  placeholder="aramis"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="label">Categoria</label>
+                <input
+                  className="input"
+                  value={mapRuleForm.category}
+                  onChange={e => setMapRuleForm(prev => ({ ...prev, category: e.target.value }))}
+                  placeholder="Polos"
+                  required
+                />
+              </div>
+            </>
+          )}
+
+          {mapRuleForm.scope === 'product' && (
+            <>
+              <div className="form-group">
+                <label className="label">Codigo ou URL do produto</label>
+                <input
+                  className="input"
+                  value={mapRuleForm.target}
+                  onChange={e => setMapRuleForm(prev => ({ ...prev, target: e.target.value }))}
+                  placeholder="SKU ou https://..."
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="label">Marca</label>
+                <input
+                  className="input"
+                  value={mapRuleForm.brand}
+                  onChange={e => setMapRuleForm(prev => ({ ...prev, brand: e.target.value }))}
+                  placeholder="opcional"
+                />
+              </div>
+            </>
+          )}
+
+          <div className="form-group">
+            <label className="label">Piso MAP</label>
+            <input
+              className="input"
+              value={mapRuleForm.min_price}
+              onChange={e => setMapRuleForm(prev => ({ ...prev, min_price: e.target.value }))}
+              inputMode="decimal"
+              placeholder="299.90"
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="label">Nota</label>
+            <input
+              className="input"
+              value={mapRuleForm.notes}
+              onChange={e => setMapRuleForm(prev => ({ ...prev, notes: e.target.value }))}
+              placeholder="opcional"
+            />
+          </div>
+        </div>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '14px' }}>
+          <input
+            type="checkbox"
+            checked={mapRuleForm.active}
+            onChange={e => setMapRuleForm(prev => ({ ...prev, active: e.target.checked }))}
+          />
+          Ativa
+        </label>
+
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <button type="submit" className="btn btn-primary" disabled={mapRulesSaving}>
+            {mapRulesSaving ? <RefreshCw className="animate-spin" size={16} /> : <Plus size={16} />}
+            {editingMapRuleId ? 'Atualizar regra' : 'Criar regra'}
+          </button>
+          {editingMapRuleId && (
+            <button type="button" className="btn btn-outline" onClick={resetMapRuleForm}>
+              Cancelar edicao
+            </button>
+          )}
+        </div>
+      </form>
+
+      <div className="brand-list" style={{ marginTop: '1rem' }}>
+        {mapRulesLoading ? (
+          <div className="brand-item"><RefreshCw className="animate-spin" size={16} /> Carregando regras...</div>
+        ) : mapRules.length === 0 ? (
+          <div className="brand-item" style={{ color: 'var(--text-muted)' }}>Nenhuma regra MAP cadastrada.</div>
+        ) : mapRules.map(rule => (
+          <div key={rule.id} className="brand-item" style={rule.active ? undefined : { opacity: 0.55 }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span className="brand-name-text">{mapRulePrimaryLabel(rule)}</span>
+                <span className="monitor-badge" style={{ color: rule.active ? 'var(--success)' : 'var(--warning)', fontSize: '0.7rem' }}>
+                  {mapRuleScopeLabel[rule.scope]}
+                </span>
+              </div>
+              <p className="brand-domain-text">
+                {formatMoney(rule.min_price)} - {mapRuleDetailLabel(rule)}
+              </p>
+            </div>
+            <div className="brand-actions">
+              <button type="button" className="btn-icon" onClick={() => handleEditMapRule(rule)}>
+                <Eye size={18} />
+              </button>
+              <button type="button" className="btn-icon text-error" onClick={() => handleDeleteMapRule(rule)}>
+                <Trash2 size={18} />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <ConfirmDialog state={confirmState} onClose={() => setConfirmState(null)} />
+    </GlassCard>
+  );
+};
 
 const PriceChart = ({ history }: { history: any[] }) => {
   if (!history || history.length === 0) {
@@ -214,6 +727,18 @@ const domainMatchesBrand = (urlDomain: string, brandDomain: string): boolean => 
   return host === base || host.endsWith(`.${base}`);
 };
 
+// Nome exibível de uma marca/marketplace: usa o brand_name cadastrado; sem cadastro,
+// humaniza o brand_key ("mercado_livre" → "Mercado Livre").
+const brandDisplayName = (brandKey: string, brands: any[]): string => {
+  const meta = brands.find(b => b.brand_key === brandKey);
+  if (meta?.brand_name) return meta.brand_name;
+  return (brandKey || '')
+    .split('_')
+    .filter(Boolean)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+};
+
 const MonitorPage = ({ brands }: { brands: any[] }) => {
   const [monitors, setMonitors] = useState<any[]>([]);
   const [url, setUrl] = useState('');
@@ -224,6 +749,7 @@ const MonitorPage = ({ brands }: { brands: any[] }) => {
   // Identify-first: marca identificada por domínio, e fallback manual quando não há match.
   const [identifiedBrandName, setIdentifiedBrandName] = useState<string | null>(null);
   const [showManualBrand, setShowManualBrand] = useState(false);
+  const [confirmState, setConfirmState] = useState<ConfirmState>(null);
 
   const refreshMonitors = () => {
     ApiClient.getMonitors().then(data => {
@@ -238,15 +764,19 @@ const MonitorPage = ({ brands }: { brands: any[] }) => {
     return () => clearInterval(intervalId);
   }, []);
 
-  const handleDeleteMonitor = async (jobId: string) => {
-    if (!confirm('Deseja excluir este monitor?')) return;
-    try {
-      await ApiClient.deleteMonitor(jobId);
-      refreshMonitors();
-      setStatus({ type: 'success', message: 'Monitor excluído!' });
-    } catch (err: any) {
-      setStatus({ type: 'error', message: 'Erro ao excluir monitor: ' + err.message });
-    }
+  const handleDeleteMonitor = (jobId: string) => {
+    setConfirmState({
+      message: 'Deseja excluir este monitor? Esta ação é permanente.',
+      action: async () => {
+        try {
+          await ApiClient.deleteMonitor(jobId);
+          refreshMonitors();
+          setStatus({ type: 'success', message: 'Monitor excluído!' });
+        } catch (err: any) {
+          setStatus({ type: 'error', message: 'Erro ao excluir monitor: ' + err.message });
+        }
+      },
+    });
   };
 
   const handleToggleActive = async (jobId: string, isActive: boolean) => {
@@ -350,140 +880,150 @@ const MonitorPage = ({ brands }: { brands: any[] }) => {
 
   return (
     <div className="page-content">
-      <div className="grid-2">
-        <GlassCard title="Monitorar Novo Produto">
-          {status && <StatusBanner type={status.type} message={status.message} onClear={() => setStatus(null)} />}
-          <form className="form-stack" onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label className="label">URL do Produto</label>
-              <input
-                type="url"
-                className="input"
-                placeholder="Cole o link do produto — identificamos a marca automaticamente"
-                value={url}
-                onChange={e => {
-                  setUrl(e.target.value);
-                  // Mudar a URL invalida a identificação anterior e volta ao fluxo identify-first.
-                  setIdentifiedBrandName(null);
-                  setShowManualBrand(false);
-                }}
-                required
-              />
-            </div>
-            {identifiedBrandName && (
-              <p className="text-muted" style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <CheckCircle2 size={14} className="text-success" /> Marca identificada: <strong>{identifiedBrandName}</strong>
-              </p>
-            )}
-            {showManualBrand && (
-              <div className="form-group">
-                <label className="label">Marca Concorrente</label>
-                <select
-                  className="input"
-                  value={brand}
-                  onChange={e => setBrand(e.target.value)}
-                  required
-                >
-                  <option value="">Selecione...</option>
-                  {brands && brands.map(b => <option key={b.brand_key} value={b.brand_key}>{b.brand_name}</option>)}
-                </select>
-              </div>
-            )}
-            <button className="btn btn-primary w-full" disabled={loading || !url}>
-              {loading ? <RefreshCw className="animate-spin" size={18} /> : <Zap size={18} />}
-              {loading ? "Processando..." : showManualBrand ? "Iniciar Monitoramento" : "Identificar e Monitorar"}
-            </button>
-          </form>
-        </GlassCard>
-
-        <GlassCard title="Lista de Monitoramento">
-          <div className="monitor-list">
-            {!monitors || monitors.length === 0 ? (
-              <div className="empty-state">
-                <Clock size={48} className="text-muted" />
-                <p>Nenhum monitor ativo no momento.</p>
-              </div>
-            ) : (
-              monitors.map((m: any) => (
-                <div key={m.job_id} className="monitor-item">
-                  <div className="monitor-image-small">
-                    {m.image_url ? <img src={m.image_url} alt={m.product_name} /> : <Package size={24} className="text-muted" />}
-                  </div>
-
-                  <div className="monitor-info">
-                    <div className="monitor-main">
-                      <Package size={14} className="text-accent" />
-                      <strong>{m.brand.toUpperCase()}</strong>
-                    </div>
-                    {m.product_name && <p className="monitor-product-name">{m.product_name}</p>}
-                    <span className="monitor-url" title={m.url}>{m.url}</span>
-                  </div>
-
-                  <div className="monitor-pricing">
-                    {m.last_price != null ? (
-                      <>
-                        {m.last_price_discount && m.last_price_discount > 0 && m.last_price_discount < m.last_price * 5 ? (
-                          <span className="price-original" style={{ textDecoration: 'line-through', color: '#999', fontSize: '0.85em' }}>
-                            R$ {(m.last_price + m.last_price_discount).toFixed(2)}
-                          </span>
-                        ) : null}
-                        <div className="monitor-price-value">R$ {m.last_price.toFixed(2)}</div>
-                      </>
-                    ) : (m.last_status === 'blocked' || m.last_status === 'error') ? (
-                      <div
-                        className="monitor-price-blocked"
-                        title={m.last_error || 'Não foi possível ler o produto.'}
-                      >
-                        {m.last_status === 'blocked' ? 'Bloqueado (anti-bot)' : 'Indisponível'}
-                      </div>
-                    ) : (
-                      <div className="monitor-price-pending">Pendente...</div>
-                    )}
-                    <div className="monitor-badge">
-                      <span className={`status-dot ${m.active ? 'online' : 'offline'}`}></span>
-                      <span>{m.active ? 'Ativo' : 'Inativo'}</span>
-                    </div>
-                  </div>
-
-                  <div className="monitor-actions">
-                    <button
-                      className={`btn-icon ${expandedMonitorId === m.job_id ? 'text-accent' : 'text-muted'}`}
-                      onClick={() => setExpandedMonitorId(expandedMonitorId === m.job_id ? null : m.job_id)}
-                      title="Ver histórico de preços"
-                    >
-                      <TrendingUp size={20} />
-                    </button>
-                    <button
-                      type="button"
-                      className={`btn-icon ${m.active ? 'text-error' : 'text-success'}`}
-                      onClick={() => handleToggleActive(m.job_id, m.active)}
-                      title={m.active ? "Pausar monitoramento" : "Retomar monitoramento"}
-                    >
-                      {m.active ? <Pause size={18} /> : <Play size={18} />}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-icon text-error"
-                      onClick={() => handleDeleteMonitor(m.job_id)}
-                      title="Excluir monitor"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
-
-                  <AnimatePresence>
-                    {expandedMonitorId === m.job_id && (
-                      <div style={{ gridColumn: '1 / -1' }}>
-                        <PriceChart history={m.history || []} />
-                      </div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              ))
-            )}
+      <GlassCard title="Monitorar Novo Produto">
+        {status && <StatusBanner type={status.type} message={status.message} onClear={() => setStatus(null)} />}
+        <form className="monitor-form-row" onSubmit={handleSubmit}>
+          <div className="form-group monitor-url-field">
+            <label className="label">URL do Produto</label>
+            <input
+              type="url"
+              className="input"
+              placeholder="Cole o link do produto — identificamos a marca automaticamente"
+              value={url}
+              onChange={e => {
+                setUrl(e.target.value);
+                // Mudar a URL invalida a identificação anterior e volta ao fluxo identify-first.
+                setIdentifiedBrandName(null);
+                setShowManualBrand(false);
+              }}
+              required
+            />
           </div>
-        </GlassCard>
-      </div>
+          {showManualBrand && (
+            <div className="form-group monitor-brand-field">
+              <label className="label">Marca Concorrente</label>
+              <select
+                className="input"
+                value={brand}
+                onChange={e => setBrand(e.target.value)}
+                required
+              >
+                <option value="">Selecione...</option>
+                {brands && brands.map(b => <option key={b.brand_key} value={b.brand_key}>{b.brand_name}</option>)}
+              </select>
+            </div>
+          )}
+          <button className="btn btn-primary monitor-submit-btn" disabled={loading || !url}>
+            {loading ? <RefreshCw className="animate-spin" size={18} /> : <Zap size={18} />}
+            {loading ? "Processando..." : showManualBrand ? "Iniciar Monitoramento" : "Identificar e Monitorar"}
+          </button>
+        </form>
+        {identifiedBrandName && (
+          <p className="text-muted" style={{ marginTop: '10px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <CheckCircle2 size={14} className="text-success" /> Marca identificada: <strong>{identifiedBrandName}</strong>
+          </p>
+        )}
+      </GlassCard>
+
+      <MapRulesManager mode="monitors" />
+
+      <GlassCard title="Lista de Monitoramento">
+        <div className="monitor-list">
+          {!monitors || monitors.length === 0 ? (
+            <div className="empty-state">
+              <Clock size={48} className="text-muted" />
+              <p>Nenhum monitor ativo no momento.</p>
+            </div>
+          ) : (
+            monitors.map((m: any) => (
+              <div key={m.job_id} className="monitor-item">
+                {(() => {
+                  const priceView = getMonitorPriceView(m);
+                  return (
+                    <>
+                <div className="monitor-image-small">
+                  {m.image_url ? <img src={m.image_url} alt={m.product_name} /> : <Package size={24} className="text-muted" />}
+                </div>
+
+                <div className="monitor-info">
+                  <div className="monitor-main">
+                    <Package size={14} className="text-accent" />
+                    <strong>{brandDisplayName(m.brand, brands)}</strong>
+                  </div>
+                  {m.product_name && <p className="monitor-product-name">{m.product_name}</p>}
+                  <span className="monitor-url" title={m.url}>{m.url}</span>
+                  <Phase43Badges item={m} />
+                </div>
+
+                <div className="monitor-pricing">
+                  {priceView.current != null ? (
+                    <>
+                      {priceView.original != null ? (
+                        <span className="price-original" style={{ textDecoration: 'line-through', color: '#999', fontSize: '0.85em' }}>
+                          R$ {priceView.original.toFixed(2)}
+                        </span>
+                      ) : null}
+                      <div className="monitor-price-value">R$ {priceView.current.toFixed(2)}</div>
+                    </>
+                  ) : (m.last_status === 'blocked' || m.last_status === 'error') ? (
+                    <div
+                      className="monitor-price-blocked"
+                      title={m.last_error || 'Não foi possível ler o produto.'}
+                    >
+                      {m.last_status === 'blocked' ? 'Bloqueado (anti-bot)' : 'Indisponível'}
+                    </div>
+                  ) : (
+                    <div className="monitor-price-pending">Pendente...</div>
+                  )}
+                  <div className="monitor-badge">
+                    <span className={`status-dot ${m.active ? 'online' : 'offline'}`}></span>
+                    <span>{m.active ? 'Ativo' : 'Inativo'}</span>
+                  </div>
+                </div>
+
+                <div className="monitor-actions">
+                  <button
+                    className={`btn-icon ${expandedMonitorId === m.job_id ? 'text-accent' : 'text-muted'}`}
+                    onClick={() => setExpandedMonitorId(expandedMonitorId === m.job_id ? null : m.job_id)}
+                    title="Ver histórico de preços"
+                  >
+                    <TrendingUp size={20} />
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn-icon ${m.active ? 'text-error' : 'text-success'}`}
+                    onClick={() => handleToggleActive(m.job_id, m.active)}
+                    title={m.active ? "Pausar monitoramento" : "Retomar monitoramento"}
+                  >
+                    {m.active ? <Pause size={18} /> : <Play size={18} />}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-icon text-error"
+                    onClick={() => handleDeleteMonitor(m.job_id)}
+                    title="Excluir monitor"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+                    </>
+                  );
+                })()}
+
+                <AnimatePresence>
+                  {expandedMonitorId === m.job_id && (
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <PriceChart history={m.history || []} />
+                    </div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ))
+          )}
+        </div>
+      </GlassCard>
+
+      <ConfirmDialog state={confirmState} onClose={() => setConfirmState(null)} />
     </div>
   );
 };
@@ -498,10 +1038,14 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
   const [outputFile, setOutputFile] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
 
-  const logEndRef = useRef<HTMLDivElement>(null);
+  const consoleBodyRef = useRef<HTMLDivElement>(null);
 
+  // Auto-scroll APENAS dentro do console (nunca scrollIntoView, que rola a página
+  // inteira e jogava o usuário para baixo ao abrir a aba com o console vazio).
   useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (logs.length === 0) return;
+    const el = consoleBodyRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [logs]);
 
   useEffect(() => {
@@ -561,7 +1105,7 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
     // Validar se todas as marcas selecionadas têm uma categoria
     const allSelected = selectedBrands.every(bk => brandSelections[bk]);
     if (!allSelected) {
-      alert("Por favor, selecione uma categoria para cada marca.");
+      toast.error('Por favor, selecione uma categoria para cada marca.');
       return;
     }
 
@@ -644,7 +1188,7 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
             <div className="form-stack">
               <div className="form-group">
                 <label className="label">Marcas Alvo</label>
-                <div className="brand-selector-grid">
+                <div className="brand-selector-grid category-brand-grid">
                   {brands
                     .filter(b => !['mercado_livre', 'netshoes', 'amazon'].includes(b.brand_key?.toLowerCase()))
                     .map(b => (
@@ -671,7 +1215,7 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
                 <label className="label">Categorias por Marca</label>
                 {selectedBrands.length === 0 && <p className="text-muted" style={{ fontSize: '13px' }}>Selecione marcas acima para configurar as categorias.</p>}
 
-                <div className="brand-category-selectors" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div className="brand-category-selectors">
                   {selectedBrands.map(bk => {
                     const brand = brands.find(b => b.brand_key === bk);
                     return (
@@ -742,7 +1286,7 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
                 <Terminal size={14} />
                 <span>Console Feed</span>
               </div>
-              <div className="console-body">
+              <div className="console-body" ref={consoleBodyRef}>
                 {logs.length === 0 && <div className="console-empty">Aguardando comandos...</div>}
                 {logs.map((log, i) => (
                   <div key={i} className={`console-line ${log.type}`}>
@@ -750,7 +1294,6 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
                     <span className="log-text">{log.text}</span>
                   </div>
                 ))}
-                <div ref={logEndRef} />
               </div>
             </div>
 
@@ -788,7 +1331,165 @@ const CategoryPage = ({ brands }: { brands: any[] }) => {
 
 // --- HistoryList ---
 
-const HistoryList = ({ type, onReopen, refreshKey, collapsed: collapsedProp, onToggleCollapsed, onCountChange }: {
+type StandardHistoryStatus = 'COMPLETED' | 'FAILED' | 'PENDING' | 'RUNNING';
+
+type StandardHistoryEntry = {
+  id: string;
+  title: string;
+  subtitle: string;
+  kindLabel?: string;
+  status: StandardHistoryStatus;
+  onOpen?: () => void;
+  onDelete: () => void;
+  deleteLabel?: string;
+};
+
+const formatHistoryDate = (iso: string) => {
+  try {
+    return new Date(iso).toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return iso;
+  }
+};
+
+const formatCountLabel = (count: number, singular: string, plural: string) =>
+  `${count} ${count === 1 ? singular : plural}`;
+
+const getHistoryStatusLabel = (status: StandardHistoryStatus) => {
+  if (status === 'COMPLETED') return 'Concluída';
+  if (status === 'FAILED') return 'Falhou';
+  return 'Em andamento';
+};
+
+const getHistoryStatusClass = (status: StandardHistoryStatus) => {
+  if (status === 'COMPLETED') return 'success';
+  if (status === 'FAILED') return 'error';
+  return 'warning';
+};
+
+const HistoryToggleButton = ({ title, count, open, onClick }: {
+  title: string;
+  count: number;
+  open: boolean;
+  onClick: () => void;
+}) => (
+  <div className="history-toggle-anchor">
+    <button
+      type="button"
+      className={`btn-icon history-toggle-btn ${open ? 'active' : ''}`}
+      title={title}
+      onClick={onClick}
+      aria-pressed={open}
+    >
+      <History size={18} />
+      {count > 0 && (
+        <span className="history-toggle-count">
+          {count}
+        </span>
+      )}
+    </button>
+  </div>
+);
+
+const HistoryPanelBody = ({
+  items,
+  loading,
+  emptyTitle,
+  emptyDescription,
+  onDeleteAll,
+  deleteAllLabel = 'Apagar todos',
+  showTopBorder = false,
+}: {
+  items: StandardHistoryEntry[];
+  loading?: boolean;
+  emptyTitle: string;
+  emptyDescription: string;
+  onDeleteAll?: () => void;
+  deleteAllLabel?: string;
+  showTopBorder?: boolean;
+}) => (
+  <div className={`history-panel-body ${showTopBorder ? 'with-border' : ''}`}>
+    {items.length > 0 && onDeleteAll && (
+      <div className="history-panel-toolbar">
+        <button
+          type="button"
+          className="btn btn-sm btn-outline history-delete-all-btn"
+          onClick={onDeleteAll}
+        >
+          <Trash2 size={14} /> {deleteAllLabel}
+        </button>
+      </div>
+    )}
+    {loading ? (
+      <div className="empty-state" style={{ padding: '24px 16px' }}>
+        <RefreshCw className="animate-spin" size={20} /> Carregando histórico...
+      </div>
+    ) : items.length === 0 ? (
+      <div className="empty-state" style={{ padding: '24px 16px' }}>
+        <p style={{ fontWeight: 700, marginBottom: '4px' }}>{emptyTitle}</p>
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+          {emptyDescription}
+        </p>
+      </div>
+    ) : (
+      <div className="history-list">
+        {items.map(item => {
+          const clickable = typeof item.onOpen === 'function' && item.status === 'COMPLETED';
+          return (
+            <div
+              key={item.id}
+              role={clickable ? 'button' : undefined}
+              tabIndex={clickable ? 0 : undefined}
+              className={`history-row ${clickable ? 'is-clickable' : ''}`}
+              onClick={clickable ? item.onOpen : undefined}
+              onKeyDown={clickable ? (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  item.onOpen?.();
+                }
+              } : undefined}
+            >
+              <div className="history-row-main">
+                <strong className="history-row-title">{item.title}</strong>
+                <span className="history-row-subtitle">{item.subtitle}</span>
+              </div>
+              <div className="history-row-meta">
+                {item.kindLabel && (
+                  <span className="history-pill history-pill-kind">{item.kindLabel}</span>
+                )}
+                <span className={`history-pill history-pill-status ${getHistoryStatusClass(item.status)}`}>
+                  {(item.status === 'PENDING' || item.status === 'RUNNING') && (
+                    <RefreshCw className="animate-spin" size={10} />
+                  )}
+                  {getHistoryStatusLabel(item.status)}
+                </span>
+                <button
+                  type="button"
+                  className="btn-icon text-error history-delete-btn"
+                  aria-label={item.deleteLabel || 'Excluir do histórico'}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    item.onDelete();
+                  }}
+                >
+                  <Trash2 size={15} />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    )}
+  </div>
+);
+
+const HistoryList = ({ type, onReopen, refreshKey, collapsed: collapsedProp, onToggleCollapsed, onCountChange, hideHeader = false }: {
   type: 'search' | 'cross';
   onReopen: (jobId: string) => void;
   refreshKey: number;
@@ -798,8 +1499,12 @@ const HistoryList = ({ type, onReopen, refreshKey, collapsed: collapsedProp, onT
   onToggleCollapsed?: () => void;
   /** Reports the type-filtered item count upward so an external badge can mirror it without a second fetch. */
   onCountChange?: (count: number) => void;
+  /** Hides the internal header bar: the top-right History icon is the ONLY trigger; collapsed → renders nothing
+   * (but stays mounted so the count fetch keeps feeding the icon badge). */
+  hideHeader?: boolean;
 }) => {
   const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [collapsedState, setCollapsedState] = useState(true);
   const collapsed = collapsedProp !== undefined ? collapsedProp : collapsedState;
   const setCollapsed = (updater: (c: boolean) => boolean) => {
@@ -807,191 +1512,112 @@ const HistoryList = ({ type, onReopen, refreshKey, collapsed: collapsedProp, onT
     setCollapsedState(updater);
   };
   const [deleteTick, setDeleteTick] = useState(0);
+  const [confirmState, setConfirmState] = useState<ConfirmState>(null);
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
     ApiClient.getHistoryList()
       .then(all => { if (!cancelled) setItems(all.filter((h: any) => h.type === type)); })
-      .catch(() => { if (!cancelled) setItems([]); });
+      .catch(() => { if (!cancelled) setItems([]); })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
     return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshKey, deleteTick]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deleteTick, refreshKey, type]);
 
   useEffect(() => {
     onCountChange?.(items.length);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items.length]);
 
-  const handleDelete = (e: React.MouseEvent, jobId: string) => {
-    e.stopPropagation();
-    if (!confirm('Excluir esta busca do histórico? Esta ação é permanente.')) return;
-    ApiClient.deleteHistory(jobId)
-      .then(() => setDeleteTick(t => t + 1))
-      .catch(() => alert('Erro ao excluir entrada do histórico.'));
+  const requestDelete = (jobId: string) => {
+    setConfirmState({
+      message: 'Excluir esta busca do histórico? Esta ação é permanente.',
+      action: () => {
+        ApiClient.deleteHistory(jobId)
+          .then(() => setDeleteTick(t => t + 1))
+          .catch(() => toast.error('Erro ao excluir entrada do histórico.'));
+      },
+    });
   };
 
-  const formatDate = (iso: string) => {
-    try {
-      return new Date(iso).toLocaleString('pt-BR', {
-        day: '2-digit', month: '2-digit', year: 'numeric',
-        hour: '2-digit', minute: '2-digit',
-      });
-    } catch {
-      return iso;
-    }
+  const handleDeleteAll = () => {
+    setConfirmState({
+      message: `Apagar todas as ${items.length} buscas deste histórico? Esta ação é permanente.`,
+      action: async () => {
+        const results = await Promise.allSettled(items.map((i: any) => ApiClient.deleteHistory(i.job_id)));
+        const failed = results.filter(r => r.status === 'rejected').length;
+        if (failed > 0) toast.error(`${failed} entrada(s) não puderam ser excluídas.`);
+        setDeleteTick(t => t + 1);
+      },
+    });
   };
 
-  const getLabel = (item: any) => {
-    if (type === 'cross') return item.query || '';
+  const getTitle = (item: any) => {
+    if (type === 'cross') return item.target_sku || item.query || 'Busca por SKU';
     const brands: string[] = Array.isArray(item.brands) ? item.brands : [];
     const first2 = brands.slice(0, 2).join(', ');
-    const moreSuffix = brands.length > 2 ? ` · ${brands.length} marcas` : '';
-    const querySuffix = item.query ? ` — "${item.query}"` : '';
-    return `${first2}${moreSuffix}${querySuffix}`;
+    const countLabel = brands.length > 0 ? formatCountLabel(brands.length, 'marca', 'marcas') : '';
+    if (!first2) return item.query ? `"${item.query}"` : 'Busca comparativa';
+    return countLabel ? `${first2} · ${countLabel}` : first2;
   };
 
   const filteredCount = items.length;
+  const entries: StandardHistoryEntry[] = items.map((item: any) => ({
+    id: item.job_id,
+    title: getTitle(item),
+    subtitle: [
+      ...(type === 'search' && item.query ? [`"${item.query}"`] : []),
+      formatHistoryDate(item.created_at),
+    ].join(' · '),
+    kindLabel: type === 'search' ? 'Comparativa' : 'SKU',
+    status: (item.status || 'PENDING') as StandardHistoryStatus,
+    onOpen: item.status === 'COMPLETED' ? () => onReopen(item.job_id) : undefined,
+    onDelete: () => requestDelete(item.job_id),
+    deleteLabel: 'Excluir do histórico',
+  }));
+
+  if (hideHeader && collapsed) return null;
 
   return (
     <div style={{ marginBottom: '16px' }}>
-      <div
-        style={{
-          background: 'rgba(255,255,255,0.04)',
-          borderRadius: '12px',
-          border: '1px solid rgba(255,255,255,0.08)',
-          overflow: 'hidden',
-        }}
-      >
-        {/* Header */}
-        <button
-          type="button"
-          onClick={() => setCollapsed(c => !c)}
-          style={{
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '12px 16px',
-            background: 'transparent',
-            border: 'none',
-            cursor: 'pointer',
-            color: 'var(--text-primary)',
-            textAlign: 'left',
-          }}
-          aria-expanded={!collapsed}
-        >
-          <History size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-          <span style={{ fontWeight: 700, fontSize: '0.875rem', flex: 1 }}>Histórico de buscas</span>
-          {filteredCount > 0 && (
-            <span className="monitor-badge" style={{ color: 'var(--primary)', fontSize: '0.7rem', background: 'rgba(99,102,241,0.12)', padding: '2px 8px', borderRadius: '20px' }}>
-              {filteredCount}
-            </span>
-          )}
-          {collapsed
-            ? <ChevronRight size={16} style={{ color: 'var(--text-muted)' }} />
-            : <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} />
-          }
-        </button>
-
-        {/* Body */}
-        {!collapsed && (
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: '8px 0' }}>
-            {items.length === 0 ? (
-              <div className="empty-state" style={{ padding: '24px 16px' }}>
-                <p style={{ fontWeight: 700, marginBottom: '4px' }}>Nenhuma busca ainda</p>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  Suas buscas aparecerão aqui automaticamente. Clique em uma entrada concluída para reexibir os resultados sem nova raspagem.
-                </p>
-              </div>
-            ) : (
-              <div className="brand-list" style={{ padding: '0 8px', gap: '6px' }}>
-                {items.map((item: any) => {
-                  const isCompleted = item.status === 'COMPLETED';
-                  const isFailed = item.status === 'FAILED';
-                  const rowStyle: React.CSSProperties = {
-                    cursor: isCompleted ? 'pointer' : 'default',
-                    opacity: isFailed ? 0.7 : 1,
-                    padding: '10px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid transparent',
-                    background: 'transparent',
-                    width: '100%',
-                    textAlign: 'left',
-                    color: 'inherit',
-                    transition: 'background 0.15s, border-color 0.15s',
-                  };
-                  const inner = (
-                    <div className="brand-info" style={{ gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-                      <span className="brand-name-text" style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.875rem' }}>
-                        {getLabel(item)}
-                      </span>
-                      <span className="monitor-badge" style={{
-                        color: type === 'search' ? 'var(--primary)' : 'var(--accent, #06b6d4)',
-                        background: type === 'search' ? 'rgba(99,102,241,0.12)' : 'rgba(6,182,212,0.12)',
-                        padding: '2px 8px', borderRadius: '20px', flexShrink: 0,
-                      }}>
-                        {type === 'search' ? 'Comparativa' : 'SKU'}
-                      </span>
-                      <span className="brand-domain-text" style={{ flexShrink: 0 }}>
-                        {formatDate(item.created_at)}
-                      </span>
-                      <span className="monitor-badge" style={{
-                        color: isCompleted ? 'var(--success)' : isFailed ? 'var(--error)' : 'var(--warning)',
-                        background: isCompleted ? 'rgba(16,185,129,0.12)' : isFailed ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)',
-                        padding: '2px 8px', borderRadius: '20px', flexShrink: 0,
-                        display: 'flex', alignItems: 'center', gap: '4px',
-                      }}>
-                        {item.status === 'PENDING' && <RefreshCw className="animate-spin" size={10} />}
-                        {isCompleted ? 'Concluída' : isFailed ? 'Falhou' : 'Em andamento'}
-                      </span>
-                      <button
-                        type="button"
-                        className="btn-icon text-error"
-                        style={{ flexShrink: 0, padding: '4px' }}
-                        aria-label="Excluir do histórico"
-                        onClick={(e) => handleDelete(e, item.job_id)}
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  );
-                  return isCompleted ? (
-                    <div
-                      key={item.job_id}
-                      role="button"
-                      tabIndex={0}
-                      className="brand-item"
-                      style={rowStyle}
-                      onClick={() => onReopen(item.job_id)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          onReopen(item.job_id);
-                        }
-                      }}
-                      onMouseEnter={e => {
-                        (e.currentTarget as HTMLElement).style.background = 'rgba(99,102,241,0.08)';
-                        (e.currentTarget as HTMLElement).style.borderColor = 'rgba(99,102,241,0.25)';
-                      }}
-                      onMouseLeave={e => {
-                        (e.currentTarget as HTMLElement).style.background = 'transparent';
-                        (e.currentTarget as HTMLElement).style.borderColor = 'transparent';
-                      }}
-                      aria-label={`Reabrir busca: ${getLabel(item)}`}
-                    >
-                      {inner}
-                    </div>
-                  ) : (
-                    <div key={item.job_id} className="brand-item" style={rowStyle}>
-                      {inner}
-                    </div>
-                  );
-                })}
-              </div>
+      <div className="history-panel">
+        {!hideHeader && (
+          <button
+            type="button"
+            onClick={() => setCollapsed(c => !c)}
+            className="history-panel-header"
+            aria-expanded={!collapsed}
+          >
+            <History size={16} className="history-panel-header-icon" />
+            <span className="history-panel-title">Histórico</span>
+            {filteredCount > 0 && (
+              <span className="history-toggle-count inline">
+                {filteredCount}
+              </span>
             )}
-          </div>
+            {collapsed
+              ? <ChevronRight size={16} className="history-panel-header-icon" />
+              : <ChevronDown size={16} className="history-panel-header-icon" />
+            }
+          </button>
+        )}
+
+        {!collapsed && (
+          <HistoryPanelBody
+            items={entries}
+            loading={loading}
+            emptyTitle="Nenhuma busca ainda"
+            emptyDescription="Suas buscas aparecerão aqui automaticamente. Clique em uma entrada concluída para reexibir os resultados sem nova raspagem."
+            onDeleteAll={handleDeleteAll}
+            showTopBorder={!hideHeader}
+          />
         )}
       </div>
+
+      <ConfirmDialog state={confirmState} onClose={() => setConfirmState(null)} />
     </div>
   );
 };
@@ -1048,11 +1674,42 @@ const BannersPage = ({ brands }: { brands: any[] }) => {
     deleteHistory: state.deleteHistory,
   })));
   const [historyCollapsed, setHistoryCollapsed] = useState(true);
+  const [confirmState, setConfirmState] = useState<ConfirmState>(null);
+
+  const requestDeleteHistory = (runId: string) => {
+    setConfirmState({
+      message: 'Excluir esta extração do histórico? Os arquivos sem outras referências também serão removidos.',
+      action: () => void deleteHistory(runId),
+    });
+  };
+
+  const handleDeleteAllHistory = () => {
+    setConfirmState({
+      message: `Apagar as ${history.length} extrações deste histórico? Esta ação é permanente.`,
+      action: async () => {
+        const results = await Promise.allSettled(history.map(item => ApiClient.deleteBannerHistory(item.run_id)));
+        const deletedIds = history
+          .filter((_, index) => results[index]?.status === 'fulfilled')
+          .map(item => item.run_id);
+        const failed = results.filter(result => result.status === 'rejected').length;
+        if (activeJobId && deletedIds.includes(activeJobId)) {
+          useBannerStore.setState({
+            activeJobId: null,
+            run: null,
+            selectedBannerIds: [],
+            seenBannerIds: [],
+          });
+        }
+        if (failed > 0) toast.error(`${failed} extração(ões) não puderam ser excluídas.`);
+        await loadHistory();
+      },
+    });
+  };
 
   useEffect(() => {
     initializeBrands(activeBrands.map(brand => brand.brand_key));
-  // `brands` is the stable input; `activeBrands` is intentionally derived each render.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // `brands` is the stable input; `activeBrands` is intentionally derived each render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brands, initializeBrands]);
   useEffect(() => { void loadHistory(); }, [loadHistory]);
 
@@ -1070,9 +1727,6 @@ const BannersPage = ({ brands }: { brands: any[] }) => {
     PENDING: 'Aguardando', RUNNING: 'Extraindo', COMPLETED: 'Concluída',
     FAILED: 'Falhou', CANCELLED: 'Cancelada',
   };
-  const formatDate = (iso: string) => new Date(iso).toLocaleString('pt-BR', {
-    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
-  });
   const handleApprove = () => {
     if (!selectedBannerIds.length) return;
     if (confirm(`Aprovar ${selectedBannerIds.length} banners? Os itens desmarcados serão removidos e esta aprovação não poderá ser alterada.`)) {
@@ -1091,8 +1745,37 @@ const BannersPage = ({ brands }: { brands: any[] }) => {
     openProtected(ApiClient.getBannerScreenshotBlob(activeJobId, brandKey));
   };
 
+  const bannerHistoryEntries: StandardHistoryEntry[] = history.map(item => ({
+    id: item.run_id,
+    title: formatHistoryDate(item.approved_at),
+    subtitle: `${formatCountLabel(item.banner_count, 'banner', 'banners')} · ${formatCountLabel(item.brand_count, 'marca', 'marcas')}`,
+    kindLabel: 'Banners',
+    status: 'COMPLETED',
+    onOpen: () => void reopenHistory(item.run_id),
+    onDelete: () => requestDeleteHistory(item.run_id),
+    deleteLabel: 'Excluir extração do histórico',
+  }));
+
   return (
     <div className="page-content banners-page">
+      <HistoryToggleButton
+        title="Ver histórico de banners"
+        count={history.length}
+        open={!historyCollapsed}
+        onClick={() => setHistoryCollapsed(value => !value)}
+      />
+      {!historyCollapsed && (
+        <section className="history-panel" style={{ marginBottom: '16px' }}>
+          <HistoryPanelBody
+            items={bannerHistoryEntries}
+            loading={historyLoading}
+            emptyTitle="Nenhuma extração aprovada ainda"
+            emptyDescription="As extrações concluídas e aprovadas aparecerão aqui automaticamente."
+            onDeleteAll={handleDeleteAllHistory}
+            deleteAllLabel="Apagar todos"
+          />
+        </section>
+      )}
       <GlassCard title="Extração de banners" subtitle="Selecione as marcas e extraia todos os banners desktop do carrossel principal.">
         <div className="brand-filter-panel">
           <div className="brand-filter-header">
@@ -1188,26 +1871,7 @@ const BannersPage = ({ brands }: { brands: any[] }) => {
         </GlassCard>
       )}
 
-      <section className="banner-history-panel">
-        <button type="button" className="banner-history-toggle" aria-expanded={!historyCollapsed} onClick={() => setHistoryCollapsed(value => !value)}>
-          <History size={17} /><strong>Histórico de banners</strong><span className="monitor-badge">{history.length}</span>
-          {historyCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
-        </button>
-        {!historyCollapsed && <div className="banner-history-list">
-          {historyLoading ? <div className="empty-state"><RefreshCw className="animate-spin" size={20} /> Carregando histórico…</div> : history.length === 0 ? (
-            <div className="empty-state"><strong>Nenhuma extração aprovada ainda</strong><p>As extrações concluídas e aprovadas aparecerão aqui por 30 dias.</p></div>
-          ) : history.map(item => (
-            <div role="button" tabIndex={0} className="banner-history-row" key={item.run_id} onClick={() => void reopenHistory(item.run_id)}
-              onKeyDown={event => { if (event.key === 'Enter') void reopenHistory(item.run_id); }}>
-              <span><strong>{formatDate(item.approved_at)}</strong><small>{item.banner_count} banners · {item.brand_count} marcas</small></span>
-              <span className="banner-status status-completed">Concluída</span>
-              <span role="button" tabIndex={0} className="btn-icon text-error" aria-label="Excluir extração do histórico"
-                onClick={event => { event.stopPropagation(); if (confirm('Excluir esta extração do histórico? Os arquivos sem outras referências também serão removidos.')) void deleteHistory(item.run_id); }}
-                onKeyDown={event => { if (event.key === 'Enter') { event.stopPropagation(); if (confirm('Excluir esta extração do histórico?')) void deleteHistory(item.run_id); } }}><Trash2 size={16} /></span>
-            </div>
-          ))}
-        </div>}
-      </section>
+      <ConfirmDialog state={confirmState} onClose={() => setConfirmState(null)} />
     </div>
   );
 };
@@ -1486,7 +2150,7 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
       });
     } catch (err: any) {
       console.error(err);
-      alert("Erro ao exportar: " + err.message);
+      toast.error('Erro ao exportar: ' + err.message);
     } finally {
       setExporting(false);
     }
@@ -1652,29 +2316,12 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
 
   return (
     <div className="page-content">
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button
-          type="button"
-          className="btn-icon"
-          title="Ver histórico de buscas"
-          onClick={() => setHistoryOpen(o => !o)}
-          style={{ position: 'relative' }}
-        >
-          <History size={18} />
-          {historyCount > 0 && (
-            <span
-              className="monitor-badge"
-              style={{
-                position: 'absolute', top: '-6px', right: '-6px',
-                color: 'var(--primary)', fontSize: '0.65rem',
-                background: 'rgba(99,102,241,0.12)', padding: '2px 6px', borderRadius: '20px',
-              }}
-            >
-              {historyCount}
-            </span>
-          )}
-        </button>
-      </div>
+      <HistoryToggleButton
+        title="Ver histórico de buscas"
+        count={historyCount}
+        open={historyOpen}
+        onClick={() => setHistoryOpen(o => !o)}
+      />
       {onReopen && (
         <HistoryList
           type="search"
@@ -1683,10 +2330,11 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
           collapsed={!historyOpen}
           onToggleCollapsed={() => setHistoryOpen(o => !o)}
           onCountChange={setHistoryCount}
+          hideHeader
         />
       )}
       <GlassCard className="search-bar-container">
-        <form onSubmit={handleSearch} className="search-form">
+        <form onSubmit={handleSearch} className="search-form" id="search-compare-form">
           <div className="search-main-row">
             <div className="search-field">
               <label className="search-field-label">O que você procura?</label>
@@ -1733,11 +2381,7 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
                   <AlertTriangle size={12} aria-hidden="true" />
                   {cepFieldError}
                 </p>
-              ) : (
-                <p id="cep-helper-msg" className="cep-helper">
-                  Informe para calcular o frete junto da busca. Sem CEP, calcule por produto.
-                </p>
-              )}
+              ) : null}
             </div>
           </div>
 
@@ -1761,21 +2405,6 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
               Apenas em estoque
             </label>
 
-            <div className="search-actions">
-              <button type="submit" className="btn btn-primary search-submit" disabled={loading || exporting}>
-                {loading ? <RefreshCw className="animate-spin" size={18} /> : "Comparar"}
-              </button>
-              <button
-                type="button"
-                className="btn btn-outline btn-excel"
-                onClick={handleExport}
-                disabled={loading || exporting || !query}
-                title="Exportar Busca para Excel"
-              >
-                {exporting ? <RefreshCw className="animate-spin" size={18} /> : <FileSpreadsheet size={18} />}
-                <span style={{ fontSize: '14px', marginLeft: '4px' }}>Excel</span>
-              </button>
-            </div>
           </div>
         </form>
 
@@ -1795,7 +2424,7 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
             </div>
           </div>
 
-          <div className="search-brand-grid brand-selector-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' }}>
+          <div className="search-brand-grid brand-selector-grid">
             {brands.filter(b => b.is_active !== false).map(b => (
               <button
                 type="button"
@@ -1814,8 +2443,63 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
               </button>
             ))}
           </div>
+
+          <button
+            type="submit"
+            form="search-compare-form"
+            className="btn btn-primary w-full"
+            disabled={loading || exporting}
+          >
+            {loading ? <RefreshCw className="animate-spin" size={18} /> : <Search size={18} />}
+            {loading ? "Comparando..." : "Comparar"}
+          </button>
         </div>
       </GlassCard>
+
+      <MapRulesManager mode="comparative" />
+
+      {results && !loading && (() => {
+        const shippingProds = shippingProductsInResults();
+        const anyCalculated = shippingProds.some(({ p }) =>
+          p._shipping_state || (Array.isArray(p.shipping_options) && p.shipping_options.length > 0) || p.shipping
+        );
+
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="results-toolbar"
+          >
+            {shippingProds.length > 0 && (
+              <div className="shipping-controls-bar">
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline"
+                  onClick={() => requestCalc({ type: 'all' })}
+                >
+                  <Truck size={14} aria-hidden="true" /> Calcular frete de todos
+                </button>
+                {anyCalculated && (
+                  <>
+                    <button type="button" className="btn btn-sm btn-outline" onClick={() => setAllExpanded(true)}>Expandir todos</button>
+                    <button type="button" className="btn btn-sm btn-outline" onClick={() => setAllExpanded(false)}>Recolher todos</button>
+                  </>
+                )}
+              </div>
+            )}
+            <button
+              type="button"
+              className="btn btn-excel"
+              onClick={handleExport}
+              disabled={exporting || !query}
+              title="Exportar busca para Excel"
+            >
+              {exporting ? <RefreshCw className="animate-spin" size={18} /> : <FileSpreadsheet size={18} />}
+              {exporting ? "Exportando..." : "Exportar Excel"}
+            </button>
+          </motion.div>
+        );
+      })()}
 
       <div className="results-container">
         {results && (() => {
@@ -1832,7 +2516,7 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
           return (
             <>
               {/* Barra de controle: calcular frete de todos + expandir/recolher (só quando há produtos VTEX) */}
-              {shippingProds.length > 0 && (
+              {false && shippingProds.length > 0 && (
                 <div className="shipping-controls-bar">
                   <button
                     type="button"
@@ -1851,260 +2535,273 @@ const SearchPage = ({ brands, preloadedJobId, onClearPreloadedJob, onReopen }: S
               )}
 
               {brandKeysToShow.map((brandKey: string) => {
-            const brand = brands.find(b => b.brand_key === brandKey);
-            const brandRes = Array.isArray(results.results) ? results.results.find((r: any) => r.brand_key === brandKey) : null;
-            const products = brandRes?.products || [];
-            const isVtex = brand?.engine === 'vtex';
-            const isBrandShippingSupported = ['shopify', 'wake', 'mercadolivre', 'amazon', 'netshoes'].includes(brand?.engine);
+                const brand = brands.find(b => b.brand_key === brandKey);
+                const brandRes = Array.isArray(results.results) ? results.results.find((r: any) => r.brand_key === brandKey) : null;
+                const products = brandRes?.products || [];
+                const isVtex = brand?.engine === 'vtex';
+                const isBrandShippingSupported = ['shopify', 'wake', 'mercadolivre', 'amazon', 'netshoes'].includes(brand?.engine);
 
-            return (
-              <div key={brandKey} className="brand-column">
-                <h4 className="brand-header">{brand?.brand_name || brandKey}</h4>
-                <div className="product-grid">
-                  {products.map((p: any) => (
-                    <a
-                      key={p.url}
-                      href={p.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="product-card"
-                    >
-                      <div className="product-image">
-                        {p.image_url ? <img src={p.image_url} alt={p.product_name} /> : <Package size={40} />}
-                        {p.price_discount > 0 && <span className="badge-discount">{Math.round((p.price_discount / (p.price_full + p.price_discount)) * 100)}% OFF</span>}
-                      </div>
-                      <div className="product-details">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                          <p className="product-name">{p.product_name}</p>
-                          <ExternalLink size={14} className="text-muted" style={{ marginTop: '4px', flexShrink: 0 }} />
-                        </div>
-                        <div className="product-price" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          {p.price_discount > 0 && (
-                            <span className="price-original" style={{ textDecoration: 'line-through', color: '#999', fontSize: '0.85em' }}>
-                              R$ {(p.price_full + p.price_discount).toFixed(2)}
-                            </span>
-                          )}
-                          <span className="price-current">R$ {(p.price_full ?? 0).toFixed(2)}</span>
-                        </div>
-                        <div className="product-meta">
-                          {p.available ? <CheckCircle2 size={14} className="text-success" /> : <XCircle size={14} className="text-error" />}
-                          <span>{p.available ? 'Em estoque' : 'Esgotado'}</span>
-                        </div>
-                        {/* Frete: botão sob demanda (sem CEP/cálculo) OU resumo colapsável (já calculado).
+                return (
+                  <div key={brandKey} className="brand-column">
+                    <h4 className="brand-header">{brand?.brand_name || brandKey}</h4>
+                    <div className="product-grid">
+                      {products.map((p: any) => (
+                        <a
+                          key={p.url}
+                          href={p.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="product-card"
+                        >
+                          <div className="product-image">
+                            {p.image_url ? <img src={p.image_url} alt={p.product_name} /> : <Package size={40} />}
+                            {(() => {
+                              const priceView = getProductPriceView(p);
+                              return priceView.discountPct != null
+                                ? <span className="badge-discount">{priceView.discountPct}% OFF</span>
+                                : null;
+                            })()}
+                          </div>
+                          <div className="product-details">
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                              <p className="product-name">{p.product_name}</p>
+                              <ExternalLink size={14} className="text-muted" style={{ marginTop: '4px', flexShrink: 0 }} />
+                            </div>
+                            <div className="product-price" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              {(() => {
+                                const priceView = getProductPriceView(p);
+                                return (
+                                  <>
+                                    {priceView.original != null ? (
+                                      <span className="price-original" style={{ textDecoration: 'line-through', color: '#999', fontSize: '0.85em' }}>
+                                        R$ {priceView.original.toFixed(2)}
+                                      </span>
+                                    ) : null}
+                                    <span className="price-current">R$ {(priceView.current ?? 0).toFixed(2)}</span>
+                                  </>
+                                );
+                              })()}
+                            </div>
+                            <div className="product-meta">
+                              {p.available ? <CheckCircle2 size={14} className="text-success" /> : <XCircle size={14} className="text-error" />}
+                              <span>{p.available ? 'Em estoque' : 'Esgotado'}</span>
+                            </div>
+                            <Phase43Badges item={p} />
+                            {/* Frete: botão sob demanda (sem CEP/cálculo) OU resumo colapsável (já calculado).
                             Detalhe fica colapsado por padrão para não poluir o card. */}
-                        {(() => {
-                          const opts = Array.isArray(p.shipping_options) ? p.shipping_options : null;
-                          const hasOptions = !!opts && opts.length > 0;
-                          const isLoading = !!loadingShipping[p.url];
-                          const isExpanded = !!expandedShipping[p.url];
-                          const calculated = !!p._shipping_state || hasOptions || !!p.shipping;
-                          const isBlocked = p._shipping_state === 'blocked';
+                            {(() => {
+                              const opts = Array.isArray(p.shipping_options) ? p.shipping_options : null;
+                              const hasOptions = !!opts && opts.length > 0;
+                              const isLoading = !!loadingShipping[p.url];
+                              const isExpanded = !!expandedShipping[p.url];
+                              const calculated = !!p._shipping_state || hasOptions || !!p.shipping;
+                              const isBlocked = p._shipping_state === 'blocked';
 
-                          // Botão "Matriz Regional" (FRET-09, D-07): sempre visível para qualquer
-                          // produto com provedor de frete — nunca gated pelas mesmas condições do
-                          // "Calcular Frete". Renderizado dentro de todo branch de retorno abaixo.
-                          const matrixButton = (
-                            <button
-                              type="button"
-                              className="shipping-matrix-trigger"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                requestMatrix({ brandKey, product: p });
-                              }}
-                            >
-                              <MapPin size={14} aria-hidden="true" /> Matriz Regional
-                            </button>
-                          );
-
-                          // Estado de loading
-                          if (isLoading) {
-                            return (
-                              <div className="shipping-section">
-                                <div className="shipping-loading">
-                                  <RefreshCw size={13} className="animate-spin" aria-hidden="true" /> Calculando frete…
-                                </div>
-                                <div className="shipping-actions-row">{matrixButton}</div>
-                              </div>
-                            );
-                          }
-
-                          // Bloqueado (anti-bot, ex. Netshoes) → estado explícito, nunca spinner
-                          // eterno; o botão Matriz Regional permanece visível (D-07).
-                          if (isBlocked) {
-                            return (
-                              <div className="shipping-section">
-                                <div className="shipping-state-row shipping-state-blocked">
-                                  <AlertTriangle size={13} aria-hidden="true" />
-                                  <span>Bloqueado (anti-bot)</span>
-                                </div>
-                                <div className="shipping-actions-row">{matrixButton}</div>
-                              </div>
-                            );
-                          }
-
-                          // Ainda não calculado → botão sob demanda (VTEX com sku apenas)
-                          if (!calculated) {
-                            if (!(isBrandShippingSupported || (isVtex && p.sku_id))) {
-                              return <div className="shipping-section"><div className="shipping-actions-row">{matrixButton}</div></div>;
-                            }
-                            return (
-                              <div className="shipping-section">
-                                <div className="shipping-actions-row">
-                                  <button
-                                    type="button"
-                                    className="shipping-calc-btn"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      requestCalc({ type: 'one', brandKey, product: p, key: p.url });
-                                    }}
-                                  >
-                                    <Truck size={14} aria-hidden="true" /> Calcular Frete
-                                  </button>
-                                  {matrixButton}
-                                </div>
-                              </div>
-                            );
-                          }
-
-                          // Calculado, com opções de entrega → resumo colapsável
-                          if (hasOptions) {
-                            const cheapest = opts[0];
-                            const cheapestFree = cheapest.is_free_shipping === true || cheapest.price === 0 || cheapest.price === 0.0;
-                            const summary = cheapestFree
-                              ? 'Frete Grátis'
-                              : `Frete a partir de R$ ${(cheapest.price ?? 0).toFixed(2).replace('.', ',')}`;
-                            return (
-                              <div className="shipping-section">
+                              // Botão "Matriz Regional" (FRET-09, D-07): sempre visível para qualquer
+                              // produto com provedor de frete — nunca gated pelas mesmas condições do
+                              // "Calcular Frete". Renderizado dentro de todo branch de retorno abaixo.
+                              const matrixButton = (
                                 <button
                                   type="button"
-                                  className="shipping-summary"
-                                  aria-expanded={isExpanded}
+                                  className="shipping-matrix-trigger"
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    setExpandedShipping(prev => ({ ...prev, [p.url]: !prev[p.url] }));
+                                    requestMatrix({ brandKey, product: p });
                                   }}
                                 >
-                                  <span className="shipping-summary-main">
-                                    <Truck size={14} aria-hidden="true" />
-                                    <span className={cheapestFree ? 'shipping-free' : undefined}>{summary}</span>
-                                  </span>
-                                  {isExpanded ? <ChevronUp size={14} aria-hidden="true" /> : <ChevronDown size={14} aria-hidden="true" />}
+                                  <MapPin size={14} aria-hidden="true" /> Matriz Regional
                                 </button>
-                                {isExpanded && (
-                                  <ul className="shipping-options-list">
-                                    {/* Backend order: price asc then estimate asc — do NOT re-sort (D-10) */}
-                                    {opts.map((opt: any, idx: number) => {
-                                      const isFree = opt.is_free_shipping === true || opt.price === 0 || opt.price === 0.0;
-                                      const serviceName = opt.service_name || opt.service_id || 'Entrega';
-                                      const estimateText = opt.estimate_display || opt.raw_text || (opt.estimated_delivery_days ? `Até ${opt.estimated_delivery_days} dias úteis` : '');
-                                      return (
-                                        <li key={idx} className="shipping-option-row">
-                                          <div className="shipping-option-service">
-                                            <span className="shipping-service-name">{serviceName}</span>
-                                            {estimateText && <span className="shipping-estimate">{estimateText}</span>}
-                                          </div>
-                                          <div className="shipping-option-price">
-                                            {isFree ? (
-                                              <span className="shipping-free">
-                                                <CheckCircle2 size={12} aria-hidden="true" />
-                                                Frete Grátis
-                                              </span>
-                                            ) : (
-                                              <span className="shipping-paid">
-                                                R$ {(opt.price ?? 0).toFixed(2).replace('.', ',')}
-                                              </span>
-                                            )}
-                                          </div>
-                                        </li>
-                                      );
-                                    })}
-                                  </ul>
-                                )}
-                                <div className="shipping-actions-row">{matrixButton}</div>
-                              </div>
-                            );
-                          }
+                              );
 
-                          // Calculado sem opções → estado indisponível / falha temporária
-                          const statusLower = (p.shipping?.status || '').toLowerCase();
-                          const isFailure = p._shipping_state === 'temporary_failure' || statusLower.includes('temporariamente');
-                          const isUnavailable = p._shipping_state === 'unavailable_for_cep' || statusLower.includes('indisponível');
-                          if (isFailure || isUnavailable) {
-                            const stateText = isFailure
-                              ? 'Frete temporariamente indisponível'
-                              : 'Entrega indisponível para este CEP';
-                            return (
-                              <div className="shipping-section">
-                                <div className={`shipping-state-row ${isFailure ? 'shipping-state-warning' : 'shipping-state-unavailable'}`}>
-                                  {isFailure ? <AlertTriangle size={13} aria-hidden="true" /> : <MapPin size={13} aria-hidden="true" />}
-                                  <span>{stateText}</span>
-                                  {isFailure && (isBrandShippingSupported || (isVtex && p.sku_id)) && (
+                              // Estado de loading
+                              if (isLoading) {
+                                return (
+                                  <div className="shipping-section">
+                                    <div className="shipping-loading">
+                                      <RefreshCw size={13} className="animate-spin" aria-hidden="true" /> Calculando frete…
+                                    </div>
+                                    <div className="shipping-actions-row">{matrixButton}</div>
+                                  </div>
+                                );
+                              }
+
+                              // Bloqueado (anti-bot, ex. Netshoes) → estado explícito, nunca spinner
+                              // eterno; o botão Matriz Regional permanece visível (D-07).
+                              if (isBlocked) {
+                                return (
+                                  <div className="shipping-section">
+                                    <div className="shipping-state-row shipping-state-blocked">
+                                      <AlertTriangle size={13} aria-hidden="true" />
+                                      <span>Bloqueado (anti-bot)</span>
+                                    </div>
+                                    <div className="shipping-actions-row">{matrixButton}</div>
+                                  </div>
+                                );
+                              }
+
+                              // Ainda não calculado → botão sob demanda (VTEX com sku apenas)
+                              if (!calculated) {
+                                if (!(isBrandShippingSupported || (isVtex && p.sku_id))) {
+                                  return <div className="shipping-section"><div className="shipping-actions-row">{matrixButton}</div></div>;
+                                }
+                                return (
+                                  <div className="shipping-section">
+                                    <div className="shipping-actions-row">
+                                      <button
+                                        type="button"
+                                        className="shipping-calc-btn"
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          requestCalc({ type: 'one', brandKey, product: p, key: p.url });
+                                        }}
+                                      >
+                                        <Truck size={14} aria-hidden="true" /> Calcular Frete
+                                      </button>
+                                      {matrixButton}
+                                    </div>
+                                  </div>
+                                );
+                              }
+
+                              // Calculado, com opções de entrega → resumo colapsável
+                              if (hasOptions) {
+                                const cheapest = opts[0];
+                                const cheapestFree = cheapest.is_free_shipping === true || cheapest.price === 0 || cheapest.price === 0.0;
+                                const summary = cheapestFree
+                                  ? 'Frete Grátis'
+                                  : `Frete a partir de R$ ${(cheapest.price ?? 0).toFixed(2).replace('.', ',')}`;
+                                return (
+                                  <div className="shipping-section">
                                     <button
                                       type="button"
-                                      className="shipping-retry"
+                                      className="shipping-summary"
+                                      aria-expanded={isExpanded}
                                       onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        requestCalc({ type: 'one', brandKey, product: p, key: p.url });
+                                        setExpandedShipping(prev => ({ ...prev, [p.url]: !prev[p.url] }));
                                       }}
                                     >
-                                      Tentar novamente
+                                      <span className="shipping-summary-main">
+                                        <Truck size={14} aria-hidden="true" />
+                                        <span className={cheapestFree ? 'shipping-free' : undefined}>{summary}</span>
+                                      </span>
+                                      {isExpanded ? <ChevronUp size={14} aria-hidden="true" /> : <ChevronDown size={14} aria-hidden="true" />}
                                     </button>
-                                  )}
-                                </div>
-                                <div className="shipping-actions-row">{matrixButton}</div>
-                              </div>
-                            );
-                          }
+                                    {isExpanded && (
+                                      <ul className="shipping-options-list">
+                                        {/* Backend order: price asc then estimate asc — do NOT re-sort (D-10) */}
+                                        {opts.map((opt: any, idx: number) => {
+                                          const isFree = opt.is_free_shipping === true || opt.price === 0 || opt.price === 0.0;
+                                          const serviceName = opt.service_name || opt.service_id || 'Entrega';
+                                          const estimateText = opt.estimate_display || opt.raw_text || (opt.estimated_delivery_days ? `Até ${opt.estimated_delivery_days} dias úteis` : '');
+                                          return (
+                                            <li key={idx} className="shipping-option-row">
+                                              <div className="shipping-option-service">
+                                                <span className="shipping-service-name">{serviceName}</span>
+                                                {estimateText && <span className="shipping-estimate">{estimateText}</span>}
+                                              </div>
+                                              <div className="shipping-option-price">
+                                                {isFree ? (
+                                                  <span className="shipping-free">
+                                                    <CheckCircle2 size={12} aria-hidden="true" />
+                                                    Frete Grátis
+                                                  </span>
+                                                ) : (
+                                                  <span className="shipping-paid">
+                                                    R$ {(opt.price ?? 0).toFixed(2).replace('.', ',')}
+                                                  </span>
+                                                )}
+                                              </div>
+                                            </li>
+                                          );
+                                        })}
+                                      </ul>
+                                    )}
+                                    <div className="shipping-actions-row">{matrixButton}</div>
+                                  </div>
+                                );
+                              }
 
-                          // Fallback legado: registros antigos com p.shipping simples (D-08 compat)
-                          if (p.shipping) {
-                            return (
-                              <>
-                                <div className="product-meta" style={{ marginTop: '6px', color: p.shipping.status === 'Grátis' ? 'var(--success)' : 'inherit' }}>
-                                  <Package size={14} aria-hidden="true" />
-                                  <span>
-                                    {p.shipping.status === 'Grátis' ? 'Frete Grátis' : (p.shipping.price ? `Frete: R$ ${p.shipping.price.toFixed(2)}` : p.shipping.status)}
-                                    {p.shipping.estimated_delivery_days ? ` (${p.shipping.estimated_delivery_days} dias)` : ''}
-                                  </span>
-                                </div>
-                                <div className="shipping-actions-row">{matrixButton}</div>
-                              </>
-                            );
-                          }
+                              // Calculado sem opções → estado indisponível / falha temporária
+                              const statusLower = (p.shipping?.status || '').toLowerCase();
+                              const isFailure = p._shipping_state === 'temporary_failure' || statusLower.includes('temporariamente');
+                              const isUnavailable = p._shipping_state === 'unavailable_for_cep' || statusLower.includes('indisponível');
+                              if (isFailure || isUnavailable) {
+                                const stateText = isFailure
+                                  ? 'Frete temporariamente indisponível'
+                                  : 'Entrega indisponível para este CEP';
+                                return (
+                                  <div className="shipping-section">
+                                    <div className={`shipping-state-row ${isFailure ? 'shipping-state-warning' : 'shipping-state-unavailable'}`}>
+                                      {isFailure ? <AlertTriangle size={13} aria-hidden="true" /> : <MapPin size={13} aria-hidden="true" />}
+                                      <span>{stateText}</span>
+                                      {isFailure && (isBrandShippingSupported || (isVtex && p.sku_id)) && (
+                                        <button
+                                          type="button"
+                                          className="shipping-retry"
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            requestCalc({ type: 'one', brandKey, product: p, key: p.url });
+                                          }}
+                                        >
+                                          Tentar novamente
+                                        </button>
+                                      )}
+                                    </div>
+                                    <div className="shipping-actions-row">{matrixButton}</div>
+                                  </div>
+                                );
+                              }
 
-                          // Nenhum estado de frete conhecido (ex.: engine sem provedor, tipo SFCC) →
-                          // Matriz Regional continua visível (D-07); o modal comunica "unsupported".
-                          return <div className="shipping-section"><div className="shipping-actions-row">{matrixButton}</div></div>;
-                        })()}
-                      </div>
-                      <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>
-                        <button
-                          type="button"
-                          className="btn-icon btn-sm"
-                          title="Adicionar ao monitoramento"
-                          onClick={async (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            await handleAddToMonitor(p.url, brandKey);
-                          }}
-                        >
-                          <Plus size={14} />
-                        </button>
-                      </div>
-                    </a>
-                  ))}
-                  {products.length === 0 && (
-                    <div className="empty-column" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px dashed var(--border)' }}>
-                      <p style={{ fontSize: '0.9rem' }}>Nenhum resultado encontrado</p>
+                              // Fallback legado: registros antigos com p.shipping simples (D-08 compat)
+                              if (p.shipping) {
+                                return (
+                                  <>
+                                    <div className="product-meta" style={{ marginTop: '6px', color: p.shipping.status === 'Grátis' ? 'var(--success)' : 'inherit' }}>
+                                      <Package size={14} aria-hidden="true" />
+                                      <span>
+                                        {p.shipping.status === 'Grátis' ? 'Frete Grátis' : (p.shipping.price ? `Frete: R$ ${p.shipping.price.toFixed(2)}` : p.shipping.status)}
+                                        {p.shipping.estimated_delivery_days ? ` (${p.shipping.estimated_delivery_days} dias)` : ''}
+                                      </span>
+                                    </div>
+                                    <div className="shipping-actions-row">{matrixButton}</div>
+                                  </>
+                                );
+                              }
+
+                              // Nenhum estado de frete conhecido (ex.: engine sem provedor, tipo SFCC) →
+                              // Matriz Regional continua visível (D-07); o modal comunica "unsupported".
+                              return <div className="shipping-section"><div className="shipping-actions-row">{matrixButton}</div></div>;
+                            })()}
+                          </div>
+                          <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>
+                            <button
+                              type="button"
+                              className="btn-icon btn-sm"
+                              title="Adicionar ao monitoramento"
+                              onClick={async (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                await handleAddToMonitor(p.url, brandKey);
+                              }}
+                            >
+                              <Plus size={14} />
+                            </button>
+                          </div>
+                        </a>
+                      ))}
+                      {products.length === 0 && (
+                        <div className="empty-column" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px dashed var(--border)' }}>
+                          <p style={{ fontSize: '0.9rem' }}>Nenhum resultado encontrado</p>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              </div>
-            );
+                  </div>
+                );
               })}
             </>
           );
@@ -2291,7 +2988,8 @@ const CrossMarketplacePage = ({ preloadedJobId, onClearPreloadedJob, onReopen }:
         if (useSearchStore.getState().cross.loadingPreloadId !== preloadedJobId) return;
         setCross({
           results: withDisplayOrder(res.results),
-          targetSku: res.query ? res.query.replace('SKU: ', '') : '',
+          // Barra de busca recebe o SKU alvo (registros antigos sem target_sku caem no query).
+          targetSku: res.target_sku || (res.query ? res.query.replace('SKU: ', '') : ''),
           selectionMode: false,
           selectedItems: new Set(),
           loading: false,
@@ -2451,29 +3149,12 @@ const CrossMarketplacePage = ({ preloadedJobId, onClearPreloadedJob, onReopen }:
 
   return (
     <div className="page-content">
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button
-          type="button"
-          className="btn-icon"
-          title="Ver histórico de buscas"
-          onClick={() => setHistoryOpen(o => !o)}
-          style={{ position: 'relative' }}
-        >
-          <History size={18} />
-          {historyCount > 0 && (
-            <span
-              className="monitor-badge"
-              style={{
-                position: 'absolute', top: '-6px', right: '-6px',
-                color: 'var(--primary)', fontSize: '0.65rem',
-                background: 'rgba(99,102,241,0.12)', padding: '2px 6px', borderRadius: '20px',
-              }}
-            >
-              {historyCount}
-            </span>
-          )}
-        </button>
-      </div>
+      <HistoryToggleButton
+        title="Ver histórico de buscas"
+        count={historyCount}
+        open={historyOpen}
+        onClick={() => setHistoryOpen(o => !o)}
+      />
       {onReopen && (
         <HistoryList
           type="cross"
@@ -2482,6 +3163,7 @@ const CrossMarketplacePage = ({ preloadedJobId, onClearPreloadedJob, onReopen }:
           collapsed={!historyOpen}
           onToggleCollapsed={() => setHistoryOpen(o => !o)}
           onCountChange={setHistoryCount}
+          hideHeader
         />
       )}
       <GlassCard className="search-bar-container">
@@ -2550,6 +3232,8 @@ const CrossMarketplacePage = ({ preloadedJobId, onClearPreloadedJob, onReopen }:
           </button>
         </form>
       </GlassCard>
+
+      <MapRulesManager mode="sku" />
 
       {results && (
         <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -2717,6 +3401,7 @@ const CrossMarketplacePage = ({ preloadedJobId, onClearPreloadedJob, onReopen }:
                               {item.title}
                             </p>
                             <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)' }}>Vendedor: {item.seller}</p>
+                            <Phase43Badges item={item} />
                           </div>
                           {item.image_url && (
                             <div style={{ width: '100%', height: '140px', overflow: 'hidden', borderRadius: '8px', margin: '4px 0' }}>
@@ -2879,14 +3564,20 @@ const CrossMarketplacePage = ({ preloadedJobId, onClearPreloadedJob, onReopen }:
 };
 
 const SettingsPage = ({ brands, onRefresh }: { brands: any[], onRefresh: () => void }) => {
-  const handleDeleteBrand = async (key: string) => {
-    if (!confirm(`Tem certeza que deseja excluir a marca ${key}?`)) return;
-    try {
-      await ApiClient.deleteBrand(key);
-      onRefresh();
-    } catch (err: any) {
-      alert("Erro ao excluir: " + err.message);
-    }
+  const [confirmState, setConfirmState] = useState<ConfirmState>(null);
+
+  const handleDeleteBrand = (brand: any) => {
+    setConfirmState({
+      message: `Tem certeza que deseja excluir a marca ${brand.brand_name || brand.brand_key}?`,
+      action: async () => {
+        try {
+          await ApiClient.deleteBrand(brand.brand_key);
+          onRefresh();
+        } catch (err: any) {
+          toast.error('Erro ao excluir: ' + err.message);
+        }
+      },
+    });
   };
 
   const handleToggleActive = async (brand: any) => {
@@ -2900,53 +3591,57 @@ const SettingsPage = ({ brands, onRefresh }: { brands: any[], onRefresh: () => v
 
   return (
     <div className="page-content">
-        <GlassCard title="Gerenciar Marcas">
-          <div className="brand-list">
-            {brands.map(b => {
-              return (
-                <div key={b.brand_key} className="brand-item">
-                  <div className="brand-info" style={b.is_active === false ? { opacity: 0.55 } : undefined}>
-                    <div className="brand-avatar">
-                      <img
-                        src={b.logo_url || `https://www.google.com/s2/favicons?domain=${b.domain}&sz=64`}
-                        alt={b.brand_name}
-                        onError={(e: any) => { e.target.src = `https://ui-avatars.com/api/?name=${b.brand_name}&background=6366f1&color=fff`; }}
-                      />
-                    </div>
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <p className="brand-name-text">{b.brand_name}</p>
-                        {b.is_active === false && (
-                          <span className="monitor-badge" style={{ color: 'var(--warning)', fontSize: '0.7rem' }}>Inativa</span>
-                        )}
-                      </div>
-                      <p className="brand-domain-text"><Globe size={12} /> {b.domain}</p>
-                    </div>
+      <GlassCard title="Gerenciar Marcas">
+        <div className="brand-list">
+          {brands.map(b => {
+            return (
+              <div key={b.brand_key} className="brand-item">
+                <div className="brand-info" style={b.is_active === false ? { opacity: 0.55 } : undefined}>
+                  <div className="brand-avatar">
+                    <img
+                      src={b.logo_url || `https://www.google.com/s2/favicons?domain=${b.domain}&sz=64`}
+                      alt={b.brand_name}
+                      onError={(e: any) => { e.target.src = `https://ui-avatars.com/api/?name=${b.brand_name}&background=6366f1&color=fff`; }}
+                    />
                   </div>
-                  <div className="brand-actions">
-                    <button
-                      type="button"
-                      className="btn-icon"
-                      style={{ color: b.is_active !== false ? 'var(--primary)' : 'var(--text-muted)' }}
-                      onClick={() => handleToggleActive(b)}
-                      aria-label={`${b.is_active !== false ? 'Desativar' : 'Ativar'} marca ${b.brand_name}`}
-                      aria-pressed={b.is_active !== false}
-                    >
-                      <Power size={18} />
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-icon text-error"
-                      onClick={() => handleDeleteBrand(b.brand_key)}
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <p className="brand-name-text">{b.brand_name}</p>
+                      {b.is_active === false && (
+                        <span className="monitor-badge" style={{ color: 'var(--warning)', fontSize: '0.7rem' }}>Inativa</span>
+                      )}
+                    </div>
+                    <p className="brand-domain-text"><Globe size={12} /> {b.domain}</p>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        </GlassCard>
+                <div className="brand-actions">
+                  <button
+                    type="button"
+                    className="btn-icon"
+                    style={{ color: b.is_active !== false ? 'var(--primary)' : 'var(--text-muted)' }}
+                    onClick={() => handleToggleActive(b)}
+                    aria-label={`${b.is_active !== false ? 'Desativar' : 'Ativar'} marca ${b.brand_name}`}
+                    aria-pressed={b.is_active !== false}
+                  >
+                    <Power size={18} />
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-icon text-error"
+                    onClick={() => handleDeleteBrand(b)}
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </GlassCard>
+
+      <MapRulesManager mode="settings" />
+
+      <ConfirmDialog state={confirmState} onClose={() => setConfirmState(null)} />
     </div>
   );
 };
@@ -3011,6 +3706,7 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
   const [reviewLoadingIds, setReviewLoadingIds] = useState<Set<string>>(new Set());
   const [autoSweepIds, setAutoSweepIds] = useState<Set<string>>(new Set());
   const autoSweepPollsRef = useRef<Record<string, number>>({});
+  const [confirmState, setConfirmState] = useState<ConfirmState>(null);
 
   const refreshCategoriesList = async () => {
     const data = await ApiClient.getMonitoredCategories();
@@ -3023,7 +3719,7 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
     try {
       await refreshCategoriesList();
     } catch (err: any) {
-      alert("Erro ao buscar categorias monitoradas: " + err.message);
+      toast.error('Erro ao buscar categorias monitoradas: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -3036,7 +3732,7 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
         if (active) setCategories(data);
       })
       .catch((err: Error) => {
-        if (active) alert("Erro ao buscar categorias monitoradas: " + err.message);
+        if (active) toast.error('Erro ao buscar categorias monitoradas: ' + err.message);
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -3103,7 +3799,7 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
         }
       }
     } catch (err: any) {
-      alert("Erro ao buscar produtos: " + err.message);
+      toast.error('Erro ao buscar produtos: ' + err.message);
       setMonitorProducts([]);
       setSelectedMonitorStockSummary(null);
     } finally {
@@ -3193,15 +3889,19 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
     }
   };
 
-  const handleDelete = async (monitorId: string) => {
-    if (!window.confirm("Deseja realmente excluir este monitoramento?")) return;
-    clearAutoSweepPoll(monitorId);
-    try {
-      await ApiClient.deleteMonitoredCategory(monitorId);
-      fetchCategories();
-    } catch (err: any) {
-      alert("Erro ao excluir: " + err.message);
-    }
+  const handleDelete = (monitorId: string) => {
+    setConfirmState({
+      message: 'Deseja realmente excluir este monitoramento?',
+      action: async () => {
+        clearAutoSweepPoll(monitorId);
+        try {
+          await ApiClient.deleteMonitoredCategory(monitorId);
+          fetchCategories();
+        } catch (err: any) {
+          toast.error('Erro ao excluir: ' + err.message);
+        }
+      },
+    });
   };
 
   const mergeMonitorProductResult = (scanProductId: string, fields: any) => {
@@ -3287,6 +3987,8 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
         </button>
       </div>
 
+      <MapRulesManager mode="categories" />
+
       <GlassCard>
         {loading ? (
           <div style={{ padding: '2rem', textAlign: 'center' }}><RefreshCw className="animate-spin" /></div>
@@ -3329,6 +4031,11 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
                           <span className="text-success" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><CheckCircle2 size={14} /> Ativo</span>
                         ) : (
                           <span className="text-error">Inativo</span>
+                        )}
+                        {c.last_map_violation_count > 0 && (
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--error)', marginTop: '4px', fontSize: '12px', fontWeight: 700 }}>
+                            <AlertTriangle size={14} /> MAP: {c.last_map_violation_count}
+                          </span>
                         )}
                       </td>
                       <td className="text-muted">
@@ -3434,7 +4141,7 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
 
       {selectedMonitor && (
         <div className="modal-overlay" onClick={() => setSelectedMonitor(null)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '1200px', width: '95%' }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '1100px', width: '92%', maxHeight: '85vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 style={{ margin: 0 }}>Produtos em Monitoramento</h3>
               <button className="btn btn-icon" onClick={() => setSelectedMonitor(null)}><X size={20} /></button>
@@ -3445,21 +4152,21 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
             </p>
             {selectedMonitorStockSummary && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px', marginBottom: '16px' }}>
-                <div className="badge" style={{ justifyContent: 'space-between', padding: '8px', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)' }}>
-                  <span>Verificados</span>
+                <div className="badge" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '8px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)' }}>
+                  <span>Verificados:</span>
                   <strong>{selectedMonitorStockSummary.verified_stock_count}</strong>
                 </div>
-                <div className="badge" style={{ justifyContent: 'space-between', padding: '8px', background: 'rgba(148, 163, 184, 0.12)', color: 'var(--text-muted)' }}>
-                  <span>Nao verificados</span>
+                <div className="badge" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '8px', borderRadius: '8px', background: 'rgba(148, 163, 184, 0.12)', color: 'var(--text-muted)' }}>
+                  <span>Nao verificados:</span>
                   <strong>{selectedMonitorStockSummary.unknown_stock_count}</strong>
                 </div>
-                <div className="badge" style={{ justifyContent: 'space-between', padding: '8px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)' }}>
-                  <span>Esgotados</span>
+                <div className="badge" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '8px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)' }}>
+                  <span>Esgotados:</span>
                   <strong>{selectedMonitorStockSummary.out_of_stock_count}</strong>
                 </div>
                 {selectedMonitorStockSummary.rupture_pct !== null && (
-                  <div className="badge" style={{ justifyContent: 'space-between', padding: '8px', background: 'rgba(245, 158, 11, 0.12)', color: 'var(--warning)' }}>
-                    <span>Ruptura</span>
+                  <div className="badge" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '8px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.12)', color: 'var(--warning)' }}>
+                    <span>Ruptura:</span>
                     <strong>{Math.round(selectedMonitorStockSummary.rupture_pct * 100)}%</strong>
                   </div>
                 )}
@@ -3473,7 +4180,7 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
                 Nenhum produto extraído ainda. Aguarde a próxima varredura.
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '24px', maxHeight: '600px', overflowY: 'auto', padding: '4px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '24px', maxHeight: '55vh', overflowY: 'auto', padding: '4px' }}>
                 {monitorProducts.map((p, i) => (
                   <a
                     key={i}
@@ -3489,9 +4196,12 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
                       ) : (
                         <Package size={40} />
                       )}
-                      {p.price_discount && p.price_discount > 0 ? (
-                        <span className="badge-discount">-{Math.round((p.price_discount / (p.price_full + p.price_discount)) * 100)}%</span>
-                      ) : null}
+                      {(() => {
+                        const priceView = getProductPriceView(p);
+                        return priceView.discountPct != null
+                          ? <span className="badge-discount">-{priceView.discountPct}%</span>
+                          : null;
+                      })()}
                     </div>
                     <div className="product-details">
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
@@ -3499,17 +4209,21 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
                         {p.url && <ExternalLink size={14} className="text-muted" style={{ marginTop: '4px', flexShrink: 0 }} />}
                       </div>
                       <div className="product-price" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {p.price_discount && p.price_discount > 0 ? (
-                          <>
-                            <span className="price-original" style={{ textDecoration: 'line-through', color: '#999', fontSize: '0.85em' }}>
-                              R$ {(p.price_full + p.price_discount).toFixed(2)}
-                            </span>
-                            <span className="price-current">R$ {p.price_full?.toFixed(2)}</span>
-                          </>
-                        ) : (
-                          <span className="price-current">R$ {p.price_full?.toFixed(2) || '0.00'}</span>
-                        )}
+                        {(() => {
+                          const priceView = getProductPriceView(p);
+                          return (
+                            <>
+                              {priceView.original != null ? (
+                                <span className="price-original" style={{ textDecoration: 'line-through', color: '#999', fontSize: '0.85em' }}>
+                                  R$ {priceView.original.toFixed(2)}
+                                </span>
+                              ) : null}
+                              <span className="price-current">R$ {(priceView.current ?? 0).toFixed(2)}</span>
+                            </>
+                          );
+                        })()}
                       </div>
+                      <Phase43Badges item={p} />
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '8px', fontSize: '12px', color: 'var(--text-muted)' }}>
                         {p.stock_availability === true && <span className="text-success">Em estoque</span>}
                         {p.stock_availability === false && <span className="text-error">Esgotado</span>}
@@ -3568,18 +4282,18 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
                           </>
                         )}
                         {p.url && (
-                        <button
-                          type="button"
-                          className="btn-icon btn-sm"
-                          title="Adicionar ao monitoramento"
-                          onClick={async (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            await handleAddToMonitor(p.url, selectedMonitor.brand);
-                          }}
-                        >
-                          <Plus size={14} />
-                        </button>
+                          <button
+                            type="button"
+                            className="btn-icon btn-sm"
+                            title="Adicionar ao monitoramento"
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              await handleAddToMonitor(p.url, selectedMonitor.brand);
+                            }}
+                          >
+                            <Plus size={14} />
+                          </button>
                         )}
                       </div>
                     )}
@@ -3590,11 +4304,49 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
           </div>
         </div>
       )}
+
+      <ConfirmDialog state={confirmState} onClose={() => setConfirmState(null)} />
     </div>
   );
 };
 
+// --- MonitoringPage: une monitor de produto único e monitor de categorias sob um
+// único toggle (a página "Monitor de Categorias" deixou de ser uma aba própria). ---
 
+type MonitorView = 'product' | 'category';
+
+const MonitoringPage = ({ brands }: { brands: any[] }) => {
+  const [view, setView] = useState<MonitorView>('product');
+
+  return (
+    <>
+      <div className="view-toggle-row">
+        <div className="view-toggle" role="tablist" aria-label="Tipo de monitoramento">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'product'}
+            className={`view-toggle-btn ${view === 'product' ? 'active' : ''}`}
+            onClick={() => setView('product')}
+          >
+            <Package size={16} /> Produto Único
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'category'}
+            className={`view-toggle-btn ${view === 'category' ? 'active' : ''}`}
+            onClick={() => setView('category')}
+          >
+            <Layers size={16} /> Categorias
+          </button>
+        </div>
+      </div>
+
+      {view === 'product' ? <MonitorPage brands={brands} /> : <MonitoredCategoriesPage brands={brands} />}
+    </>
+  );
+};
 
 // --- Main App ---
 
@@ -3630,10 +4382,9 @@ function App() {
 
   const renderTab = () => {
     switch (activeTab) {
-      case 'monitor': return <MonitorPage brands={brands} />;
+      case 'monitor': return <MonitoringPage brands={brands} />;
       case 'search': return <SearchPage brands={brands} preloadedJobId={preloadedJobId} onClearPreloadedJob={() => setPreloadedJobId(null)} onReopen={(jobId) => handleReopen(jobId, 'search')} />;
       case 'cross': return <CrossMarketplacePage preloadedJobId={preloadedJobId} onClearPreloadedJob={() => setPreloadedJobId(null)} onReopen={(jobId) => handleReopen(jobId, 'cross')} />;
-      case 'monitored_categories': return <MonitoredCategoriesPage brands={brands} />;
       case 'category': return <CategoryPage brands={brands} />;
       case 'banners': return <BannersPage brands={brands} />;
       case 'settings': return <SettingsPage brands={brands} onRefresh={refreshBrands} />;
@@ -3663,12 +4414,6 @@ function App() {
             label="Monitores"
             active={activeTab === 'monitor'}
             onClick={() => navigateTab('monitor')}
-          />
-          <SidebarItem
-            icon={CheckCircle2}
-            label="Monitor de Categorias"
-            active={activeTab === 'monitored_categories'}
-            onClick={() => navigateTab('monitored_categories')}
           />
           <SidebarItem
             icon={Search}
@@ -3714,9 +4459,8 @@ function App() {
               activeTab === 'monitor' ? 'Painel de Monitoramento' :
                 activeTab === 'search' ? 'Busca Comparativa' :
                   activeTab === 'cross' ? 'Busca por SKU' :
-                    activeTab === 'monitored_categories' ? 'Monitor de Categorias' :
-                      activeTab === 'category' ? 'Varredura por Categoria' :
-                        activeTab === 'banners' ? 'Banners' :
+                    activeTab === 'category' ? 'Varredura por Categoria' :
+                      activeTab === 'banners' ? 'Banners' :
                         'Gerenciar Marcas'
             }
             </h1>
