@@ -19,6 +19,7 @@ from core.websocket import manager
 from services.engines.factory import engine_factory
 from services.map_evaluator_service import EMPTY_MAP_METADATA, evaluate_map_violation
 from services.map_rules_service import map_rules_service
+from services.notification_service import notification_service
 
 logger = logging.getLogger("PriceMonitorService")
 
@@ -240,32 +241,39 @@ class PriceMonitorService:
                     current_colors = product.available_colors or []
                     current_sizes = product.available_sizes or []
 
-                    # Verifica se houve mudança de preço, disponibilidade, cores ou tamanhos
-                    has_change = False
-
-                    if config.last_price is None or config.last_price != current_price:
-                        has_change = True
-
-                    if config.last_price_original != current_original_price:
-                        has_change = True
+                    # Verifica se houve mudança de preço, disponibilidade, cores ou tamanhos.
+                    # A detecção é separada em flags: só mudança de PREÇO gera
+                    # notificação; cores/tamanhos continuam alimentando o history.
+                    was_baseline = config.last_price is None
 
                     # Mudanca apenas no desconto (price_full inalterado) tambem conta
                     # como mudanca — sem isso, uma promocao (D-01) era ignorada em
                     # silencio quando o preco efetivo nao mudava.
-                    if config.last_price_discount != current_discount:
-                        has_change = True
+                    price_changed = (
+                        config.last_price != current_price
+                        or config.last_price_original != current_original_price
+                        or config.last_price_discount != current_discount
+                    )
 
                     # Checa se houve alteração nas numerações/cores disponíveis
+                    variants_changed = False
                     if sorted(config.available_colors) != sorted(current_colors):
-                        has_change = True
+                        variants_changed = True
                         config.available_colors = current_colors
 
                     if sorted(config.available_sizes) != sorted(current_sizes):
-                        has_change = True
+                        variants_changed = True
                         config.available_sizes = current_sizes
+
+                    has_change = was_baseline or price_changed or variants_changed
 
                     # Registra no histórico se houve mudança
                     if has_change:
+                        # Captura os valores anteriores antes de sobrescrever,
+                        # para a notificação mostrar "antes → depois".
+                        old_price = config.last_price
+                        old_original = config.last_price_original
+
                         entry = PriceHistoryEntry(
                             price=current_price,
                             price_original=current_original_price,
@@ -294,6 +302,34 @@ class PriceMonitorService:
                             **self._map_metadata_payload(config),
                             "message": f"Mudança detectada! Preço: R$ {current_price:.2f} | Tamanhos: {len(current_sizes)}"
                         }, job_id)
+
+                        # Alerta persistente — somente para mudança de PREÇO
+                        # (nunca na primeira leitura, nunca por cores/tamanhos).
+                        if price_changed and not was_baseline and current_price is not None:
+                            if old_price is not None and round(old_price, 2) != round(current_price, 2):
+                                notif_message = f"R$ {old_price:.2f} → R$ {current_price:.2f}"
+                            else:
+                                # Preço efetivo igual, mas original/desconto mudou
+                                # (início/fim de promoção).
+                                notif_message = (
+                                    f"Condições de preço alteradas "
+                                    f"(preço atual: R$ {current_price:.2f})"
+                                )
+                            notification_service.add(
+                                type="price_change",
+                                title=f"Preço alterado — {config.product_name or config.brand}",
+                                message=notif_message,
+                                metadata={
+                                    "job_id": job_id,
+                                    "url": config.url,
+                                    "brand": config.brand,
+                                    "old_price": old_price,
+                                    "new_price": current_price,
+                                    "old_original_price": old_original,
+                                    "new_original_price": current_original_price,
+                                    "image_url": config.image_url,
+                                },
+                            )
                     else:
                         # Apenas log de "tudo igual"
                         await manager.send_message({
