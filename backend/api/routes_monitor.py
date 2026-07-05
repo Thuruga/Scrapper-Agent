@@ -73,7 +73,7 @@ async def create_category_monitor(
 
     from services.category_monitor_service import run_category_scan
 
-    background_tasks.add_task(run_category_scan, row)
+    background_tasks.add_task(run_category_scan, row, notify_completion=True)
     return CategoryMonitorResponse(**row)
 
 
