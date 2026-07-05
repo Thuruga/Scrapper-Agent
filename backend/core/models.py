@@ -418,6 +418,25 @@ class PriceMonitorConfig(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Notificações
+# ---------------------------------------------------------------------------
+
+
+class Notification(BaseModel):
+    """Notificação persistente exibida na central do frontend."""
+
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    type: str  # "price_change" | "category_price_change" | "scan_finished"
+    title: str
+    message: str
+    created_at: str = Field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
+    read: bool = False
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+# ---------------------------------------------------------------------------
 # Marcas Dinâmicas e Mapeamentos
 # ---------------------------------------------------------------------------
 
