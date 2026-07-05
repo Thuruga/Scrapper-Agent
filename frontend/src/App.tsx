@@ -53,6 +53,7 @@ import {
 import { ApiClient, type MapRule, type MapRulePayload } from './api/client';
 import { useSearchStore, withDisplayOrder } from './stores/searchStore';
 import { useBannerStore, type BannerCandidate } from './stores/bannerStore';
+import { useNotificationStore } from './stores/notificationStore';
 import { useShallow } from 'zustand/react/shallow';
 import './App.css';
 
@@ -4379,6 +4380,15 @@ function App() {
   useEffect(() => {
     refreshBrands();
   }, []);
+
+  // Polling da central de notificações: toasts de mudança de preço e término
+  // de processos chegam mesmo com o usuário em outra aba do app.
+  const pollNotifications = useNotificationStore(state => state.poll);
+  useEffect(() => {
+    void pollNotifications();
+    const intervalId = setInterval(() => void pollNotifications(), 10000);
+    return () => clearInterval(intervalId);
+  }, [pollNotifications]);
 
   const renderTab = () => {
     switch (activeTab) {

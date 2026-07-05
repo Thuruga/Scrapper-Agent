@@ -74,6 +74,16 @@ export type MapRulePayload = {
   notes?: string | null;
 };
 
+export type AppNotification = {
+  id: string;
+  type: 'price_change' | 'category_price_change' | 'scan_finished' | string;
+  title: string;
+  message: string;
+  created_at: string;
+  read: boolean;
+  metadata: Record<string, any>;
+};
+
 export class ApiClient {
 
   // ------------------------------------------------------------------
@@ -473,5 +483,32 @@ export class ApiClient {
   static async getCanonicalCategories() {
     const data: any = await this.request('/canonical-categories');
     return data?.categories || [];
+  }
+
+  // ------------------------------------------------------------------
+  // Notifications
+  // ------------------------------------------------------------------
+  static getNotifications(unreadOnly = false, limit = 50) {
+    return this.request<{ notifications: AppNotification[]; unread_count: number }>(
+      `/notifications?unread_only=${unreadOnly}&limit=${limit}`
+    );
+  }
+
+  static markNotificationRead(id: string) {
+    return this.request(`/notifications/${encodeURIComponent(id)}/read`, {
+      method: 'POST',
+    });
+  }
+
+  static markAllNotificationsRead() {
+    return this.request('/notifications/read-all', {
+      method: 'POST',
+    });
+  }
+
+  static deleteNotification(id: string) {
+    return this.request(`/notifications/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
   }
 }
