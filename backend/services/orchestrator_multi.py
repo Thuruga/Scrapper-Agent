@@ -21,6 +21,7 @@ import pandas as pd
 
 from config import settings
 from services.brand_service import brand_service
+from services.notification_service import notification_service
 from services.product_contract import build_canonical_export_dataframe
 from core.websocket import manager
 from core.job_manager import JOB_CANCEL_FLAGS
@@ -215,29 +216,62 @@ async def run_multi_orchestrator(
 
     if all_products:
         # Offload pandas operations to a thread para não bloquear o loop
-        await loop.run_in_executor(
-            None, 
-            consolidate_and_save, 
-            all_products, 
-            arquivo_saida, 
-            is_cancelled, 
-            results_store, 
-            total_success, 
-            total_errors, 
+        saved_ok = await loop.run_in_executor(
+            None,
+            consolidate_and_save,
+            all_products,
+            arquivo_saida,
+            is_cancelled,
+            results_store,
+            total_success,
+            total_errors,
             log_callback,
             stock_summaries_payload,
         )
+        status = "cancelled" if is_cancelled else ("success" if saved_ok else "error")
+        notification_service.add(
+            type="scan_finished",
+            title=f"Varredura concluída — {category_label}" if status == "success"
+            else f"Varredura {'cancelada' if status == 'cancelled' else 'com erro'} — {category_label}",
+            message=(
+                f"{len(all_products)} produto(s) de {len(results_store)} marca(s) "
+                f"salvos em {arquivo_saida}."
+                if saved_ok
+                else "Falha ao gerar o arquivo final da varredura."
+            ),
+            metadata={
+                "job_id": job_id,
+                "category": category_label,
+                "brands": list(brand_url_map.keys()),
+                "total_success": total_success,
+                "total_errors": total_errors,
+                "output_file": arquivo_saida if saved_ok else None,
+                "status": status,
+            },
+        )
     else:
         msg_type = "cancelled" if is_cancelled else "error_done"
+        message = (
+            "Operação cancelada. Nenhum produto coletado."
+            if is_cancelled
+            else "Nenhum produto válido extraído de nenhuma marca."
+        )
         log_callback({
             "type": msg_type,
             "stock_summaries": stock_summaries_payload,
-            "message": (
-                "Operação cancelada. Nenhum produto coletado."
-                if is_cancelled
-                else "Nenhum produto válido extraído de nenhuma marca."
-            ),
+            "message": message,
         })
+        notification_service.add(
+            type="scan_finished",
+            title=f"Varredura {'cancelada' if is_cancelled else 'com erro'} — {category_label}",
+            message=message,
+            metadata={
+                "job_id": job_id,
+                "category": category_label,
+                "brands": list(brand_url_map.keys()),
+                "status": "cancelled" if is_cancelled else "error",
+            },
+        )
 
     # Cleanup
     JOB_CANCEL_FLAGS.pop(job_id, None)
@@ -252,8 +286,11 @@ def consolidate_and_save(
     total_errors,
     log_callback,
     stock_summaries=None,
-):
-    """Função auxiliar para salvar o Excel (roda em thread do executor)."""
+) -> bool:
+    """Função auxiliar para salvar o Excel (roda em thread do executor).
+
+    Retorna True no sucesso — o chamador usa isso para o status da notificação.
+    """
     try:
         df = build_canonical_export_dataframe(all_products)
 
@@ -281,6 +318,8 @@ def consolidate_and_save(
                 f"{len(results_store)} marcas salvos em {arquivo_saida}."
             ),
         })
+        return True
     except Exception as e:
         logger.error(f"Erro ao salvar Excel multi-marca: {e}")
         log_callback({"type": "error", "message": f"Erro ao gerar arquivo final: {e}"})
+        return False

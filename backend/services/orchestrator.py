@@ -11,6 +11,7 @@ from typing import Optional, Callable
 
 import pandas as pd
 
+from services.notification_service import notification_service
 from services.product_contract import build_canonical_export_dataframe
 from services.stock_summary_service import (
     compute_stock_summary,
@@ -50,6 +51,21 @@ async def run_orchestrator(
     def is_cancelled() -> bool:
         return cancel_event is not None and cancel_event.is_set()
 
+    def notify_finished(status: str, message: str, **extra):
+        notification_service.add(
+            type="scan_finished",
+            title=f"Varredura concluída — {marca}" if status == "success"
+            else f"Varredura {'cancelada' if status == 'cancelled' else 'com erro'} — {marca}",
+            message=message,
+            metadata={
+                "job_id": job_id,
+                "brand": marca,
+                "url": url_categoria,
+                "status": status,
+                **extra,
+            },
+        )
+
     # ── ETAPA 1: VARREDURA E EXTRAÇÃO PAGINADA ─────────────────────────────
     emit_log("==================================================")
     emit_log(f" ETAPA 1: VARRENDO CATEGORIA PAGINADA ({marca})")
@@ -80,6 +96,7 @@ async def run_orchestrator(
 
         if is_cancelled() and not produtos_validos:
             emit_log({"type": "cancelled", "message": "Operação cancelada pelo usuário durante a varredura."})
+            notify_finished("cancelled", "Operação cancelada pelo usuário durante a varredura.")
             return
 
         # ── ETAPA 2: CONSOLIDAÇÃO E SALVAMENTO ──────────────────────────────────
@@ -122,14 +139,23 @@ async def run_orchestrator(
                 ),
                 "message": f"{'Cancelado. ' if is_cancelled() else ''}Sucesso! Dados de {len(produtos_validos)} produtos salvos em {arquivo_saida}.",
             })
+            notify_finished(
+                "cancelled" if is_cancelled() else "success",
+                f"{len(produtos_validos)} produto(s) salvos em {arquivo_saida}.",
+                valid_products=len(produtos_validos),
+                output_file=arquivo_saida,
+            )
         else:
             if is_cancelled():
                 emit_log({"type": "cancelled", "message": "Operação cancelada. Nenhum produto foi coletado."})
+                notify_finished("cancelled", "Operação cancelada. Nenhum produto foi coletado.")
             else:
                 emit_log({"type": "error_done", "message": "Nenhum produto válido extraído."})
+                notify_finished("error", "Nenhum produto válido extraído.")
     except Exception as e:
         logger.error(f"Erro no orquestrador ({marca}): {e}")
         emit_log({"type": "error_done", "message": f"Erro crítico: {e}"})
+        notify_finished("error", f"Erro crítico: {e}")
 
     emit_log("Pipeline de Camada Bronze concluído.")
 
