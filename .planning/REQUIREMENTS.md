@@ -45,7 +45,7 @@ Requisitos comprometidos para este milestone. Cada um mapeia para uma phase no R
 - [x] **STOCK-01**: Na varredura por categoria, o sistema registra a porcentagem de produtos esgotados por marca.
 - [x] **STOCK-02**: O sistema captura a profundidade de estoque via requisição de 999 unidades no carrinho, rotulada como "máximo observado/estimativa". _Guard-rails: só em varreduras controladas (nunca em busca), sessões efêmeras isoladas + cleanup, throttle._
 - [x] **REVW-01**: Extração de notas e comentários reforçada para todas as marcas registradas (por provider — Trustvox/VTEX native/etc.), com paginação limitada e dedup.
-- [ ] **SORT-01**: Um cron de análise de sortimento varre a categoria/site e contabiliza produtos por atributo canônico (ex.: polos por cor/tecido), gerando snapshots por execução para identificar buracos no catálogo (depende de PARID).
+- [x] **SORT-01**: Um cron de análise de sortimento varre a categoria/site e contabiliza produtos por atributo canônico (ex.: polos por cor/tecido), gerando snapshots por execução para identificar buracos no catálogo (depende de PARID).
 
 ## Future Requirements
 
@@ -108,7 +108,7 @@ Explicitamente excluído deste milestone, com motivo.
 | STOCK-01 | Phase 44 | Complete |
 | STOCK-02 | Phase 44 | Complete |
 | REVW-01 | Phase 44 | Complete |
-| SORT-01 | Phase 45 | Pending |
+| SORT-01 | Phase 45 | Complete |
 
 **Coverage:**
 

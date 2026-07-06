@@ -32,7 +32,7 @@ Phases 19-36 pertencem a milestones CONCLUÍDOS (v1.10-v3.0). As phases ativas d
 - [x] **Phase 42: Frete para Marketplaces & Matriz Multi-Regional** - Cálculo de frete para Mercado Livre, Netshoes e Amazon; Matriz de Frete Multi-Regional com CEPs-chave das 5 regiões do Brasil, on-demand com throttle e cache (FRET-08, FRET-09) (completed 2026-07-02)
 - [x] **Phase 43: Violação de MAP & Selos de Promoção** - Regras de preço mínimo (MAP) por produto/marca/categoria com sinalização de vendedores infratores; extração estruturada de selos de oferta e condições de pagamento (MAP-01, PROMO-01) (completed 2026-07-04)
 - [x] **Phase 44: Ruptura de Estoque & Avaliações Reforçadas** - Percentual de produtos esgotados por marca na varredura; profundidade de estoque via cart-probe de 999 unidades (sessões efêmeras + throttle); notas e comentários reforçados para todas as marcas com paginação e dedup (STOCK-01, STOCK-02, REVW-01) (completed 2026-06-30)
-- [ ] **Phase 45: Análise de Sortimento** - Cron que varre categorias configuradas e contabiliza produtos por atributo canônico, gerando snapshots JSON locais para identificar buracos no catálogo; depende dos atributos canônicos (PARID) e da cobertura confiável de categorias (SORT-01)
+- [x] **Phase 45: Análise de Sortimento** - Cron que varre categorias configuradas e contabiliza produtos por atributo canônico, gerando snapshots JSON locais para identificar buracos no catálogo; depende dos atributos canônicos (PARID) e da cobertura confiável de categorias (SORT-01) (completed 2026-07-06)
 
 ## Phase Details
 
@@ -108,7 +108,7 @@ Plans:
 
 **Wave 3** *(depends on 45-02)*
 
-- [ ] 45-03-PLAN.md - Frontend: dedicated sortiment dashboard page with registry controls, delta cards, and current distributions
+- [x] 45-03-PLAN.md - Frontend: dedicated sortiment dashboard page with registry controls, delta cards, and current distributions
 
 ### Phase 40: Onboarding por URL & Workflows de Adição ao Monitoramento
 
@@ -256,4 +256,4 @@ Phases ativas executam em ordem numérica: 37 → 38 → 39 → 40 → 41 → 42
 | 42. Frete para Marketplaces & Matriz Multi-Regional | v4.0 | 3/3 | Complete    | 2026-07-02 |
 | 43. Violação de MAP & Selos de Promoção | v4.0 | 4/4 | Completed | 2026-07-04 |
 | 44. Ruptura de Estoque & Avaliações Reforçadas | v4.0 | 5/5 | Complete   | 2026-06-30 |
-| 45. Análise de Sortimento | v4.0 | 2/3 | In progress | - |
+| 45. Análise de Sortimento | v4.0 | 3/3 | Complete    | 2026-07-06 |

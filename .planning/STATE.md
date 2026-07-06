@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Paridade de Dados, Cobertura Total de Frete & Inteligência Competitiva
 status: executing
-stopped_at: Phase 45 plan 02 complete
-last_updated: "2026-07-06T02:55:06Z"
-last_activity: 2026-07-06 -- Completed Phase 45 plan 02: guarded runtime and sortiment API
+stopped_at: Phase 45 plan 03 complete
+last_updated: "2026-07-06T03:06:51Z"
+last_activity: 2026-07-06 -- Completed Phase 45 plan 03: dedicated sortiment dashboard UI
 progress:
   total_phases: 9
-  completed_phases: 8
+  completed_phases: 9
   total_plans: 32
-  completed_plans: 31
-  percent: 93
+  completed_plans: 32
+  percent: 100
 ---
 
 # Project State: Intelligence Scraper
@@ -31,10 +31,10 @@ See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/sc
 
 ## Current Position
 
-Phase: 45 (an-lise-de-sortimento) — EXECUTING
+Phase: 45 (an-lise-de-sortimento) — COMPLETE
 Plan: 3 of 3
-Status: Executing Phase 45
-Last activity: 2026-07-06 -- Completed Phase 45 plan 02: guarded runtime and sortiment API
+Status: Phase 45 complete
+Last activity: 2026-07-06 -- Completed Phase 45 plan 03: dedicated sortiment dashboard UI
 
 ## Performance Metrics
 
@@ -90,6 +90,7 @@ Last activity: 2026-07-06 -- Completed Phase 45 plan 02: guarded runtime and sor
 | Phase 38-ux-de-busca-monitoramento-quick-wins P02 | 20min | 2 tasks | 2 files |
 | Phase 38 P38-03 | 35min | 3 tasks | 1 files |
 | 38 | 3 | - | - |
+| 45 | 3 | - | - |
 
 ## Accumulated Context
 
@@ -101,6 +102,9 @@ Last activity: 2026-07-06 -- Completed Phase 45 plan 02: guarded runtime and sor
 
 ### Decisions
 
+- [45-03/dedicated-page]: Sortiment operations live on a dedicated `Sortimento` sidebar page instead of being nested under monitoring or category-scan surfaces.
+- [45-03/backend-dashboard-truth]: The frontend renders backend-owned `baseline`, `deltas`, and `current_distribution` payloads directly and does not recompute snapshot comparison rules in the browser.
+- [45-03/id-bounded-actions]: Sortiment page actions stay inside the typed API boundary by sending only persisted category IDs and explicit enabled booleans; URL and brand remain server-owned registry data.
 - [45-02/dashboard-backend-owned]: Sortiment dashboard payloads are assembled from `latest_snapshot`/`previous_snapshot` on the backend, with explicit `baseline` semantics when no previous snapshot exists.
 - [45-02/overlap-guard]: Manual and cron sortiment runs share one asyncio guard; overlapping manual calls return `status="busy"` and the scheduler job is registered with `max_instances=1` + `coalesce=True`.
 - [45-01/json-only-foundation]: Phase 45 storage is local JSON only; sortiment registry, snapshots, and manifests do not introduce SQLite or analytics.db revival.
@@ -229,13 +233,13 @@ Last activity: 2026-07-06 -- Completed Phase 45 plan 02: guarded runtime and sor
 
 ## Session Continuity
 
-Last session: 2026-07-06T02:02:21.747Z
-Stopped at: Phase 45 context gathered
-Resume file: .planning/phases/45-an-lise-de-sortimento/45-CONTEXT.md
+Last session: 2026-07-06T03:06:51Z
+Stopped at: Phase 45 plan 03 complete
+Resume file: .planning/phases/45-an-lise-de-sortimento/45-03-SUMMARY.md
 
 ## Operator Next Steps
 
-- Phase 42: `/gsd-plan-phase 42` (Frete para Marketplaces & Matriz Multi-Regional — depende da abstração concluída na Phase 41)
+- v4.0 milestone complete: audit the shipped milestone and prepare the next roadmap slice before starting new execution work
 - Phase 37: ainda aberto no roadmap; revisar antes de qualquer trabalho que dependa diretamente de atributos canônicos/SQLite
 - Phase 35: ainda pendente (banners SharePoint) — gate de acesso ao SharePoint necessário primeiro
 - Lacoste: ativar quando houver egress de IP limpo (proxy residencial/móvel); setar `proxy_url` e validar D-06 ao vivo antes de `is_active=true`
