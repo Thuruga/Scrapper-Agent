@@ -84,6 +84,65 @@ export type AppNotification = {
   metadata: Record<string, any>;
 };
 
+export type SortimentDimension = 'available_colors' | 'available_sizes' | 'composition';
+
+export type SortimentBucketEvidence = {
+  scan_product_id: string;
+  product_name?: string | null;
+  url?: string | null;
+};
+
+export type SortimentBucketSnapshot = {
+  label: string;
+  count: number;
+  evidence: SortimentBucketEvidence[];
+};
+
+export type SortimentBucketDelta = {
+  label: string;
+  latest_count: number;
+  previous_count: number;
+  delta_abs: number;
+  delta_pct?: number | null;
+  evidence: SortimentBucketEvidence[];
+};
+
+export type SortimentCategoryRow = {
+  id: string;
+  source_monitor_id: string;
+  brand: string;
+  url: string;
+  enabled: boolean;
+  source_status?: string | null;
+  source_last_scraped_at?: string | null;
+  last_snapshot_at?: string | null;
+  last_sync_at: string;
+  updated_at: string;
+};
+
+export type SortimentDashboardDimension = {
+  dimension: SortimentDimension;
+  current_distribution: SortimentBucketSnapshot[];
+  deltas: SortimentBucketDelta[];
+};
+
+export type SortimentDashboardResponse = {
+  category: SortimentCategoryRow;
+  baseline: boolean;
+  latest_snapshot?: string | null;
+  previous_snapshot?: string | null;
+  latest_snapshot_at?: string | null;
+  previous_snapshot_at?: string | null;
+  dimensions: SortimentDashboardDimension[];
+};
+
+export type SortimentManualRunResponse = {
+  status: 'completed' | 'busy';
+  category_id: string;
+  snapshot_id?: string | null;
+  captured_at?: string | null;
+};
+
 export class ApiClient {
 
   // ------------------------------------------------------------------
@@ -466,6 +525,42 @@ export class ApiClient {
     return this.request<ReviewCommentsResult>(
       `/monitor/category/${encodeURIComponent(monitorId)}/products/${encodeURIComponent(scanProductId)}/reviews`,
       options,
+    );
+  }
+
+  // ------------------------------------------------------------------
+  // Sortiment
+  // ------------------------------------------------------------------
+  static getSortimentCategories() {
+    return this.request<SortimentCategoryRow[]>('/sortiment/categories');
+  }
+
+  static syncSortimentCategories() {
+    return this.request<SortimentCategoryRow[]>('/sortiment/categories/sync', {
+      method: 'POST',
+    });
+  }
+
+  static updateSortimentCategory(categoryId: string, enabled: boolean) {
+    return this.request<SortimentCategoryRow>(
+      `/sortiment/categories/${encodeURIComponent(categoryId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ enabled }),
+      }
+    );
+  }
+
+  static runSortimentCategory(categoryId: string) {
+    return this.request<SortimentManualRunResponse>(
+      `/sortiment/categories/${encodeURIComponent(categoryId)}/run`,
+      { method: 'POST' }
+    );
+  }
+
+  static getSortimentDashboard(categoryId: string) {
+    return this.request<SortimentDashboardResponse>(
+      `/sortiment/categories/${encodeURIComponent(categoryId)}/dashboard`
     );
   }
 
