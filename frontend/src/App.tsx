@@ -38,6 +38,8 @@ import {
   Truck,
   Gauge,
   MessageSquare,
+  Bell,
+  CheckCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -4349,6 +4351,105 @@ const MonitoringPage = ({ brands }: { brands: any[] }) => {
   );
 };
 
+// --- Notificações ---
+
+const formatRelativeTime = (iso: string) => {
+  const timestamp = new Date(iso).getTime();
+  if (Number.isNaN(timestamp)) return '';
+  const diffMs = Date.now() - timestamp;
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 1) return 'agora';
+  if (minutes < 60) return `há ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `há ${hours} h`;
+  const days = Math.floor(hours / 24);
+  return days === 1 ? 'há 1 dia' : `há ${days} dias`;
+};
+
+const NotificationBell = () => {
+  const { notifications, unreadCount, panelOpen, markRead, markAllRead, setPanelOpen } =
+    useNotificationStore(useShallow(state => ({
+      notifications: state.notifications,
+      unreadCount: state.unreadCount,
+      panelOpen: state.panelOpen,
+      markRead: state.markRead,
+      markAllRead: state.markAllRead,
+      setPanelOpen: state.setPanelOpen,
+    })));
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!panelOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+        setPanelOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [panelOpen, setPanelOpen]);
+
+  return (
+    <div className="notification-bell-wrapper" ref={wrapperRef}>
+      <button
+        className="notification-bell-btn"
+        onClick={() => setPanelOpen(!panelOpen)}
+        title="Notificações"
+      >
+        <Bell size={20} />
+        {unreadCount > 0 && (
+          <span className="notification-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
+        )}
+      </button>
+
+      <AnimatePresence>
+        {panelOpen && (
+          <motion.div
+            className="notification-panel"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.15 }}
+          >
+            <div className="notification-panel-header">
+              <span>Notificações</span>
+              {unreadCount > 0 && (
+                <button
+                  className="notification-mark-all-btn"
+                  onClick={() => void markAllRead()}
+                  title="Marcar todas como lidas"
+                >
+                  <CheckCheck size={14} /> Marcar todas como lidas
+                </button>
+              )}
+            </div>
+            <div className="notification-panel-list">
+              {notifications.length === 0 ? (
+                <div className="notification-empty">Nenhuma notificação</div>
+              ) : (
+                notifications.map(item => (
+                  <div
+                    key={item.id}
+                    className={`notification-item ${item.read ? '' : 'unread'}`}
+                    onClick={() => { if (!item.read) void markRead(item.id); }}
+                  >
+                    <div className="notification-item-title">
+                      {!item.read && <span className="notification-unread-dot" />}
+                      {item.title}
+                    </div>
+                    <div className="notification-item-message">{item.message}</div>
+                    <div className="notification-item-time">{formatRelativeTime(item.created_at)}</div>
+                  </div>
+                ))
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
 // --- Main App ---
 
 function App() {
@@ -4475,6 +4576,7 @@ function App() {
             }
             </h1>
           </div>
+          <NotificationBell />
         </header>
 
         <AnimatePresence mode="wait">
