@@ -30,6 +30,11 @@ Sistema de notificações completo, ponta a ponta:
 - Visual (Playwright): sino renderiza no header, painel abre e mostra "Preço alterado — Camisa Manga Longa... R$ 250.00 → R$ 299.90 · há 3 min".
 - `tsc -b` e `vite build` verdes.
 
+## Follow-up (mesmo dia)
+
+- Clique na notificação navega para a tela correspondente: `price_change` → Monitores/Produto Único; `category_price_change` e `scan_finished` de monitor de categoria → Monitores/Categorias; `scan_finished` de varredura avulsa → aba Categorias. Estado da view do monitor elevado da `MonitoringPage` para o `App`.
+- Botão "Limpar histórico" no rodapé do painel: `DELETE /notifications` (novo `clear()` no serviço) + `clearAll()` otimista no store. Verificado no browser (navegação a partir da aba Banners + limpeza persistida no servidor).
+
 ## Observações
 
 - O backend precisou ser reiniciado para carregar o novo código (estava rodando com o código antigo — reiniciado em background durante a verificação).

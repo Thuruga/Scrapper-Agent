@@ -4318,8 +4318,12 @@ const MonitoredCategoriesPage = ({ brands }: { brands: any[] }) => {
 
 type MonitorView = 'product' | 'category';
 
-const MonitoringPage = ({ brands }: { brands: any[] }) => {
-  const [view, setView] = useState<MonitorView>('product');
+const MonitoringPage = ({ brands, view, onViewChange }: {
+  brands: any[];
+  view: MonitorView;
+  onViewChange: (view: MonitorView) => void;
+}) => {
+  const setView = onViewChange;
 
   return (
     <>
@@ -4366,14 +4370,17 @@ const formatRelativeTime = (iso: string) => {
   return days === 1 ? 'há 1 dia' : `há ${days} dias`;
 };
 
-const NotificationBell = () => {
-  const { notifications, unreadCount, panelOpen, markRead, markAllRead, setPanelOpen } =
+const NotificationBell = ({ onOpenNotification }: {
+  onOpenNotification: (notification: { type: string; metadata: Record<string, any> }) => void;
+}) => {
+  const { notifications, unreadCount, panelOpen, markRead, markAllRead, clearAll, setPanelOpen } =
     useNotificationStore(useShallow(state => ({
       notifications: state.notifications,
       unreadCount: state.unreadCount,
       panelOpen: state.panelOpen,
       markRead: state.markRead,
       markAllRead: state.markAllRead,
+      clearAll: state.clearAll,
       setPanelOpen: state.setPanelOpen,
     })));
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -4431,7 +4438,11 @@ const NotificationBell = () => {
                   <div
                     key={item.id}
                     className={`notification-item ${item.read ? '' : 'unread'}`}
-                    onClick={() => { if (!item.read) void markRead(item.id); }}
+                    onClick={() => {
+                      if (!item.read) void markRead(item.id);
+                      setPanelOpen(false);
+                      onOpenNotification(item);
+                    }}
                   >
                     <div className="notification-item-title">
                       {!item.read && <span className="notification-unread-dot" />}
@@ -4443,6 +4454,17 @@ const NotificationBell = () => {
                 ))
               )}
             </div>
+            {notifications.length > 0 && (
+              <div className="notification-panel-footer">
+                <button
+                  className="notification-clear-btn"
+                  onClick={() => void clearAll()}
+                  title="Apagar todo o histórico de notificações"
+                >
+                  <Trash2 size={14} /> Limpar histórico
+                </button>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -4458,6 +4480,9 @@ function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [preloadedJobId, setPreloadedJobId] = useState<string | null>(null);
+  // Elevado da MonitoringPage para permitir que o clique numa notificação
+  // aterrisse direto na visão certa (Produto Único vs Categorias).
+  const [monitorView, setMonitorView] = useState<MonitorView>('product');
 
   const handleReopen = (jobId: string, type: 'search' | 'cross') => {
     setActiveTab(type === 'cross' ? 'cross' : 'search');
@@ -4491,9 +4516,31 @@ function App() {
     return () => clearInterval(intervalId);
   }, [pollNotifications]);
 
+  const handleOpenNotification = (notification: { type: string; metadata: Record<string, any> }) => {
+    switch (notification.type) {
+      case 'price_change':
+        setMonitorView('product');
+        navigateTab('monitor');
+        break;
+      case 'category_price_change':
+        setMonitorView('category');
+        navigateTab('monitor');
+        break;
+      case 'scan_finished':
+        // Scan de monitor de categoria tem monitor_id; varredura avulsa não.
+        if (notification.metadata?.monitor_id) {
+          setMonitorView('category');
+          navigateTab('monitor');
+        } else {
+          navigateTab('category');
+        }
+        break;
+    }
+  };
+
   const renderTab = () => {
     switch (activeTab) {
-      case 'monitor': return <MonitoringPage brands={brands} />;
+      case 'monitor': return <MonitoringPage brands={brands} view={monitorView} onViewChange={setMonitorView} />;
       case 'search': return <SearchPage brands={brands} preloadedJobId={preloadedJobId} onClearPreloadedJob={() => setPreloadedJobId(null)} onReopen={(jobId) => handleReopen(jobId, 'search')} />;
       case 'cross': return <CrossMarketplacePage preloadedJobId={preloadedJobId} onClearPreloadedJob={() => setPreloadedJobId(null)} onReopen={(jobId) => handleReopen(jobId, 'cross')} />;
       case 'category': return <CategoryPage brands={brands} />;
@@ -4576,7 +4623,7 @@ function App() {
             }
             </h1>
           </div>
-          <NotificationBell />
+          <NotificationBell onOpenNotification={handleOpenNotification} />
         </header>
 
         <AnimatePresence mode="wait">

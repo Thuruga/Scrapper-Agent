@@ -97,6 +97,14 @@ class NotificationService:
                 self._save()
             return len(unread)
 
+    def clear(self) -> int:
+        with self._lock:
+            count = len(self._notifications)
+            if count:
+                self._notifications = []
+                self._save()
+            return count
+
     def delete(self, notification_id: str) -> bool:
         with self._lock:
             before = len(self._notifications)

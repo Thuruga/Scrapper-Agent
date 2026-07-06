@@ -511,4 +511,10 @@ export class ApiClient {
       method: 'DELETE',
     });
   }
+
+  static clearNotifications() {
+    return this.request('/notifications', {
+      method: 'DELETE',
+    });
+  }
 }

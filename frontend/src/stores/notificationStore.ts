@@ -10,6 +10,7 @@ interface NotificationStoreState {
   markRead: (id: string) => Promise<void>
   markAllRead: () => Promise<void>
   remove: (id: string) => Promise<void>
+  clearAll: () => Promise<void>
   setPanelOpen: (open: boolean) => void
 }
 
@@ -95,6 +96,15 @@ export const useNotificationStore = create<NotificationStoreState>()((set, get) 
     })
     try {
       await ApiClient.deleteNotification(id)
+    } catch {
+      void get().poll()
+    }
+  },
+
+  clearAll: async () => {
+    set({ notifications: [], unreadCount: 0 })
+    try {
+      await ApiClient.clearNotifications()
     } catch {
       void get().poll()
     }

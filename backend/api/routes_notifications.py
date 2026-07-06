@@ -25,6 +25,12 @@ async def mark_all_notifications_read():
     return {"status": "ok", "count": count}
 
 
+@router.delete("")
+async def clear_notifications():
+    count = notification_service.clear()
+    return {"status": "ok", "count": count}
+
+
 @router.post("/{notification_id}/read")
 async def mark_notification_read(notification_id: str):
     if not notification_service.mark_read(notification_id):
