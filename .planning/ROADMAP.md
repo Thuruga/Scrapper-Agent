@@ -224,7 +224,7 @@ Plans:
 
 **Wave 2** *(depends on 45-01)*
 
-- [ ] 45-02-PLAN.md - Backend runtime/API: independent cron, overlap-safe category snapshots, and latest-vs-previous dashboard payloads
+- [x] 45-02-PLAN.md - Backend runtime/API: independent cron, overlap-safe category snapshots, and latest-vs-previous dashboard payloads
 
 **Wave 3** *(depends on 45-02)*
 
@@ -256,4 +256,4 @@ Phases ativas executam em ordem numérica: 37 → 38 → 39 → 40 → 41 → 42
 | 42. Frete para Marketplaces & Matriz Multi-Regional | v4.0 | 3/3 | Complete    | 2026-07-02 |
 | 43. Violação de MAP & Selos de Promoção | v4.0 | 4/4 | Completed | 2026-07-04 |
 | 44. Ruptura de Estoque & Avaliações Reforçadas | v4.0 | 5/5 | Complete   | 2026-06-30 |
-| 45. Análise de Sortimento | v4.0 | 1/3 | In progress | - |
+| 45. Análise de Sortimento | v4.0 | 2/3 | In progress | - |

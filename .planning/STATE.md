@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Paridade de Dados, Cobertura Total de Frete & Inteligência Competitiva
 status: executing
-stopped_at: Phase 45 plan 01 complete
-last_updated: "2026-07-06T02:44:15Z"
-last_activity: 2026-07-06 -- Completed Phase 45 plan 01: JSON-backed sortiment foundation
+stopped_at: Phase 45 plan 02 complete
+last_updated: "2026-07-06T02:55:06Z"
+last_activity: 2026-07-06 -- Completed Phase 45 plan 02: guarded runtime and sortiment API
 progress:
   total_phases: 9
   completed_phases: 8
   total_plans: 32
-  completed_plans: 30
-  percent: 90
+  completed_plans: 31
+  percent: 93
 ---
 
 # Project State: Intelligence Scraper
@@ -32,9 +32,9 @@ See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/sc
 ## Current Position
 
 Phase: 45 (an-lise-de-sortimento) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Executing Phase 45
-Last activity: 2026-07-06 -- Completed Phase 45 plan 01: JSON-backed sortiment foundation
+Last activity: 2026-07-06 -- Completed Phase 45 plan 02: guarded runtime and sortiment API
 
 ## Performance Metrics
 
@@ -101,6 +101,8 @@ Last activity: 2026-07-06 -- Completed Phase 45 plan 01: JSON-backed sortiment f
 
 ### Decisions
 
+- [45-02/dashboard-backend-owned]: Sortiment dashboard payloads are assembled from `latest_snapshot`/`previous_snapshot` on the backend, with explicit `baseline` semantics when no previous snapshot exists.
+- [45-02/overlap-guard]: Manual and cron sortiment runs share one asyncio guard; overlapping manual calls return `status="busy"` and the scheduler job is registered with `max_instances=1` + `coalesce=True`.
 - [45-01/json-only-foundation]: Phase 45 storage is local JSON only; sortiment registry, snapshots, and manifests do not introduce SQLite or analytics.db revival.
 - [45-01/source-monitor-sync]: Sortiment registry sync is keyed by `source_monitor_id`, preserves operator-owned `enabled` state, updates URL/brand/status from the monitor source, and keeps the monitor file read-only.
 - [40-04/marketplace-brand-keys]: Preserved brand_keys mercado_livre/netshoes/amazon from Plan 02 runtime injection — engine values mercadolivre/netshoes/amazon (no underscore) matching engine class naming; _ENGINE_MAP is the single authoritative source.
