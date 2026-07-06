@@ -297,3 +297,54 @@ def test_sortiment_dashboard_marks_baseline_then_computes_deltas(
     assert delta_by_label["azul"].delta_pct == 100.0
     assert delta_by_label["preto"].delta_abs == -1
     assert delta_by_label["preto"].delta_pct == -100.0
+
+
+def test_try_run_sortiment_category_returns_busy_when_guard_is_locked():
+    import services.sortiment_snapshot_service as sortiment_snapshot_service
+
+    async def _exercise():
+        await sortiment_snapshot_service.SORTIMENT_RUN_GUARD.acquire()
+        try:
+            status, snapshot = await sortiment_snapshot_service.try_run_sortiment_category(
+                "sortiment-1"
+            )
+        finally:
+            sortiment_snapshot_service.SORTIMENT_RUN_GUARD.release()
+        return status, snapshot
+
+    status, snapshot = asyncio.run(_exercise())
+
+    assert status == "busy"
+    assert snapshot is None
+
+
+def test_run_enabled_sortiment_job_executes_only_enabled_rows(monkeypatch):
+    import services.sortiment_snapshot_service as sortiment_snapshot_service
+
+    executed = []
+
+    async def _fake_run(category_id: str):
+        executed.append(category_id)
+        return None
+
+    monkeypatch.setattr(
+        sortiment_snapshot_service,
+        "load_sortiment_categories",
+        lambda enabled_only=False: [
+            SortimentCategoryRow(
+                id="sortiment-1",
+                source_monitor_id="monitor-1",
+                brand="aramis",
+                url="https://www.aramis.com.br/polos",
+                enabled=True,
+            )
+        ]
+        if enabled_only
+        else [],
+    )
+    monkeypatch.setattr(sortiment_snapshot_service, "run_sortiment_category", _fake_run)
+
+    status = asyncio.run(sortiment_snapshot_service.run_enabled_sortiment_job())
+
+    assert status == "completed"
+    assert executed == ["sortiment-1"]
