@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import re
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -27,6 +28,7 @@ from services.sortiment_artifact_service import (
 )
 from services.sortiment_registry_service import (
     get_sortiment_category,
+    load_sortiment_categories,
     update_sortiment_category,
 )
 from services.stock_summary_service import ensure_scan_product_ids
@@ -51,6 +53,7 @@ DIRTY_BUCKET_VALUES = {
     "nao informado",
     "não informado",
 }
+SORTIMENT_RUN_GUARD = asyncio.Lock()
 
 
 def _now_iso() -> str:
@@ -247,6 +250,27 @@ async def run_sortiment_category(category_id: str) -> SortimentCategorySnapshot:
     persist_sortiment_snapshot(snapshot)
     update_sortiment_category(category.id, last_snapshot_at=captured_at)
     return snapshot
+
+
+async def try_run_sortiment_category(
+    category_id: str,
+) -> tuple[str, SortimentCategorySnapshot | None]:
+    if SORTIMENT_RUN_GUARD.locked():
+        return ("busy", None)
+
+    async with SORTIMENT_RUN_GUARD:
+        snapshot = await run_sortiment_category(category_id)
+        return ("completed", snapshot)
+
+
+async def run_enabled_sortiment_job() -> str:
+    if SORTIMENT_RUN_GUARD.locked():
+        return "busy"
+
+    async with SORTIMENT_RUN_GUARD:
+        for category in load_sortiment_categories(enabled_only=True):
+            await run_sortiment_category(category.id)
+    return "completed"
 
 
 def get_sortiment_dashboard(category_id: str) -> SortimentDashboardResponse:

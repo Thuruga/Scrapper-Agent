@@ -23,6 +23,23 @@ logging.basicConfig(
 logger = logging.getLogger("App")
 
 
+def configure_scheduler(scheduler, category_monitor_job, sortiment_job) -> None:
+    scheduler.add_job(
+        category_monitor_job,
+        "interval",
+        id="category-monitor-job",
+        minutes=10,
+    )
+    scheduler.add_job(
+        sortiment_job,
+        "interval",
+        id="sortiment-category-job",
+        minutes=settings.SORTIMENT_CRON_INTERVAL_MINUTES,
+        max_instances=1,
+        coalesce=True,
+    )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Carrega os dados locais e inicia os monitores agendados."""
@@ -30,11 +47,16 @@ async def lifespan(app: FastAPI):
 
     from services.category_monitor_service import category_monitor_job
     from services.price_monitor_service import monitor_service
+    from services.sortiment_snapshot_service import run_enabled_sortiment_job
 
     monitor_service.load_monitors()
 
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(category_monitor_job, "interval", minutes=10)
+    configure_scheduler(
+        scheduler,
+        category_monitor_job=category_monitor_job,
+        sortiment_job=run_enabled_sortiment_job,
+    )
     scheduler.start()
     logger.info("Monitor de categorias iniciado (intervalo de 10 minutos).")
 

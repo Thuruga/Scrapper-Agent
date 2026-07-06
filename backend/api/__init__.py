@@ -20,6 +20,7 @@ from api.routes_history import router as history_router
 from api.routes_banners import router as banners_router
 from api.routes_map_rules import router as map_rules_router
 from api.routes_notifications import router as notifications_router
+from api.routes_sortiment import router as sortiment_router
 
 # Todos os endpoints da API exigem X-API-Key
 api_router = APIRouter(dependencies=[Depends(verify_api_key)])
@@ -34,6 +35,7 @@ api_router.include_router(history_router)
 api_router.include_router(banners_router)
 api_router.include_router(map_rules_router)
 api_router.include_router(notifications_router)
+api_router.include_router(sortiment_router)
 
 # Router público (health-check, WebSocket, etc.)
 public_router = APIRouter()
