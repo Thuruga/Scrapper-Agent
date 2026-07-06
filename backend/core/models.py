@@ -124,6 +124,110 @@ class StockRuptureSummary(BaseModel):
     )
 
 
+SortimentDimension = Literal["available_colors", "available_sizes", "composition"]
+
+
+class SortimentBucketEvidence(BaseModel):
+    """Evidencia minima e auditavel de um bucket de sortimento."""
+
+    scan_product_id: str
+    product_name: Optional[str] = None
+    url: Optional[str] = None
+
+
+class SortimentBucketSnapshot(BaseModel):
+    """Bucket agregado de uma dimensao do snapshot de sortimento."""
+
+    label: str
+    count: int = Field(ge=0)
+    evidence: List[SortimentBucketEvidence] = Field(default_factory=list)
+
+
+class SortimentDimensionSnapshot(BaseModel):
+    """Distribuicao agregada de uma dimensao canonica no snapshot."""
+
+    dimension: SortimentDimension
+    buckets: List[SortimentBucketSnapshot] = Field(default_factory=list)
+
+
+class SortimentCategorySnapshot(BaseModel):
+    """Snapshot imutavel por categoria/execucao para a analise de sortimento."""
+
+    snapshot_id: str
+    category_id: str
+    source_monitor_id: str
+    brand: str
+    url: str
+    captured_at: str = Field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
+    product_count: int = Field(ge=0)
+    dimensions: List[SortimentDimensionSnapshot] = Field(default_factory=list)
+
+
+class SortimentSnapshotManifest(BaseModel):
+    """Indice leve para localizar o snapshot atual e o anterior por categoria."""
+
+    category_id: str
+    latest_snapshot: Optional[str] = None
+    previous_snapshot: Optional[str] = None
+    latest_snapshot_at: Optional[str] = None
+    previous_snapshot_at: Optional[str] = None
+    updated_at: str = Field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
+
+
+class SortimentCategoryRow(BaseModel):
+    """Cadastro separado de categorias elegiveis ao cron de sortimento."""
+
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    source_monitor_id: str = Field(min_length=1)
+    brand: str
+    url: str
+    enabled: bool = False
+    source_status: Optional[str] = None
+    source_last_scraped_at: Optional[str] = None
+    last_snapshot_at: Optional[str] = None
+    last_sync_at: str = Field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
+    updated_at: str = Field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
+
+
+class SortimentBucketDelta(BaseModel):
+    """Delta do ultimo snapshot contra o anterior para um bucket."""
+
+    label: str
+    latest_count: int = Field(ge=0)
+    previous_count: int = Field(ge=0)
+    delta_abs: int
+    delta_pct: Optional[float] = None
+    evidence: List[SortimentBucketEvidence] = Field(default_factory=list)
+
+
+class SortimentDashboardDimension(BaseModel):
+    """Payload consolidado de uma dimensao do dashboard de sortimento."""
+
+    dimension: SortimentDimension
+    current_distribution: List[SortimentBucketSnapshot] = Field(default_factory=list)
+    deltas: List[SortimentBucketDelta] = Field(default_factory=list)
+
+
+class SortimentDashboardResponse(BaseModel):
+    """Resposta backend-owned consumida pela tela dedicada de sortimento."""
+
+    category: SortimentCategoryRow
+    baseline: bool = False
+    latest_snapshot: Optional[str] = None
+    previous_snapshot: Optional[str] = None
+    latest_snapshot_at: Optional[str] = None
+    previous_snapshot_at: Optional[str] = None
+    dimensions: List[SortimentDashboardDimension] = Field(default_factory=list)
+
+
 class PromotionInfo(BaseModel):
     """Promocao/selo comercial normalizado de forma aditiva."""
 

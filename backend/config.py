@@ -152,6 +152,20 @@ class Settings(BaseSettings):
         description="Limite conservador de probes de profundidade por marca/execucao.",
     )
 
+    # Phase 45 - Analise de sortimento independente
+    SORTIMENT_CRON_INTERVAL_MINUTES: int = Field(
+        default=60,
+        description="Cadencia propria do cron de sortimento, separada do monitor de 10 minutos.",
+    )
+    SORTIMENT_MAX_PRODUCTS_PER_CATEGORY: int = Field(
+        default=1000,
+        description="Teto de produtos coletados por categoria em cada snapshot de sortimento.",
+    )
+    SORTIMENT_EVIDENCE_PER_BUCKET: int = Field(
+        default=3,
+        description="Quantidade maxima de evidencias leves persistidas por bucket de sortimento.",
+    )
+
     # Phase 42 - Matriz de frete multi-regional (FRET-09)
     SHIPPING_MATRIX_THROTTLE_SECONDS: float = Field(
         default=2.0,
