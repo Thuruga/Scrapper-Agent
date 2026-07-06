@@ -59,6 +59,41 @@ def save_sortiment_categories(
     return validated
 
 
+def get_sortiment_category(category_id: str) -> SortimentCategoryRow | None:
+    for row in load_sortiment_categories():
+        if row.id == category_id:
+            return row
+    return None
+
+
+def update_sortiment_category(
+    category_id: str,
+    **changes: Any,
+) -> SortimentCategoryRow:
+    rows = load_sortiment_categories()
+    updated_rows: list[SortimentCategoryRow] = []
+    updated: SortimentCategoryRow | None = None
+    now = _now_iso()
+
+    for row in rows:
+        if row.id != category_id:
+            updated_rows.append(row)
+            continue
+        payload = row.model_dump(mode="json")
+        payload.update(changes)
+        payload["updated_at"] = now
+        if "last_sync_at" not in changes:
+            payload["last_sync_at"] = row.last_sync_at
+        updated = SortimentCategoryRow.model_validate(payload)
+        updated_rows.append(updated)
+
+    if updated is None:
+        raise ValueError(f"Sortiment category not found: {category_id}")
+
+    save_sortiment_categories(updated_rows)
+    return updated
+
+
 def sync_sortiment_categories_from_monitor() -> list[SortimentCategoryRow]:
     monitored_rows = _read_json(MONITORS_FILE)
     if not isinstance(monitored_rows, list):
