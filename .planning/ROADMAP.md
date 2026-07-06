@@ -32,7 +32,7 @@ Phases 19-36 pertencem a milestones CONCLUÍDOS (v1.10-v3.0). As phases ativas d
 - [x] **Phase 42: Frete para Marketplaces & Matriz Multi-Regional** - Cálculo de frete para Mercado Livre, Netshoes e Amazon; Matriz de Frete Multi-Regional com CEPs-chave das 5 regiões do Brasil, on-demand com throttle e cache (FRET-08, FRET-09) (completed 2026-07-02)
 - [x] **Phase 43: Violação de MAP & Selos de Promoção** - Regras de preço mínimo (MAP) por produto/marca/categoria com sinalização de vendedores infratores; extração estruturada de selos de oferta e condições de pagamento (MAP-01, PROMO-01) (completed 2026-07-04)
 - [x] **Phase 44: Ruptura de Estoque & Avaliações Reforçadas** - Percentual de produtos esgotados por marca na varredura; profundidade de estoque via cart-probe de 999 unidades (sessões efêmeras + throttle); notas e comentários reforçados para todas as marcas com paginação e dedup (STOCK-01, STOCK-02, REVW-01) (completed 2026-06-30)
-- [ ] **Phase 45: Análise de Sortimento** - Cron que varre categorias e contabiliza produtos por atributo canônico, gerando snapshots para identificar buracos no catálogo; depende dos atributos canônicos (PARID) e da persistência SQLite (SORT-01)
+- [ ] **Phase 45: Análise de Sortimento** - Cron que varre categorias configuradas e contabiliza produtos por atributo canônico, gerando snapshots JSON locais para identificar buracos no catálogo; depende dos atributos canônicos (PARID) e da cobertura confiável de categorias (SORT-01)
 
 ## Phase Details
 
@@ -95,7 +95,20 @@ Plans:
   3. Para a Zara: um spike documentado (GO/NO-GO) valida se produto + preço são extraíveis publicamente antes de qualquer código de engine; resultado registrado em `spikes/010-zara-product-price/REPORT.md`.
   4. Em GO da Zara: operador onboarda a Zara e a busca retorna produtos reais (título + URL + preço); em NO-GO: COMP-07 é formalmente deferido para backlog com evidência e nenhum engine incompleto é commitado.
 
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+
+**Wave 1**
+
+- [ ] 45-01-PLAN.md - Backend foundation: separate sortiment registry, one-way seed sync, and immutable snapshot/manifest contracts
+
+**Wave 2** *(depends on 45-01)*
+
+- [ ] 45-02-PLAN.md - Backend runtime/API: independent cron, overlap-safe category snapshots, and latest-vs-previous dashboard payloads
+
+**Wave 3** *(depends on 45-02)*
+
+- [ ] 45-03-PLAN.md - Frontend: dedicated sortiment dashboard page with registry controls, delta cards, and current distributions
 
 ### Phase 40: Onboarding por URL & Workflows de Adição ao Monitoramento
 
@@ -161,7 +174,20 @@ Plans:
   3. Produtos de marcas que expõem selos de oferta ("Leve 3 pague 2", "15% OFF no Pix", parcelamento) retornam o campo `promotions` estruturado (lista com tipo + valor + texto bruto) — com o texto bruto preservado quando não parseável.
   4. O campo `promotions` é aditivo ao schema existente — produtos sem selos retornam lista vazia, sem quebrar engines que não suportam extração de promoções.
 
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+
+**Wave 1**
+
+- [ ] 45-01-PLAN.md - Backend foundation: separate sortiment registry, one-way seed sync, and immutable snapshot/manifest contracts
+
+**Wave 2** *(depends on 45-01)*
+
+- [ ] 45-02-PLAN.md - Backend runtime/API: independent cron, overlap-safe category snapshots, and latest-vs-previous dashboard payloads
+
+**Wave 3** *(depends on 45-02)*
+
+- [ ] 45-03-PLAN.md - Frontend: dedicated sortiment dashboard page with registry controls, delta cards, and current distributions
 
 ### Phase 44: Ruptura de Estoque & Avaliações Reforçadas
 
@@ -179,17 +205,30 @@ Plans:
 
 ### Phase 45: Análise de Sortimento
 
-**Goal**: Um cron de análise de sortimento varre categorias configuradas e gera snapshots com contagem de produtos por atributo canônico (ex.: polos por cor, por tecido), persistidos em SQLite, para que o operador identifique buracos no catálogo ao comparar execuções ao longo do tempo.
-**Depends on**: Phase 37 (atributos canônicos confiáveis + SQLite schema), Phase 39 (cobertura de categorias completa incluindo Hugo Boss)
+**Goal**: Um cron de análise de sortimento varre categorias configuradas e gera snapshots com contagem de produtos por atributo canônico (ex.: polos por cor, por tecido), persistidos em JSON local, para que o operador identifique buracos no catálogo ao comparar execuções ao longo do tempo.
+**Depends on**: Phase 37 (atributos canônicos confiáveis), Phase 39 (cobertura de categorias completa incluindo Hugo Boss)
 **Requirements**: SORT-01
 **Success Criteria** (what must be TRUE):
 
-  1. Um cron agendado (configurável, independente do scheduler de monitoramento de 10 min) varre categorias selecionadas e persiste snapshots de contagem por atributo canônico no SQLite — sem bloquear buscas ao vivo.
+  1. Um cron agendado (configurável, independente do scheduler de monitoramento de 10 min) varre categorias selecionadas e persiste snapshots de contagem por atributo canônico em JSON local — sem bloquear buscas ao vivo.
   2. O operador acessa um relatório de sortimento que mostra, para uma categoria e período, os atributos com menor cobertura (ex.: "polo azul: 2 SKUs vs. polo branco: 12 SKUs") — identificando buracos no catálogo.
   3. Dois snapshots consecutivos da mesma categoria podem ser comparados, mostrando atributos que desapareceram ou surgiram entre execuções.
-  4. O cron é seguro para múltiplas execuções concorrentes: SQLite com writes transacionais, sem race condition com o scheduler de categoria existente.
+  4. O cron é seguro para múltiplas execuções concorrentes: snapshots por categoria atualizam manifestos latest/previous sem race condition com o scheduler de categoria existente.
 
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+
+**Wave 1**
+
+- [x] 45-01-PLAN.md - Backend foundation: separate sortiment registry, one-way seed sync, and immutable snapshot/manifest contracts
+
+**Wave 2** *(depends on 45-01)*
+
+- [ ] 45-02-PLAN.md - Backend runtime/API: independent cron, overlap-safe category snapshots, and latest-vs-previous dashboard payloads
+
+**Wave 3** *(depends on 45-02)*
+
+- [ ] 45-03-PLAN.md - Frontend: dedicated sortiment dashboard page with registry controls, delta cards, and current distributions
 
 ## Progress
 
@@ -217,4 +256,4 @@ Phases ativas executam em ordem numérica: 37 → 38 → 39 → 40 → 41 → 42
 | 42. Frete para Marketplaces & Matriz Multi-Regional | v4.0 | 3/3 | Complete    | 2026-07-02 |
 | 43. Violação de MAP & Selos de Promoção | v4.0 | 4/4 | Completed | 2026-07-04 |
 | 44. Ruptura de Estoque & Avaliações Reforçadas | v4.0 | 5/5 | Complete   | 2026-06-30 |
-| 45. Análise de Sortimento | v4.0 | 0/? | Not started | - |
+| 45. Análise de Sortimento | v4.0 | 1/3 | In progress | - |

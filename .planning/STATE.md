@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Paridade de Dados, Cobertura Total de Frete & Inteligência Competitiva
 status: executing
-stopped_at: Phase 45 context gathered
-last_updated: "2026-07-06T02:02:21.763Z"
-last_activity: "2026-07-06 - Completed quick task 260705-up8: Deixar mais clara a passagem de tempo nos graficos de historico de preco"
+stopped_at: Phase 45 plan 01 complete
+last_updated: "2026-07-06T02:44:15Z"
+last_activity: 2026-07-06 -- Completed Phase 45 plan 01: JSON-backed sortiment foundation
 progress:
   total_phases: 9
   completed_phases: 8
-  total_plans: 29
-  completed_plans: 29
-  percent: 89
+  total_plans: 32
+  completed_plans: 30
+  percent: 90
 ---
 
 # Project State: Intelligence Scraper
@@ -21,7 +21,7 @@ progress:
 See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/scrapper/.planning/PROJECT.md) (updated 2026-07-02)
 
 **Core value:** Extração automatizada e resiliente de dados de mercado com mínima intervenção humana e alta fidelidade de dados.
-**Current focus:** Phase 42 — Frete para Marketplaces & Matriz Multi-Regional
+**Current focus:** Phase 45 — an-lise-de-sortimento
 
 ## Current Milestone: v4.0 Paridade de Dados, Cobertura Total de Frete & Inteligência Competitiva
 
@@ -31,10 +31,10 @@ See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/sc
 
 ## Current Position
 
-Phase: 44
-Plan: Not started
-Status: Executing Phase 42
-Last activity: 2026-07-06 - Completed quick task 260705-up8: Deixar mais clara a passagem de tempo nos graficos de historico de preco
+Phase: 45 (an-lise-de-sortimento) — EXECUTING
+Plan: 2 of 3
+Status: Executing Phase 45
+Last activity: 2026-07-06 -- Completed Phase 45 plan 01: JSON-backed sortiment foundation
 
 ## Performance Metrics
 
@@ -101,6 +101,8 @@ Last activity: 2026-07-06 - Completed quick task 260705-up8: Deixar mais clara a
 
 ### Decisions
 
+- [45-01/json-only-foundation]: Phase 45 storage is local JSON only; sortiment registry, snapshots, and manifests do not introduce SQLite or analytics.db revival.
+- [45-01/source-monitor-sync]: Sortiment registry sync is keyed by `source_monitor_id`, preserves operator-owned `enabled` state, updates URL/brand/status from the monitor source, and keeps the monitor file read-only.
 - [40-04/marketplace-brand-keys]: Preserved brand_keys mercado_livre/netshoes/amazon from Plan 02 runtime injection — engine values mercadolivre/netshoes/amazon (no underscore) matching engine class naming; _ENGINE_MAP is the single authoritative source.
 - [40-04/_inject_engines-helper]: Tests use _inject_engines(service, engines_dict) helper: sets _by_display and monkey-patches _active_engines() — hermetic, no brands.json disk access in tests.
 - [40-03/dedup-return]: start_monitor retorna (PriceMonitorConfig, status_str) em todos os caminhos; status ∈ {created, already_active, reactivated}; POST /monitor/start retorna config.job_id (id canônico: existente ou novo) + campo status.
