@@ -207,6 +207,20 @@ body {
   .grid-category {
     grid-template-columns: 1fr;
   }
+
+  .sortiment-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sortiment-registry-card {
+    position: static;
+  }
+
+  .sortiment-summary-row,
+  .sortiment-delta-grid,
+  .sortiment-distribution-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .mobile-header-toggle {
@@ -250,6 +264,290 @@ body {
   display: flex;
   flex-direction: column;
   gap: 2rem;
+}
+
+.sortiment-layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.sortiment-registry-card {
+  position: sticky;
+  top: 1rem;
+}
+
+.sortiment-summary-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.sortiment-summary-pill {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.sortiment-summary-pill span {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.sortiment-summary-pill strong {
+  font-size: 1.35rem;
+}
+
+.sortiment-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+}
+
+.sortiment-category-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.sortiment-category-item {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+}
+
+.sortiment-category-item:hover {
+  border-color: rgba(99, 102, 241, 0.35);
+  transform: translateY(-1px);
+}
+
+.sortiment-category-item.selected {
+  border-color: rgba(6, 182, 212, 0.65);
+  background: rgba(6, 182, 212, 0.08);
+}
+
+.sortiment-category-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sortiment-category-url {
+  color: var(--text-main);
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sortiment-category-meta {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.sortiment-category-actions {
+  display: flex;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.sortiment-status-badge {
+  border-radius: 999px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.sortiment-status-badge.enabled {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--success);
+}
+
+.sortiment-status-badge.disabled {
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--warning);
+}
+
+.sortiment-dashboard-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.sortiment-selected-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.sortiment-kicker {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.35rem;
+}
+
+.sortiment-selected-link {
+  color: var(--accent);
+  text-decoration: none;
+  word-break: break-word;
+}
+
+.sortiment-baseline-banner {
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  background: rgba(245, 158, 11, 0.08);
+  border-radius: 16px;
+  padding: 1rem;
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-start;
+}
+
+.sortiment-baseline-banner p {
+  color: var(--text-muted);
+  margin-top: 0.2rem;
+  font-size: 0.88rem;
+}
+
+.sortiment-delta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.sortiment-delta-card {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.sortiment-delta-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.sortiment-delta-card-header h4 {
+  font-size: 1rem;
+}
+
+.sortiment-delta-card-header span {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.sortiment-delta-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sortiment-delta-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.sortiment-delta-row small {
+  display: block;
+  color: var(--text-muted);
+  margin-top: 0.2rem;
+}
+
+.sortiment-delta-chip {
+  min-width: 78px;
+  border-radius: 12px;
+  padding: 0.45rem 0.55rem;
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  font-weight: 700;
+}
+
+.sortiment-delta-chip small {
+  font-size: 0.72rem;
+}
+
+.sortiment-delta-chip.positive {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--success);
+}
+
+.sortiment-delta-chip.negative {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--error);
+}
+
+.sortiment-delta-chip.neutral {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--text-muted);
+}
+
+.sortiment-distribution-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.sortiment-chart-wrap {
+  width: 100%;
+  min-height: 240px;
+}
+
+.sortiment-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.sortiment-table-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.sortiment-table-row small {
+  display: block;
+  color: var(--text-muted);
+  margin-top: 0.2rem;
+}
+
+.sortiment-empty-state {
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  text-align: center;
+  color: var(--text-muted);
 }
 
 .header-subtitle {

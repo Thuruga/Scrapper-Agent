@@ -46,13 +46,22 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LineChart,
   Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer
 } from 'recharts';
-import { ApiClient, type MapRule, type MapRulePayload } from './api/client';
+import {
+  ApiClient,
+  type MapRule,
+  type MapRulePayload,
+  type SortimentCategoryRow,
+  type SortimentDashboardDimension,
+  type SortimentDashboardResponse,
+} from './api/client';
 import { useSearchStore, withDisplayOrder } from './stores/searchStore';
 import { useBannerStore, type BannerCandidate } from './stores/bannerStore';
 import { useNotificationStore } from './stores/notificationStore';
@@ -129,6 +138,34 @@ const getMonitorPriceView = (monitor: any) => {
 const formatMoney = (value: unknown) => (
   typeof value === 'number' && Number.isFinite(value) ? `R$ ${value.toFixed(2)}` : ''
 );
+
+const sortimentDimensionLabels: Record<SortimentDashboardDimension['dimension'], string> = {
+  available_colors: 'Cores',
+  available_sizes: 'Tamanhos',
+  composition: 'Composição',
+};
+
+const formatSortimentTimestamp = (iso?: string | null) => {
+  if (!iso) return '—';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleString('pt-BR');
+};
+
+const formatSortimentDelta = (value: number) => (
+  `${value > 0 ? '+' : ''}${value}`
+);
+
+const formatSortimentDeltaPct = (value?: number | null) => {
+  if (value == null) return 'novo';
+  return `${value > 0 ? '+' : ''}${value.toFixed(0)}%`;
+};
+
+const sortimentDeltaTone = (value: number) => {
+  if (value > 0) return 'positive';
+  if (value < 0) return 'negative';
+  return 'neutral';
+};
 
 const Phase43Badges = ({ item }: { item: any }) => {
   const promotions = Array.isArray(item?.promotions) ? item.promotions : [];
@@ -3674,6 +3711,405 @@ const SettingsPage = ({ brands, onRefresh }: { brands: any[], onRefresh: () => v
   );
 };
 
+const pickSortimentCategoryId = (
+  rows: SortimentCategoryRow[],
+  preferredId?: string | null,
+) => {
+  if (preferredId && rows.some(row => row.id === preferredId)) {
+    return preferredId;
+  }
+  const enabledRow = rows.find(row => row.enabled);
+  return enabledRow?.id || rows[0]?.id || null;
+};
+
+const SortimentPage = () => {
+  const [categories, setCategories] = useState<SortimentCategoryRow[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [dashboard, setDashboard] = useState<SortimentDashboardResponse | null>(null);
+  const [registryLoading, setRegistryLoading] = useState(true);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [runningIds, setRunningIds] = useState<Set<string>>(new Set());
+
+  const selectedCategory = categories.find(category => category.id === selectedCategoryId) || null;
+  const enabledCount = categories.filter(category => category.enabled).length;
+  const withSnapshotsCount = categories.filter(category => category.last_snapshot_at).length;
+
+  const applyCategories = (rows: SortimentCategoryRow[], preferredId?: string | null) => {
+    setCategories(rows);
+    const nextId = pickSortimentCategoryId(rows, preferredId ?? selectedCategoryId);
+    setSelectedCategoryId(nextId);
+    return rows.find(row => row.id === nextId) || null;
+  };
+
+  const loadDashboard = async (category: SortimentCategoryRow | null, force = false) => {
+    if (!category) {
+      setDashboard(null);
+      return;
+    }
+    if (!force && !category.last_snapshot_at) {
+      setDashboard(null);
+      return;
+    }
+
+    setDashboardLoading(true);
+    try {
+      setDashboard(await ApiClient.getSortimentDashboard(category.id));
+    } catch (err: any) {
+      const message = err?.message || 'Erro ao carregar dashboard de sortimento';
+      if (!force && message.toLowerCase().includes('snapshot')) {
+        setDashboard(null);
+      } else {
+        toast.error(message);
+      }
+    } finally {
+      setDashboardLoading(false);
+    }
+  };
+
+  const loadCategories = async (preferredId?: string | null, silent = false) => {
+    if (!silent) setRegistryLoading(true);
+    try {
+      const rows = await ApiClient.getSortimentCategories();
+      return applyCategories(rows, preferredId);
+    } catch (err: any) {
+      toast.error('Erro ao carregar categorias de sortimento: ' + err.message);
+      return null;
+    } finally {
+      if (!silent) setRegistryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadCategories();
+  }, []);
+
+  useEffect(() => {
+    void loadDashboard(selectedCategory);
+  }, [selectedCategoryId, categories]);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const rows = await ApiClient.syncSortimentCategories();
+      const nextCategory = applyCategories(rows, selectedCategoryId);
+      toast.success('Cadastro de sortimento sincronizado com as categorias monitoradas');
+      await loadDashboard(nextCategory, true);
+    } catch (err: any) {
+      toast.error('Erro ao sincronizar categorias: ' + err.message);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleToggle = async (category: SortimentCategoryRow) => {
+    try {
+      const updated = await ApiClient.updateSortimentCategory(category.id, !category.enabled);
+      const rows = categories.map(row => (row.id === updated.id ? updated : row));
+      applyCategories(rows, updated.id);
+      toast.success(updated.enabled ? 'Categoria habilitada para o cron' : 'Categoria desabilitada do cron');
+    } catch (err: any) {
+      toast.error('Erro ao atualizar categoria: ' + err.message);
+    }
+  };
+
+  const handleRun = async (category: SortimentCategoryRow) => {
+    setRunningIds(prev => new Set(prev).add(category.id));
+    try {
+      const result = await ApiClient.runSortimentCategory(category.id);
+      if (result.status === 'busy') {
+        toast.info('Uma execução de sortimento já está em andamento');
+        return;
+      }
+      const nextCategory = await loadCategories(category.id, true);
+      await loadDashboard(nextCategory || category, true);
+      toast.success('Snapshot de sortimento atualizado');
+    } catch (err: any) {
+      toast.error('Erro ao executar sortimento: ' + err.message);
+    } finally {
+      setRunningIds(prev => {
+        const next = new Set(prev);
+        next.delete(category.id);
+        return next;
+      });
+    }
+  };
+
+  const distributionSections = dashboard?.dimensions || [];
+
+  return (
+    <div className="page-content sortiment-page">
+      <div className="sortiment-layout">
+        <GlassCard
+          className="sortiment-registry-card"
+          title="Cadastro de sortimento"
+          subtitle="Lista própria semeada pelas categorias monitoradas, mas ativada separadamente."
+        >
+          <div className="sortiment-summary-row">
+            <div className="sortiment-summary-pill">
+              <span>Total</span>
+              <strong>{categories.length}</strong>
+            </div>
+            <div className="sortiment-summary-pill">
+              <span>Ativas</span>
+              <strong>{enabledCount}</strong>
+            </div>
+            <div className="sortiment-summary-pill">
+              <span>Com snapshot</span>
+              <strong>{withSnapshotsCount}</strong>
+            </div>
+          </div>
+
+          <div className="sortiment-toolbar">
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => void handleSync()}
+              disabled={syncing}
+            >
+              {syncing ? <RefreshCw className="animate-spin" size={16} /> : <RefreshCw size={16} />}
+              Sincronizar do monitor
+            </button>
+          </div>
+
+          {registryLoading ? (
+            <div className="sortiment-empty-state">
+              <RefreshCw className="animate-spin" size={18} />
+              <span>Carregando categorias de sortimento...</span>
+            </div>
+          ) : categories.length === 0 ? (
+            <div className="sortiment-empty-state">
+              <span>Nenhuma categoria sincronizada ainda.</span>
+              <small>Use o botão acima para importar as categorias monitoradas como ponto de partida.</small>
+            </div>
+          ) : (
+            <div className="sortiment-category-list">
+              {categories.map(category => {
+                const selected = category.id === selectedCategoryId;
+                const running = runningIds.has(category.id);
+                return (
+                  <div
+                    key={category.id}
+                    className={`sortiment-category-item ${selected ? 'selected' : ''}`}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setSelectedCategoryId(category.id)}
+                    onKeyDown={event => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        setSelectedCategoryId(category.id);
+                      }
+                    }}
+                  >
+                    <div className="sortiment-category-main">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <strong>{category.brand}</strong>
+                        <span className={`sortiment-status-badge ${category.enabled ? 'enabled' : 'disabled'}`}>
+                          {category.enabled ? 'cron ativo' : 'cron pausado'}
+                        </span>
+                      </div>
+                      <span className="sortiment-category-url" title={category.url}>{category.url}</span>
+                      <span className="sortiment-category-meta">
+                        Último snapshot: {formatSortimentTimestamp(category.last_snapshot_at)}
+                      </span>
+                    </div>
+                    <div className="sortiment-category-actions">
+                      <button
+                        type="button"
+                        className="btn btn-outline"
+                        onClick={event => {
+                          event.stopPropagation();
+                          void handleToggle(category);
+                        }}
+                      >
+                        {category.enabled ? <Pause size={14} /> : <Play size={14} />}
+                        {category.enabled ? 'Pausar' : 'Ativar'}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        disabled={running}
+                        onClick={event => {
+                          event.stopPropagation();
+                          void handleRun(category);
+                        }}
+                      >
+                        {running ? <RefreshCw className="animate-spin" size={14} /> : <TrendingUp size={14} />}
+                        Rodar agora
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </GlassCard>
+
+        <div className="sortiment-dashboard-stack">
+          <GlassCard
+            title={selectedCategory ? `Categoria selecionada: ${selectedCategory.brand}` : 'Selecione uma categoria'}
+            subtitle={selectedCategory ? 'O dashboard compara o último snapshot com o imediatamente anterior.' : 'Escolha uma categoria na lista para inspecionar o sortimento.'}
+          >
+            {selectedCategory ? (
+              <div className="sortiment-selected-grid">
+                <div>
+                  <p className="sortiment-kicker">URL monitorada</p>
+                  <a href={selectedCategory.url} target="_blank" rel="noopener noreferrer" className="sortiment-selected-link">
+                    {selectedCategory.url}
+                  </a>
+                </div>
+                <div>
+                  <p className="sortiment-kicker">Origem</p>
+                  <strong>{selectedCategory.source_status || 'sem status'}</strong>
+                </div>
+                <div>
+                  <p className="sortiment-kicker">Última sincronização</p>
+                  <strong>{formatSortimentTimestamp(selectedCategory.last_sync_at)}</strong>
+                </div>
+                <div>
+                  <p className="sortiment-kicker">Último snapshot</p>
+                  <strong>{formatSortimentTimestamp(selectedCategory.last_snapshot_at)}</strong>
+                </div>
+              </div>
+            ) : (
+              <div className="sortiment-empty-state">
+                <span>Nenhuma categoria selecionada.</span>
+              </div>
+            )}
+          </GlassCard>
+
+          <GlassCard
+            title="Delta entre snapshots"
+            subtitle="No topo ficam as maiores mudanças entre o último snapshot e o anterior."
+          >
+            {!selectedCategory ? (
+              <div className="sortiment-empty-state">
+                <span>Selecione uma categoria para ver os deltas.</span>
+              </div>
+            ) : dashboardLoading ? (
+              <div className="sortiment-empty-state">
+                <RefreshCw className="animate-spin" size={18} />
+                <span>Carregando dashboard...</span>
+              </div>
+            ) : !dashboard ? (
+              <div className="sortiment-baseline-banner">
+                <AlertTriangle size={18} />
+                <div>
+                  <strong>Ainda sem snapshot</strong>
+                  <p>Rode a categoria manualmente para criar a baseline inicial deste dashboard.</p>
+                </div>
+              </div>
+            ) : dashboard.baseline ? (
+              <div className="sortiment-baseline-banner">
+                <Clock size={18} />
+                <div>
+                  <strong>Baseline inicial</strong>
+                  <p>
+                    Snapshot atual em {formatSortimentTimestamp(dashboard.latest_snapshot_at)}.
+                    Ainda não existe um snapshot anterior para calcular delta.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="sortiment-delta-grid">
+                {dashboard.dimensions.map(dimension => (
+                  <div key={dimension.dimension} className="sortiment-delta-card">
+                    <div className="sortiment-delta-card-header">
+                      <h4>{sortimentDimensionLabels[dimension.dimension]}</h4>
+                      <span>{dimension.deltas.length} buckets</span>
+                    </div>
+                    {dimension.deltas.length === 0 ? (
+                      <p className="text-muted">Nenhuma mudança detectada.</p>
+                    ) : (
+                      <div className="sortiment-delta-list">
+                        {dimension.deltas.slice(0, 4).map(bucket => (
+                          <div key={bucket.label} className="sortiment-delta-row">
+                            <div>
+                              <strong>{bucket.label}</strong>
+                              <small>
+                                {bucket.previous_count} → {bucket.latest_count} itens
+                              </small>
+                            </div>
+                            <div className={`sortiment-delta-chip ${sortimentDeltaTone(bucket.delta_abs)}`}>
+                              <span>{formatSortimentDelta(bucket.delta_abs)}</span>
+                              <small>{formatSortimentDeltaPct(bucket.delta_pct)}</small>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </GlassCard>
+
+          <div className="sortiment-distribution-grid">
+            {distributionSections.length === 0 ? (
+              <GlassCard title="Distribuição atual" subtitle="Os gráficos aparecem depois do primeiro snapshot.">
+                <div className="sortiment-empty-state">
+                  <span>Nenhum dado de distribuição disponível ainda.</span>
+                </div>
+              </GlassCard>
+            ) : (
+              distributionSections.map(dimension => {
+                const chartData = dimension.current_distribution
+                  .slice(0, 6)
+                  .map(bucket => ({
+                    label: bucket.label,
+                    count: bucket.count,
+                  }));
+
+                return (
+                  <GlassCard
+                    key={dimension.dimension}
+                    title={sortimentDimensionLabels[dimension.dimension]}
+                    subtitle="Distribuição atual da categoria"
+                  >
+                    <div className="sortiment-chart-wrap">
+                      <ResponsiveContainer width="100%" height={240}>
+                        <BarChart data={chartData} layout="vertical" margin={{ top: 8, right: 12, bottom: 8, left: 8 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" horizontal={false} />
+                          <XAxis type="number" stroke="rgba(255,255,255,0.35)" />
+                          <YAxis
+                            type="category"
+                            dataKey="label"
+                            width={86}
+                            stroke="rgba(255,255,255,0.55)"
+                            tickLine={false}
+                            axisLine={false}
+                          />
+                          <Tooltip
+                            cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+                            formatter={(value: any) => [`${Number(Array.isArray(value) ? value[0] : value ?? 0)} itens`, 'Quantidade']}
+                          />
+                          <Bar dataKey="count" radius={[0, 8, 8, 0]} fill="var(--accent)" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    <div className="sortiment-table">
+                      {dimension.current_distribution.slice(0, 6).map(bucket => (
+                        <div key={bucket.label} className="sortiment-table-row">
+                          <div>
+                            <strong>{bucket.label}</strong>
+                            <small>{bucket.evidence.length} evidência(s) salvas</small>
+                          </div>
+                          <span>{bucket.count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </GlassCard>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const stockDepthStateLabel = (state?: string | null) => {
   const labels: Record<string, string> = {
     estimated: 'estimado',
@@ -4569,6 +5005,7 @@ function App() {
       case 'search': return <SearchPage brands={brands} preloadedJobId={preloadedJobId} onClearPreloadedJob={() => setPreloadedJobId(null)} onReopen={(jobId) => handleReopen(jobId, 'search')} />;
       case 'cross': return <CrossMarketplacePage preloadedJobId={preloadedJobId} onClearPreloadedJob={() => setPreloadedJobId(null)} onReopen={(jobId) => handleReopen(jobId, 'cross')} />;
       case 'category': return <CategoryPage brands={brands} />;
+      case 'sortiment': return <SortimentPage />;
       case 'banners': return <BannersPage brands={brands} />;
       case 'settings': return <SettingsPage brands={brands} onRefresh={refreshBrands} />;
       default: return <div className="p-8">Selecione uma aba...</div>;
@@ -4617,6 +5054,12 @@ function App() {
             onClick={() => navigateTab('category')}
           />
           <SidebarItem
+            icon={TrendingUp}
+            label="Sortimento"
+            active={activeTab === 'sortiment'}
+            onClick={() => navigateTab('sortiment')}
+          />
+          <SidebarItem
             icon={Images}
             label="Banners"
             active={activeTab === 'banners'}
@@ -4643,6 +5086,7 @@ function App() {
                 activeTab === 'search' ? 'Busca Comparativa' :
                   activeTab === 'cross' ? 'Busca por SKU' :
                     activeTab === 'category' ? 'Varredura por Categoria' :
+                      activeTab === 'sortiment' ? 'Dashboard de Sortimento' :
                       activeTab === 'banners' ? 'Banners' :
                         'Gerenciar Marcas'
             }
@@ -4668,4 +5112,3 @@ function App() {
 }
 
 export default App;
-
