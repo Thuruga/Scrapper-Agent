@@ -640,14 +640,29 @@ const PriceChart = ({ history }: { history: any[] }) => {
     );
   }
 
-  const data = history.map(h => ({
-    time: new Date(h.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    fullDate: new Date(h.timestamp).toLocaleString(),
-    price: h.price
-  }));
+  const points = history
+    .map(h => ({ ts: new Date(h.timestamp).getTime(), price: h.price }))
+    .filter(p => !Number.isNaN(p.ts))
+    .sort((a, b) => a.ts - b.ts);
 
-  // Se tiver apenas 1 ponto, duplicamos para mostrar uma linha estável
-  const chartData = data.length === 1 ? [data[0], { ...data[0], time: 'Agora' }] : data;
+  const first = points[0]?.ts;
+  const last = points[points.length - 1]?.ts;
+
+  // Se tiver apenas 1 ponto, duplicamos (60s depois, mesmo preço) para mostrar uma linha estável
+  const chartData = points.length === 1
+    ? [points[0], { ...points[0], ts: points[0].ts + 60_000 }]
+    : points;
+
+  const spansMultipleDays = first != null && last != null
+    && new Date(first).toDateString() !== new Date(last).toDateString();
+
+  const fmtTick = (ts: number) => spansMultipleDays
+    ? new Date(ts).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+    : new Date(ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+  const fmtFull = (ts: number) => new Date(ts).toLocaleString('pt-BR', {
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+  });
 
   return (
     <motion.div
@@ -658,14 +673,24 @@ const PriceChart = ({ history }: { history: any[] }) => {
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
         <span>Histórico de Variações</span>
-        <span>{data.length} registros</span>
+        <span>{points.length} registros</span>
       </div>
+      {points.length > 1 && (
+        <div style={{ marginTop: '-8px', marginBottom: '12px', fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
+          {fmtFull(first as number)} → {fmtFull(last as number)}
+        </div>
+      )}
       <div style={{ width: '100%', height: 180 }}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
             <XAxis
-              dataKey="time"
+              dataKey="ts"
+              type="number"
+              scale="time"
+              domain={['dataMin', 'dataMax']}
+              tickFormatter={fmtTick}
+              minTickGap={24}
               stroke="rgba(255,255,255,0.3)"
               fontSize={10}
               tickLine={false}
@@ -685,7 +710,7 @@ const PriceChart = ({ history }: { history: any[] }) => {
               contentStyle={{ backgroundColor: 'rgba(20, 20, 30, 0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '11px', color: '#fff' }}
               itemStyle={{ color: '#6366f1' }}
               formatter={(value: any) => [`R$ ${value.toFixed(2)}`, 'Preço']}
-              labelFormatter={(label, items) => items[0]?.payload?.fullDate || label}
+              labelFormatter={(label) => fmtFull(Number(label))}
             />
             <Line
               type="monotone"
