@@ -34,7 +34,7 @@ See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/sc
 Phase: 44
 Plan: Not started
 Status: Executing Phase 42
-Last activity: 2026-07-02
+Last activity: 2026-07-06 - Completed quick task 260705-up8: Deixar mais clara a passagem de tempo nos graficos de historico de preco
 
 ## Performance Metrics
 
@@ -210,6 +210,7 @@ Last activity: 2026-07-02
 | 260623-lho | Mudar padrão do nome dos banners para mês ano marca | 2026-06-23 | 95b068e | [260623-lho-mudar-padr-o-do-nome-dos-banners-para-m-](./quick/260623-lho-mudar-padr-o-do-nome-dos-banners-para-m-/) |
 | 260624-d65 | Na tela de adicionar marcas, retire cadastrar nova marca e deixe como gerenciar marcas. Com as ações de apagar e desativar. | 2026-06-24 | 43dd369 | [260624-d65-na-tela-de-adicionar-marcas-retire-cadas](./quick/260624-d65-na-tela-de-adicionar-marcas-retire-cadas/) |
 | 20260705 | Sistema de notificações: alertas de mudança de preço (produto único + categoria, somente quando o preço muda) e término de varreduras; sino com central no header | 2026-07-05 | 5ebd8f0 | [20260705-price-change-notifications](./quick/20260705-price-change-notifications/) |
+| 260705-up8 | Deixar mais clara a passagem de tempo nos graficos de historico de preco | 2026-07-06 | c237664 | [260705-up8-deixar-mais-clara-a-passagem-de-tempo-no](./quick/260705-up8-deixar-mais-clara-a-passagem-de-tempo-no/) |
 
 ## Deferred Items
 
