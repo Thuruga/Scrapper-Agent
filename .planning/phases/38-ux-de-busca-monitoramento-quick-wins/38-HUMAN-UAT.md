@@ -1,9 +1,9 @@
 ---
-status: pending
+status: complete
 phase: 38-ux-de-busca-monitoramento-quick-wins
 source: [38-VALIDATION.md, 38-UI-SPEC.md]
 created: 2026-07-01
-updated: 2026-07-01
+updated: 2026-07-06
 ---
 
 ## Current Test
@@ -29,7 +29,7 @@ steps:
   2. Open the category monitor screen — confirm single-column stack, no horizontal scroll.
   3. Open the category-sweep screen — confirm the same.
   4. Open a category's products modal at 768px — confirm no horizontal overflow inside the modal.
-result: pending
+result: passed - operator confirmed live 2026-07-06.
 
 ### 2. UX-06 — Search-history top-right icon + type-scoped badge (both tabs)
 
@@ -42,7 +42,7 @@ steps:
   3. Note the badge count on the comparativa icon.
   4. Switch to the SKU search tab — confirm the same icon/behavior; note its badge count.
   5. Confirm the two badge counts reflect each tab's own type-filtered history (they should differ if the underlying history differs by type).
-result: pending
+result: passed - operator confirmed live 2026-07-06.
 
 ### 3. UX-07 — SKU pattern validation + CEP inline on same row
 
@@ -55,7 +55,7 @@ steps:
   3. Replace with `ML.05.0326046` (valid) — confirm error clears and submit enables.
   4. Confirm the CEP field is inline (same row) with the SKU input at desktop width.
   5. Confirm submitting with an invalid SKU is blocked (button disabled / no search fires).
-result: pending
+result: passed - operator confirmed live 2026-07-06.
 
 ### 4. UX-08 — Auto-start first sweep sequence (D-05/D-06)
 
@@ -68,14 +68,14 @@ steps:
   3. Confirm the new row shows the spinner and no "Iniciar" button click is required.
   4. Wait for the background scan — confirm the spinner clears and the products modal auto-opens with results.
   5. (Optional negative) Trigger a failing scan (e.g. a brand/URL that yields no products or blocks) — confirm the failure toast copy.
-result: pending
+result: passed - operator confirmed live 2026-07-06.
 
 ## Summary
 
 total: 4
-passed: 0
+passed: 4
 issues: 0
-pending: 4
+pending: 0
 skipped: 0
 blocked: 0
 

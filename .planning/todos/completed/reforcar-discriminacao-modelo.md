@@ -3,8 +3,21 @@ title: Reforçar discriminação de modelo (model-words + visual como desempate)
 date: 2026-06-13
 priority: medium
 resolves_phase: 23
+status: resolved
+resolved: 2026-07-06
 context: Resolve o caso de falso positivo "Aramis errado" (marca certa, modelo/linha errada). Ver .planning/notes/diagnostico-falsos-positivos-busca-sku.md
 ---
+
+**Resolvido pela Phase 23 (Discriminação de Modelo, milestone v1.11, verificado
+2026-06-13, status: passed, 8/8 truths).** MODEL-01 (penalidade de model-word mais
+dura: HEAVY_WITH_BRAND 0.70→0.40, MED_WITH_BRAND 0.90→0.75, `nlp_service.py`) e
+MODEL-02 (`apply_visual_tiebreak` em `cross_marketplace_service.py:84`, aplicado
+em produção na linha 273, `VISUAL_TIEBREAK_ENABLED` ligado por padrão) foram
+implementados e verificados. O terceiro item (reavaliar `compute_final_match_score`)
+foi resolvido indiretamente: a penalidade de model-word agora derruba o texto do
+candidato errado abaixo de `MED_TEXT_FLOOR`, o que já derrota o atalho "texto forte
+domina" sem precisar reescrever a régua de combinação. Este todo ficou pendente por
+engano — nunca foi movido para `completed/` após a Phase 23 fechar.
 
 # Reforçar discriminação de modelo
 

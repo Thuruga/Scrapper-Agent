@@ -1,9 +1,10 @@
 ---
 phase: 33-frete-via-checkout-nos-sites-vtex
 verified: 2026-06-26T14:00:00Z
-status: human_needed
+status: passed
 score: 18/18 must-haves verified
 overrides_applied: 0
+human_verification_confirmed: "All 8 items below were confirmed via 33-HUMAN-UAT.md (8/8 passed, operator confirmed 2026-06-26)."
 human_verification:
   - test: "Default CEP is visible in the field on page load and editable"
     expected: "Field shows the DEFAULT_CEP from backend (e.g. '01415-000'), can be cleared/edited, resets to default on page reload"

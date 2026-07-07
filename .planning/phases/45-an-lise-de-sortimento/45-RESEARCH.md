@@ -395,17 +395,13 @@ def _write_json(path: Path, payload: Any) -> None:
 | A2 | A non-destructive one-way sync model that preserves assortment rows when the source monitor disappears is the safest default unless the user wants tighter coupling. [ASSUMED] | Open Questions, Architecture Patterns | Medium: if the user expects hard deletion, planners must add cleanup semantics and UAT cases. |
 | A3 | A new backend service file plus route file is the least disruptive implementation shape; the repo does not already contain a hidden shared analytics abstraction that should own assortment instead. [ASSUMED] | Likely File Touchpoints | Low: planner can still adjust placement without changing phase scope. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **What should happen when a seeded monitor category is later deleted from `monitored_categories.json`?**
-   - What we know: Phase 45 requires one-way seeding from monitor categories, but does not specify delete semantics. [VERIFIED: planning files]
-   - What's unclear: Whether the assortment registry should preserve the row, mark it stale, or auto-disable it. [ASSUMED]
-   - Recommendation: Preserve the row and expose a `source_missing` or `source_status` flag; do not auto-delete history. [ASSUMED]
+   - Resolution: Preserve the sortiment row and its history, but mark the row as source-missing/stale and auto-disable future scheduled runs until an operator explicitly re-enables it. This keeps the one-way sync non-destructive while preventing silent execution against an orphaned source entry. [RESOLVED from Phase 45 planning package]
 
 2. **Should v1 include a manual “run snapshot now” trigger in addition to cron?**
-   - What we know: The frequency and presence of a manual trigger are left to the agent’s discretion as long as the flow remains batch and separate from the 10-minute monitor. [VERIFIED: planning files]
-   - What's unclear: Whether operator workflow needs immediate validation after enabling a category. [ASSUMED]
-   - Recommendation: Include a manual trigger if backend cost is small, because it improves UAT and debug speed without changing the core architecture. [ASSUMED]
+   - Resolution: Yes. v1 includes a persisted-category manual run action in addition to the independent cron. This stays within the batch-only boundary, improves UAT/debug speed, and does not reopen live-search scope because the run still resolves category identity server-side from the sortiment registry. [RESOLVED from Phase 45 planning package]
 
 ## Environment Availability
 

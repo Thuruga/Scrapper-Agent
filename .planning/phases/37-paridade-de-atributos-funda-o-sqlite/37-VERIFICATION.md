@@ -1,9 +1,10 @@
 ---
 phase: 37-paridade-de-atributos-fundacao-sqlite
 verified: 2026-07-03T15:00:00Z
-status: human_needed
+status: passed
 score: 4/4 automated truths verified
 overrides_applied: 0
+human_verification_confirmed: "All 3 items below were confirmed via 37-HUMAN-UAT.md (3/3 passed, operator confirmed live 2026-07-06)."
 human_verification:
   - test: "Run one real comparative export and inspect the first columns of the generated Excel."
     expected: "The sheet starts with `brand`, `url`, `price_full`, `price_discount`, `product_name`, `product_description`, `composition`, `available_colors`, `available_sizes`, `product_code`, `category`, `rating`, `review_count` in that exact order."

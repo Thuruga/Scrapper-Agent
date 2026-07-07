@@ -1,9 +1,10 @@
 ---
 phase: 44-ruptura-de-estoque-avalia-es-refor-adas
 verified: 2026-06-30T23:47:57Z
-status: human_needed
+status: passed
 score: 9/9 must-haves verified
 overrides_applied: 0
+human_verification_confirmed: "All 3 items below were confirmed via 44-HUMAN-UAT.md (3/3 passed, retested 2026-07-01 after fixes)."
 human_verification:
   - test: "Open a working non-Hugo-Boss monitored category product modal and verify the stock rupture summary is visible while products remain visible if the summary endpoint returns 404."
     expected: "The modal shows verified, unknown, out-of-stock, and rupture percentage when available; missing summary does not hide products."

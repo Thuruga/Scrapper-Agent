@@ -1,9 +1,10 @@
 ---
 phase: 38-ux-de-busca-monitoramento-quick-wins
 verified: 2026-07-01T00:00:00Z
-status: human_needed
-score: 6/6 must-haves verified (codebase); 0/4 manual UAT checks recorded
+status: passed
+score: 6/6 must-haves verified (codebase); 4/4 manual UAT checks recorded
 overrides_applied: 0
+human_verification_confirmed: "All 4 items below were confirmed via 38-HUMAN-UAT.md (4/4 passed, operator confirmed live 2026-07-06)."
 human_verification:
   - test: "UX-01 — Responsive .grid-category at 768px (both screens)"
     expected: "At exactly 768px viewport, both MonitoredCategoriesPage and CategoryPage show the sidebar/tree column stacked above the content column, no horizontal scrollbar, no overlap; products modal grid does not overflow."

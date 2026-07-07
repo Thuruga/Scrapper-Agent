@@ -1,5 +1,5 @@
 ---
-status: passed
+status: complete
 phase: 33-frete-via-checkout-nos-sites-vtex
 source: [33-VERIFICATION.md]
 started: 2026-06-26T00:00:00Z

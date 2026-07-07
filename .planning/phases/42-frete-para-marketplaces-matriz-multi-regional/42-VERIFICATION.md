@@ -1,9 +1,10 @@
 ---
 phase: 42-frete-para-marketplaces-matriz-multi-regional
 verified: 2026-07-02T12:00:00Z
-status: human_needed
+status: passed
 score: 7/7 must-haves verified
 overrides_applied: 0
+human_verification_confirmed: "The item below was confirmed live by the operator on 2026-07-06 (Matriz Regional button/modal placement, layout, and blocked-state rendering)."
 re_verification:
   previous_status: gaps_found
   previous_score: 6/7
