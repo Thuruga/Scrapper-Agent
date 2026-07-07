@@ -4,12 +4,19 @@ Teste hermético de scan VTEX para a Hugo Boss (Phase 39, COMP-06-d).
 Zero I/O de arquivo, zero rede.
 Mocka VtexApiClient.search para retornar BrandSearchResult pré-construído
 sem bater no endpoint VTEX real.
+
+WR-01: VTEXEngine.search chama SessionManager.get_session() ANTES de
+VtexApiClient.search — sem mockar get_session, um aiohttp.ClientSession real
+seria alocado e nunca fechado (contradizendo o "zero rede" acima). Mocka
+também SessionManager.get_session para retornar um MagicMock em vez de uma
+sessão real.
 """
 import asyncio
 import unittest.mock
 
 from services.engines.vtex_engine import VTEXEngine
 from services.vtex_api_scraper import VtexApiClient
+from core.session_manager import SessionManager
 from core.models import BrandSearchResult, SearchProductResult
 
 
@@ -39,7 +46,13 @@ class TestHugoBossVtexScan:
             total_found=1,
         )
 
+        mock_session = unittest.mock.MagicMock()
+
         with unittest.mock.patch.object(
+            SessionManager,
+            "get_session",
+            new=unittest.mock.AsyncMock(return_value=mock_session),
+        ), unittest.mock.patch.object(
             VtexApiClient,
             "search",
             new=unittest.mock.AsyncMock(return_value=mock_result),

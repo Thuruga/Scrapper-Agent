@@ -157,6 +157,25 @@ class TestBrandContract:
         # So existe calcas inativa no fixture -> calcas deve ser OMITIDA
         assert "calcas" not in mp, mp
 
+    def test_auto_match_calcas_does_not_collide_with_calcados(self):
+        """Regressao da colisao de acento/fronteira-de-palavra (TODO hugoboss-vtex-io-category-scan):
+        'calca' (slug 'calcas') NAO deve casar com 'Calcados'/'Calçados' (footwear),
+        pois normalize() remove o cedilha e 'calcados' comeca com o prefixo 'calca'.
+        """
+        categories = [
+            {"name": "Calçados", "rel_path": "/masculino/calcados"},
+            {"name": "Calças", "rel_path": "/masculino/roupas/calcas"},
+        ]
+        mp = {slug: path for slug, path, _ in auto_match(categories)}
+
+        assert mp.get("calcas") == "/masculino/roupas/calcas", mp
+        assert mp.get("calcas") != "/masculino/calcados", mp
+
+        # Sem a categoria de vestuario no fixture, 'calcados' nao deve virar 'calcas'
+        # (nem qualquer outro slug canonico) — o footwear nao tem slug proprio.
+        only_calcados = [{"name": "Calçados", "rel_path": "/masculino/calcados"}]
+        assert auto_match(only_calcados) == []
+
     def test_brand_in_active_list(self):
         """Marca com is_active=True deve aparecer em list_brands(active_only=True)."""
         svc = _make_service_with_vtex_brand(is_active=True)

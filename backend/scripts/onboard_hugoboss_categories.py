@@ -79,12 +79,19 @@ async def main() -> None:
 
     print(f"[OK] Marca encontrada: engine={brand.engine!r}, domain={brand.domain!r}")
 
-    # Aviso sobre mappings existentes
+    # Aviso sobre mappings existentes + gate de confirmação (paridade com onboard_brand)
     if brand.mappings:
         print(
-            f"\n[INFO] {HUGOBOSS_KEY}: {len(brand.mappings)} mappings já existem.\n"
-            "Este script é de descoberta ÚNICA (D-04) — continuar substituirá os mappings atuais."
+            f"\n[INFO] {HUGOBOSS_KEY}: {len(brand.mappings)} mappings já existem. "
+            "Este script é de descoberta ÚNICA (D-04) — continuar substituirá os mappings atuais.\n"
+            "Sobrescrever? [s/N] ",
+            end="",
+            flush=True,
         )
+        ans = input().strip().lower()
+        if ans != "s":
+            print(f"[SKIP] {HUGOBOSS_KEY}: operador recusou sobrescrever. Mappings atuais mantidos.")
+            return
 
     # Descoberta via VTEXEngine (bate em www.hugoboss.com.br — rede ao vivo)
     print(f"\n[...] Descobrindo categorias via VTEXEngine({HUGOBOSS_KEY!r})...")

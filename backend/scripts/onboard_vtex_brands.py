@@ -107,6 +107,19 @@ def _tokens(blob: str) -> set:
     return {t for t in re.split(r"[^a-z0-9]+", blob) if t}
 
 
+def _keyword_matches(keyword: str, text: str) -> bool:
+    """True se `keyword` aparece em `text` como palavra inteira (aceita plural
+    simples em -s/-es), nunca como mero prefixo de uma palavra maior.
+
+    Corrige a colisao de acento/fronteira-de-palavra em que a keyword 'calca'
+    (slug 'calcas') dava match falso-positivo dentro de 'calcados' (footwear,
+    normalizado sem o cedilha) porque o check anterior era substring simples
+    (`keyword in text`) e 'calcados' comeca com 'calca'.
+    """
+    pattern = rf"\b{re.escape(keyword)}(?:s|es)?\b"
+    return re.search(pattern, text) is not None
+
+
 def _is_feminine(blob: str) -> bool:
     return any(m in blob for m in _FEMININE_MARKERS)
 
@@ -128,7 +141,7 @@ def _is_child(blob: str) -> bool:
 def _adult_rank(cand, primary, keywords):
     _it, path, blob = cand
     last = normalize(path.rstrip("/").split("/")[-1])
-    hits = sum(1 for kw in keywords if kw in blob)
+    hits = sum(1 for kw in keywords if _keyword_matches(kw, blob))
     return (
         0 if _is_masculine(blob) else 1,        # masculino antes de neutro
         0 if last.startswith(primary) else 1,   # nome canonico antes de variante
@@ -173,7 +186,7 @@ def auto_match(categories):
                 continue
             name_norm = normalize(it.get("name", ""))
             last = normalize(path.rstrip("/").split("/")[-1])
-            if any(kw in name_norm or kw in last for kw in keywords):
+            if any(_keyword_matches(kw, name_norm) or _keyword_matches(kw, last) for kw in keywords):
                 cands.append((it, path, blob))
         if not cands:
             continue

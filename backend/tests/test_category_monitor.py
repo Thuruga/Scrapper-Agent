@@ -79,8 +79,10 @@ async def test_run_category_scan_populates_last_scraped_at():
     ), patch(
         "services.category_monitor_service.DATA_DIR"
     ) as mock_data_dir:
-        # Evita escrita real do arquivo monitored_products_{id}.json
+        # Evita escrita real do arquivo monitored_products_{id}.json e simula
+        # ausencia de snapshot anterior (primeiro scan do monitor).
         mock_products_file = MagicMock()
+        mock_products_file.exists.return_value = False
         mock_data_dir.__truediv__ = MagicMock(return_value=mock_products_file)
 
         await run_category_scan(monitor_row)
