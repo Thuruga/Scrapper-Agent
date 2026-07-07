@@ -11,7 +11,7 @@
     "last_price_discount": 299.9,
     "last_status": "ok",
     "last_error": null,
-    "last_checked_at": "2026-07-04T22:04:23.373941+00:00",
+    "last_checked_at": "2026-07-07T01:14:54.692987+00:00",
     "history": [
       {
         "timestamp": "2026-06-23T18:43:05.314882+00:00",
@@ -99,6 +99,35 @@
         "map_rule_id": null,
         "map_infractor": null,
         "map_infractor_is_default": false
+      },
+      {
+        "timestamp": "2026-07-06T00:04:14.206624+00:00",
+        "price": 299.9,
+        "price_original": 599.9,
+        "last_price_discount": 299.9,
+        "available": true,
+        "available_colors": [
+          "CINZA",
+          "C\u00c1QUI",
+          "VERDE MILITAR",
+          "VERDE",
+          "AZUL",
+          "CHUMBO",
+          "CAQUI"
+        ],
+        "available_sizes": [
+          "P",
+          "M",
+          "G",
+          "GG",
+          "XGG"
+        ],
+        "map_violation": false,
+        "map_price_floor": null,
+        "map_rule_scope": null,
+        "map_rule_id": null,
+        "map_infractor": null,
+        "map_infractor_is_default": false
       }
     ],
     "active": true,
@@ -120,11 +149,11 @@
       "GG",
       "XGG"
     ],
-    "map_violation": true,
-    "map_price_floor": 300.0,
-    "map_rule_scope": "brand",
-    "map_rule_id": "9aaa1577-71cc-46e0-a9e3-2728c610a187",
-    "map_infractor": "aramis",
+    "map_violation": false,
+    "map_price_floor": null,
+    "map_rule_scope": null,
+    "map_rule_id": null,
+    "map_infractor": null,
     "map_infractor_is_default": false
   },
   "c42bf401-2ca3-4b9a-b22c-35932c1cfc1e": {
@@ -139,7 +168,7 @@
     "last_price_discount": null,
     "last_status": "ok",
     "last_error": null,
-    "last_checked_at": "2026-07-04T22:04:25.946135+00:00",
+    "last_checked_at": "2026-07-07T01:05:19.531630+00:00",
     "history": [
       {
         "timestamp": "2026-07-01T00:01:02.799461+00:00",
@@ -179,9 +208,9 @@
     "last_price": 165.99,
     "last_price_original": null,
     "last_price_discount": null,
-    "last_status": "ok",
-    "last_error": null,
-    "last_checked_at": "2026-07-04T22:06:27.775513+00:00",
+    "last_status": "blocked",
+    "last_error": "N\u00e3o foi poss\u00edvel ler o produto \u2014 o site pode estar bloqueando automa\u00e7\u00e3o (anti-bot).",
+    "last_checked_at": "2026-07-07T01:07:50.886062+00:00",
     "history": [
       {
         "timestamp": "2026-07-01T12:22:07.567254+00:00",
