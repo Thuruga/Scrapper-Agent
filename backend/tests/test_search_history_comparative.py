@@ -21,12 +21,13 @@ Padrao de projeto seguido: tests/test_brand_active.py
 """
 import asyncio
 import unittest.mock
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 import api.routes_search as routes_search
-from core.models import BrandSearchResult, SearchProductResult
+from core.models import BrandSearchResult, SearchHistory, SearchProductResult
 from services.search_history_service import SearchHistoryService
 
 
@@ -332,3 +333,67 @@ def test_search_normalizes_legacy_vtex_delta_prices_in_response_and_history():
     assert stored_product["price_full"] == pytest.approx(299.9)
     assert stored_product["price_discount"] == pytest.approx(199.9)
     assert stored_product["price_discount_is_delta"] is False
+
+
+# ---------------------------------------------------------------------------
+# Classe 3 — cap padrao de list_jobs() (evita payload sem limite ao longo
+# da janela de retencao de 30 dias — ver .planning/todos/pending/cap-search-history-list.md)
+# ---------------------------------------------------------------------------
+
+def _seed_jobs(svc: SearchHistoryService, count: int) -> None:
+    """Popula `svc.history` com `count` registros com created_at crescente.
+
+    job-000 e o mais antigo, job-{count-1} e o mais recente — usado para checar
+    tanto o cap quanto a ordenacao "mais recente primeiro" de list_jobs().
+    """
+    base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    for i in range(count):
+        job_id = f"job-{i:03d}"
+        svc.history[job_id] = SearchHistory(
+            job_id=job_id,
+            query="polo",
+            brands=["aramis"],
+            type="search",
+            created_at=(base + timedelta(minutes=i)).isoformat(),
+        )
+
+
+class TestSearchHistoryServiceListJobsCap:
+    """Cobre o cap padrao de list_jobs() (top-50 mais recentes por padrao)."""
+
+    def test_list_jobs_defaults_to_top_50_most_recent(self):
+        svc = _make_history_service()
+        _seed_jobs(svc, 70)
+
+        jobs = svc.list_jobs()
+
+        assert len(jobs) == 50, f"Esperado cap padrao de 50 registros, obtido {len(jobs)}"
+        assert jobs[0].job_id == "job-069", "O mais recente deve vir primeiro"
+        assert jobs[-1].job_id == "job-020", "Deve manter apenas os 50 mais recentes"
+
+    def test_list_jobs_respects_custom_limit(self):
+        svc = _make_history_service()
+        _seed_jobs(svc, 10)
+
+        jobs = svc.list_jobs(limit=3)
+
+        assert [j.job_id for j in jobs] == ["job-009", "job-008", "job-007"]
+
+    def test_list_jobs_limit_none_returns_everything(self):
+        """limit=None preserva a capacidade de ver o historico completo (nao remove o acesso)."""
+        svc = _make_history_service()
+        _seed_jobs(svc, 60)
+
+        jobs = svc.list_jobs(limit=None)
+
+        assert len(jobs) == 60
+
+    def test_list_jobs_below_cap_returns_all_unchanged(self):
+        """Historico menor que o cap nao deve ser afetado (comportamento pre-existente)."""
+        svc = _make_history_service()
+        _seed_jobs(svc, 5)
+
+        jobs = svc.list_jobs()
+
+        assert len(jobs) == 5
+        assert jobs[0].job_id == "job-004"

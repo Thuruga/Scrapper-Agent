@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from typing import List
 from core.models import SearchHistory
 from services.search_history_service import search_history_service
@@ -6,9 +6,9 @@ from services.search_history_service import search_history_service
 router = APIRouter(prefix="/history", tags=["history"])
 
 @router.get("", response_model=List[SearchHistory])
-async def list_history():
-    """Lista o histórico de pesquisas recentes."""
-    return search_history_service.list_jobs()
+async def list_history(limit: int = Query(default=50, ge=1, le=500)):
+    """Lista o histórico de pesquisas recentes (mais recentes primeiro, até `limit` registros)."""
+    return search_history_service.list_jobs(limit=limit)
 
 @router.get("/{job_id}", response_model=SearchHistory)
 async def get_history(job_id: str):

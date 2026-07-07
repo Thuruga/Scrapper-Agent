@@ -68,10 +68,15 @@ class SearchHistoryService:
     def get_job(self, job_id: str) -> Optional[SearchHistory]:
         return self.history.get(job_id)
 
-    def list_jobs(self) -> List[SearchHistory]:
+    def list_jobs(self, limit: Optional[int] = 50) -> List[SearchHistory]:
         # Ordena do mais recente para o mais antigo
         jobs = list(self.history.values())
         jobs.sort(key=lambda x: x.created_at, reverse=True)
+        # Cap por padrão para evitar payloads sem limite ao longo da janela de
+        # retenção de 30 dias (cleanup_old_records só poda por idade, não por
+        # quantidade). Passe limit=None para obter o histórico completo.
+        if limit is not None:
+            return jobs[:limit]
         return jobs
 
     def delete_job(self, job_id: str) -> bool:

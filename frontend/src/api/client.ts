@@ -290,8 +290,9 @@ export class ApiClient {
     }, signal);
   }
 
-  static getHistoryList() {
-    return this.request<any[]>('/history');
+  static getHistoryList(limit?: number) {
+    const query = limit !== undefined ? `?limit=${limit}` : '';
+    return this.request<any[]>(`/history${query}`);
   }
 
   static getHistoryDetail(jobId: string) {

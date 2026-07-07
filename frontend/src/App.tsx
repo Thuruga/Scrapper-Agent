@@ -1470,6 +1470,9 @@ const HistoryPanelBody = ({
   onDeleteAll,
   deleteAllLabel = 'Apagar todos',
   showTopBorder = false,
+  hasMore = false,
+  onLoadMore,
+  loadMoreLabel = 'Mostrar mais antigas',
 }: {
   items: StandardHistoryEntry[];
   loading?: boolean;
@@ -1478,6 +1481,10 @@ const HistoryPanelBody = ({
   onDeleteAll?: () => void;
   deleteAllLabel?: string;
   showTopBorder?: boolean;
+  /** Sinaliza que o servidor pode ter registros mais antigos além do limite atual aplicado na busca. */
+  hasMore?: boolean;
+  onLoadMore?: () => void;
+  loadMoreLabel?: string;
 }) => (
   <div className={`history-panel-body ${showTopBorder ? 'with-border' : ''}`}>
     {items.length > 0 && onDeleteAll && (
@@ -1551,8 +1558,20 @@ const HistoryPanelBody = ({
         })}
       </div>
     )}
+    {!loading && items.length > 0 && hasMore && onLoadMore && (
+      <div className="history-panel-toolbar" style={{ justifyContent: 'center' }}>
+        <button type="button" className="btn-link" onClick={onLoadMore}>
+          {loadMoreLabel}
+        </button>
+      </div>
+    )}
   </div>
 );
+
+// Cap padrão aplicado por /history (backend/api/routes_history.py). "Mostrar mais antigas"
+// avança o limite solicitado em passos deste tamanho até o teto aceito pelo backend.
+const HISTORY_PAGE_SIZE = 50;
+const HISTORY_MAX_LIMIT = 500;
 
 const HistoryList = ({ type, onReopen, refreshKey, collapsed: collapsedProp, onToggleCollapsed, onCountChange, hideHeader = false }: {
   type: 'search' | 'cross';
@@ -1578,19 +1597,33 @@ const HistoryList = ({ type, onReopen, refreshKey, collapsed: collapsedProp, onT
   };
   const [deleteTick, setDeleteTick] = useState(0);
   const [confirmState, setConfirmState] = useState<ConfirmState>(null);
+  // Limite atualmente pedido ao backend; cresce quando o usuário clica em "mostrar mais antigas".
+  const [limit, setLimit] = useState(HISTORY_PAGE_SIZE);
+  // Sinaliza que o backend pode ter registros mais antigos além do limite atual.
+  const [hasMore, setHasMore] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    ApiClient.getHistoryList()
-      .then(all => { if (!cancelled) setItems(all.filter((h: any) => h.type === type)); })
-      .catch(() => { if (!cancelled) setItems([]); })
+    ApiClient.getHistoryList(limit)
+      .then(all => {
+        if (cancelled) return;
+        setItems(all.filter((h: any) => h.type === type));
+        // O backend devolve no máximo `limit` registros (mais recentes primeiro);
+        // se a resposta veio "cheia", pode haver histórico mais antigo ainda não carregado.
+        setHasMore(all.length >= limit);
+      })
+      .catch(() => { if (!cancelled) { setItems([]); setHasMore(false); } })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deleteTick, refreshKey, type]);
+  }, [deleteTick, refreshKey, type, limit]);
+
+  const handleLoadMore = () => {
+    setLimit(l => Math.min(l + HISTORY_PAGE_SIZE, HISTORY_MAX_LIMIT));
+  };
 
   useEffect(() => {
     onCountChange?.(items.length);
@@ -1678,6 +1711,8 @@ const HistoryList = ({ type, onReopen, refreshKey, collapsed: collapsedProp, onT
             emptyDescription="Suas buscas aparecerão aqui automaticamente. Clique em uma entrada concluída para reexibir os resultados sem nova raspagem."
             onDeleteAll={handleDeleteAll}
             showTopBorder={!hideHeader}
+            hasMore={hasMore && limit < HISTORY_MAX_LIMIT}
+            onLoadMore={handleLoadMore}
           />
         )}
       </div>

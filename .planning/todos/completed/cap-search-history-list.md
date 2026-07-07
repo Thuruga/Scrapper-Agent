@@ -3,7 +3,16 @@ created: 2026-06-20
 area: frontend + backend
 source: 27-VERIFICATION.md (non-blocking follow-up)
 priority: low
+status: resolved
+resolved: 2026-07-06
 ---
+
+**Resolvido em 2026-07-06.** `SearchHistoryService.list_jobs()` agora aceita
+`limit` (default 50, `None` retorna tudo); `GET /history` expõe `limit` via
+query param (1-500). `HistoryList`/`HistoryPanelBody` no frontend ganharam
+botão "Mostrar mais antigas" que aumenta o limite sob demanda. 4 novos testes
+em `test_search_history_comparative.py`; suite completa e build do frontend
+verdes.
 
 # Cap / paginate the search history list
 
