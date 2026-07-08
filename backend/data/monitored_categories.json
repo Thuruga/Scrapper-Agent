@@ -4,7 +4,7 @@
     "url": "https://www.aramis.com.br/infantil",
     "brand": "aramis",
     "status": "active",
-    "last_scraped_at": "2026-07-07T01:05:14.075110+00:00",
+    "last_scraped_at": "2026-07-08T01:06:45.593263+00:00",
     "last_stock_summary": {
       "total_products": 245,
       "verified_stock_count": 245,
@@ -20,14 +20,14 @@
     "url": "https://www.usereserva.com/reserva/masculino/camisas/colecao",
     "brand": "reserva",
     "status": "active",
-    "last_scraped_at": "2026-07-07T01:05:43.407483+00:00",
+    "last_scraped_at": "2026-07-08T00:57:18.121709+00:00",
     "last_stock_summary": {
-      "total_products": 629,
-      "verified_stock_count": 629,
-      "in_stock_count": 396,
-      "out_of_stock_count": 233,
+      "total_products": 634,
+      "verified_stock_count": 634,
+      "in_stock_count": 405,
+      "out_of_stock_count": 229,
       "unknown_stock_count": 0,
-      "rupture_pct": 0.37042925278219396
+      "rupture_pct": 0.361198738170347
     },
     "last_map_violation_count": 0
   }

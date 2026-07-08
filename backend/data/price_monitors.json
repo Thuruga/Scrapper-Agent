@@ -11,7 +11,7 @@
     "last_price_discount": 299.9,
     "last_status": "ok",
     "last_error": null,
-    "last_checked_at": "2026-07-07T01:14:54.692987+00:00",
+    "last_checked_at": "2026-07-08T00:58:25.980017+00:00",
     "history": [
       {
         "timestamp": "2026-06-23T18:43:05.314882+00:00",
@@ -168,7 +168,7 @@
     "last_price_discount": null,
     "last_status": "ok",
     "last_error": null,
-    "last_checked_at": "2026-07-07T01:05:19.531630+00:00",
+    "last_checked_at": "2026-07-08T00:58:25.152410+00:00",
     "history": [
       {
         "timestamp": "2026-07-01T00:01:02.799461+00:00",
@@ -205,12 +205,12 @@
     "interval_minutes": 10,
     "duration_hours": 24,
     "start_time": "2026-07-01T12:14:41.194091+00:00",
-    "last_price": 165.99,
+    "last_price": 189.99,
     "last_price_original": null,
     "last_price_discount": null,
     "last_status": "blocked",
     "last_error": "N\u00e3o foi poss\u00edvel ler o produto \u2014 o site pode estar bloqueando automa\u00e7\u00e3o (anti-bot).",
-    "last_checked_at": "2026-07-07T01:07:50.886062+00:00",
+    "last_checked_at": "2026-07-08T00:59:09.173688+00:00",
     "history": [
       {
         "timestamp": "2026-07-01T12:22:07.567254+00:00",
@@ -305,6 +305,21 @@
       {
         "timestamp": "2026-07-04T19:41:31.394011+00:00",
         "price": 165.99,
+        "price_original": null,
+        "last_price_discount": null,
+        "available": true,
+        "available_colors": [],
+        "available_sizes": [],
+        "map_violation": false,
+        "map_price_floor": null,
+        "map_rule_scope": null,
+        "map_rule_id": null,
+        "map_infractor": null,
+        "map_infractor_is_default": false
+      },
+      {
+        "timestamp": "2026-07-07T02:01:34.636068+00:00",
+        "price": 189.99,
         "price_original": null,
         "last_price_discount": null,
         "available": true,

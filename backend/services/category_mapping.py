@@ -100,8 +100,8 @@ _RAW_CATEGORIES: List[dict] = [
         "group": "Roupas",
         "brands": {
             "aramis":  {"path": "/roupas/jaquetas",               "vtex_fq": "C:/480/514/"},
-            "reserva": {"path": "/reserva/masculino/jaquetas-e-casacos", "vtex_fq": "C:/1/101/10105/"},
-            "tommy":   {"path": "/roupas/jaquetas",               "vtex_fq": "C:/1/6/"},
+            "reserva": {"path": "/reserva/masculino/casacos-e-jaquetas", "vtex_fq": "C:/1/101/10105/"},
+            "tommy":   {"path": "/roupas/casacos-e-jaquetas",               "vtex_fq": "C:/1/6/"},
         },
     },
     # ── Segmentos Especiais ─────────────────────────────────────────────

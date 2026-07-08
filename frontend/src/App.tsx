@@ -3758,7 +3758,9 @@ const pickSortimentCategoryId = (
 };
 
 const SortimentPage = () => {
-  const [categories, setCategories] = useState<SortimentCategoryRow[]>([]);
+  const [categoriesState, setCategories] = useState<SortimentCategoryRow[]>([]);
+  const categories = Array.isArray(categoriesState) ? categoriesState : [];
+  
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [dashboard, setDashboard] = useState<SortimentDashboardResponse | null>(null);
   const [registryLoading, setRegistryLoading] = useState(true);
@@ -3771,10 +3773,11 @@ const SortimentPage = () => {
   const withSnapshotsCount = categories.filter(category => category.last_snapshot_at).length;
 
   const applyCategories = (rows: SortimentCategoryRow[], preferredId?: string | null) => {
-    setCategories(rows);
-    const nextId = pickSortimentCategoryId(rows, preferredId ?? selectedCategoryId);
+    const safeRows = Array.isArray(rows) ? rows : [];
+    setCategories(safeRows);
+    const nextId = pickSortimentCategoryId(safeRows, preferredId ?? selectedCategoryId);
     setSelectedCategoryId(nextId);
-    return rows.find(row => row.id === nextId) || null;
+    return safeRows.find(row => row.id === nextId) || null;
   };
 
   const loadDashboard = async (category: SortimentCategoryRow | null, force = false) => {

@@ -230,6 +230,8 @@ Last activity: 2026-07-06 -- Completed Phase 45 plan 03: dedicated sortiment das
 | Acesso | PROFILE-FUT-01 (perfis por equipe) | Deferred | v2.0 init |
 | Frete | FRET-06 (Shopify checkout shipping) | Absorbed by FRET-07 | Phase 41 |
 | Banners | BANNER-05/06 (SharePoint) | Blocked (credenciais/permissões) | v4.0 init |
+| Todo | audit-category-mappings-all-brands (medium) — auditar as 7 mappings da Hugo Boss + demais marcas contra `auto_match` | Deferred (acknowledged, não bloqueia REQs do v4.0) | v4.0 close 2026-07-06 |
+| Todo | hugoboss-vtex-io-category-scan (low) — WR-01/WR-02 corrigidos no fechamento do v4.0; resta só a auditoria de mapeamento (mesmo item acima) | Deferred (acknowledged, não bloqueia REQs do v4.0) | v4.0 close 2026-07-06 |
 
 ## Session Continuity
 
