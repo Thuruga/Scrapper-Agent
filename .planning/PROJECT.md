@@ -8,32 +8,29 @@ Um sistema robusto de web scraping focado em monitoramento de preços e descober
 
 Extração automatizada e resiliente de dados de mercado com mínima intervenção humana e alta fidelidade de dados.
 
-## Current Milestone: v4.0 Paridade de Dados, Cobertura Total de Frete & Inteligência Competitiva
+## Current Milestone: none (v4.0 shipped 2026-07-08)
 
-**Goal:** Nivelar a extração de atributos entre todas as marcas, fechar lacunas de cobertura (Hugo Boss por categoria, Zara, frete universal) e adicionar camadas de inteligência competitiva (MAP, promoções, ruptura de estoque, sortimento, avaliações).
-
-**Target features (5 categorias):**
-
-- **A — Paridade de Dados de Marca:** marcas que hoje trazem atributos incompletos (Levi's, Calvin Klein, Zapalla, Austral, Track & Field, Richards, Hugo Boss) devem extrair o mesmo conjunto de atributos das demais; normalização/enriquecimento do schema de produto.
-- **B — Cobertura de Marcas:** corrigir varredura e monitoramento por categoria da Hugo Boss; adicionar **Zara**; remover **Lacoste** das buscas.
-- **C — UX de Monitoramento & Busca:** responsividade no monitor e na varredura por categoria; lista de monitoramento exibindo valor de promoção; onboarding só-por-URL (scraper detecta a marca); ação "adicionar a monitoramento" em busca comparativa / por SKU / monitor de categoria; toggles ativar/desativar para marketplaces; histórico no canto superior direito (comparativa + SKU); busca por SKU aceitando só o padrão (`ML.05.0326046`) com CEP na mesma linha; auto-trigger do monitor de categoria ao selecionar a categoria.
-- **D — Frete (cobertura total):** cálculo de frete para as marcas restantes (não-VTEX + Buckman faltante) e para os marketplaces (Mercado Livre, Netshoes, Amazon); **Matriz de Frete Multi-Regional** com CEPs-chave por região do Brasil.
-- **E — Inteligência Competitiva (novas features):** Violação de MAP (preço mínimo permitido + vendedor infrator); condições de pagamento + selos de oferta ("Leve 3 pague 2", "15% OFF no Pix"); ruptura de estoque (% esgotado na varredura + profundidade via requisição de 999 unidades no carrinho); avaliações reforçadas (notas + comentários, todas as marcas); análise de sortimento (cron que contabiliza atributos do catálogo/categoria para identificar buracos).
-
-**Key context:** Carregado do v3.0 como cobertura de frete: VTEX já entrega frete via checkout (FRET-05, Phase 33). Banners desktop (BANNER-01..06) e publicação no SharePoint foram movidos para o backlog (fora do ciclo ativo). Lacoste permanece dormente (anti-bot Akamai por reputação de IP) e sai das buscas neste milestone. Zara/Inditex (COMP-FUT-03) entra no escopo de cobertura de marcas. Auth segue API key compartilhada.
+**Status:** v4.0 Paridade de Dados, Cobertura Total de Frete & Inteligência Competitiva concluído — 9 phases (37-45), 32 plans. Todos os 24 requisitos comprometidos foram entregues (incluindo COMP-07/Zara, cujo NO-GO inicial foi revertido a GO em 2026-07-01). Ver `.planning/MILESTONES.md` e `.planning/milestones/v4.0-ROADMAP.md`/`v4.0-REQUIREMENTS.md` para o registro completo. Próximo milestone a definir via `/gsd-new-milestone`.
 
 ## Requirements
 
 ### Active
 
-<!-- REQ-IDs canônicos e escopo detalhado do v4.0 vivem em .planning/REQUIREMENTS.md (definidos após a pesquisa de domínio); o roadmap mapeia cada um a uma phase. As 5 categorias do v4.0 estão resumidas em "Current Milestone" acima. -->
-
-_Requisitos v4.0 a serem definidos em REQUIREMENTS.md após a pesquisa de domínio._
+Nenhum requisito ativo — aguardando definição do próximo milestone via `/gsd-new-milestone`.
 
 ### Validated (v4.0)
 
+- ✓ **PARID-01**: Vocabulário canônico único de atributos de produto, compartilhado por todas as marcas/engines, aditivo sobre o bag `specifications` bruto. (Phase 37)
+- ✓ **PARID-02**: Todos os engines (VTEX/Wake/SFCC/marketplace) populam o conjunto canônico de atributos para as marcas antes deficientes (Levi's, Calvin Klein, Zapalla, Austral, Track & Field, Richards, Hugo Boss). (Phase 37)
+- ✓ **PARID-03**: Nomes de atributos das fontes normalizados/aliasados para chaves canônicas de forma aditiva (sem sobrescrever o bag bruto). (Phase 37)
+- ✓ **PARID-04**: Reinterpretado — o relatório de cobertura por marca foi substituído por paridade de contrato de export (colunas canônicas fixas no Excel comparativo/categoria); nenhum relatório/endpoint novo foi construído (decisão registrada em `37-CONTEXT.md`). (Phase 37)
+- ✓ **COMP-06**: Varredura e monitoramento por categoria da **Hugo Boss** funcionam (de/para de categorias VTEX; storefront VTEX-IO exigiu estratégia de scan via DOM-tile). (Phase 39)
+- ✓ **COMP-07**: Spike 010 (Phase 39) inicialmente retornou NO-GO (bloqueio anti-bot), mas foi **revertido em 2026-07-01** por reteste ao vivo do operador: `ZaraEngine`/`zara_parser.py` construídos e ativos (`is_active: true`, 7 mappings de categoria), varredura de categoria real confirmada (export `dados_zara_categoria.xlsx`); `proxy_url` segue vazio — mesmo risco de reputação de IP da Lacoste se rodado de datacenter. (Phase 39, revisado)
 - ✓ **UX-01**: Monitor de categoria e varredura por categoria são responsivos em viewports menores (768px), sem overflow horizontal ou sobreposição de elementos. (Phase 38)
 - ✓ **UX-02**: Lista de monitoramento exibe o valor da promoção (`last_price_discount`, preço efetivo via D-01) além do preço cheio, sem chamada de rede adicional. (Phase 38)
+- ✓ **UX-03**: Operador cadastra/monitora uma marca colando apenas a URL do produto — `POST /brands/identify` detecta marca+engine com fallback manual; fluxo reworkado para "identify-first" dentro do Monitor (rework re-verificado ao vivo pelo operador no fechamento do v4.0). (Phase 40)
+- ✓ **UX-04**: Adição de produto ao monitoramento direto da busca comparativa, busca por SKU e monitor de categoria, com dedup idempotente por url+marca. (Phase 40)
+- ✓ **UX-05**: Toggles de ativar/desativar para marketplaces virtuais (Mercado Livre, Netshoes, Amazon), respeitados pelo `cross_marketplace_service`. (Phase 40)
 - ✓ **UX-06**: Histórico de busca acessível por ícone no canto superior direito, com badge type-scoped, em ambas as abas (comparativa e SKU). (Phase 38)
 - ✓ **UX-07**: Busca por SKU valida o padrão `ML.05.XXXXXXX` no frontend; CEP inline na mesma linha do SKU. (Phase 38)
 - ✓ **UX-08**: Selecionar uma categoria no monitor dispara a primeira varredura automaticamente (reaproveitando o trigger de background já existente) e abre a lista de produtos ao concluir. (Phase 38)
@@ -41,6 +38,12 @@ _Requisitos v4.0 a serem definidos em REQUIREMENTS.md após a pesquisa de domín
 - ✓ **FRET-07**: Frete não-VTEX entregue por abstração `BaseShipping` com providers Shopify/Buckman e Wake/Richards, endpoint sob demanda para marcas não-VTEX, busca inline com CEP, estados unsupported/temporary sem falso grátis, e VTEX preservado no `VtexApiClient`. (Phase 41)
 - ✓ **FRET-08**: Frete calculado sob demanda para os três marketplaces (Mercado Livre, Netshoes, Amazon) via providers `BaseShipping` dedicados; Netshoes retorna estado `blocked` explícito (nunca frete falso), Amazon retorna `temporary_failure` em bloqueio real; prazo de entrega extraído quando a API expõe o campo; validado ao vivo contra os três marketplaces reais. (Phase 42)
 - ✓ **FRET-09**: Matriz de Frete Multi-Regional sob demanda para os 5 CEPs-chave (`cep_matrix.json`), com throttle, cache TTL por `(produto, CEP)` (cache hit confirmado ao vivo: ~21s frio vs ~1s em cache) e guard testado contra execução inline em varredura/busca ao vivo. (Phase 42)
+- ✓ **MAP-01**: Preço mínimo permitido (MAP) por produto/marca/categoria com sinalização de produtos abaixo do MAP e identificação do vendedor infrator. (Phase 43)
+- ✓ **PROMO-01**: Extração estruturada de selos de oferta e condições de pagamento ("Leve 3 pague 2", "15% OFF no Pix"), com texto bruto preservado quando não parseável. (Phase 43)
+- ✓ **STOCK-01**: Percentual de produtos esgotados por marca registrado na varredura por categoria. (Phase 44)
+- ✓ **STOCK-02**: Profundidade de estoque via cart-probe de 999 unidades, rotulada como estimativa; sessões Playwright efêmeras isoladas, throttle, só em varreduras controladas (nunca em busca ao vivo). (Phase 44)
+- ✓ **REVW-01**: Avaliações reforçadas (notas + comentários) por provider (Trustvox/VTEX native), com paginação limitada e dedup. (Phase 44)
+- ✓ **SORT-01**: Cron de análise de sortimento conta produtos por atributo canônico por categoria, gerando snapshots JSON comparáveis entre execuções, com dashboard dedicado. (Phase 45)
 
 **Nota:** o code review da Phase 38 (`38-REVIEW.md`) encontrou 1 bug crítico pré-existente fora de escopo (`CR-01`, comparação `available_colors`/`available_sizes` em `price_monitor_service.py` pode lançar `TypeError` em dados mistos/`None`) — registrado como dívida técnica, não bloqueou a phase. Manual UAT (`38-HUMAN-UAT.md`) permanece `partial`/pendente de confirmação humana em browser para UX-01/UX-06/UX-07/UX-08 — todos os checks automatizados (473 testes backend + build frontend) passaram.
 
@@ -139,7 +142,7 @@ _Requisitos v4.0 a serem definidos em REQUIREMENTS.md após a pesquisa de domín
 
 ### Upcoming / Backlog
 
-- [ ] **BANNER-01..06** (do v3.0): Extração de banners desktop do hero + publicação idempotente no SharePoint. Movido para backlog ao iniciar o v4.0; SharePoint ainda bloqueado por destino/credenciais/permissões.
+- [ ] **BANNER-05 / BANNER-06** (do v3.0): Publicação idempotente dos banners desktop no SharePoint (extração/BANNER-01..04 já entregue na Phase 34/v3.0). Ainda bloqueado por destino/credenciais/permissões do SharePoint.
 - [ ] **COMP-03 / Lacoste (SFCC)**: Engine SFCC corrigida e testada offline; ativação dormente — depende só de egress de IP limpo (anti-bot Akamai por reputação de IP). Lacoste sai das buscas no v4.0; reativar quando houver proxy residencial/móvel.
 - [ ] **Incremental Storage**: Migrar para escrita incremental no disco para grandes volumes.
 - [ ] **Price Trends**: Visualização avançada de tendências de 30/60/90 dias.
@@ -155,6 +158,12 @@ _Requisitos v4.0 a serem definidos em REQUIREMENTS.md após a pesquisa de domín
 | Fallback para Playwright | Garantir coleta mesmo em sites com WAF agressivo. | ✓ Implementado |
 | JWT Authentication | Proteger dados sensíveis e gerenciar sessões. | ✓ Implementado |
 | Abstração de Frete por Engine | Permitir frete real em Shopify/Wake sem mover VTEX para o novo resolver. | ✓ Implementado na Phase 41 |
+| Vocabulário canônico aditivo (PARID) | Nivelar atributos entre marcas sem quebrar o bag `specifications` bruto nem consumidores existentes. | ✓ Implementado na Phase 37 |
+| SQLite (stdlib) para dados analíticos | Suficiente para volumes single-node (sortimento/estoque/reviews); JSON permanece só para config. | ✓ Implementado na Phase 37, consumido na Phase 45 |
+| Cart-probe de 999 unidades com sessões efêmeras | Capturar profundidade de estoque sem contaminar buscas ao vivo nem deixar sessões presas. | ✓ Implementado na Phase 44, guard-railed |
+| Matriz de Frete Multi-Regional on-demand (nunca inline) | Evitar custo/latência de calcular 5 CEPs a cada busca; throttle + cache por (sku, cep). | ✓ Implementado na Phase 42 |
+| Onboarding "identify-first" reworked no Monitor (UX-03) | Feedback do operador: fluxo original (form separado) foi substituído por identificar-e-monitorar direto no card de "Monitorar Novo Produto". | ✓ Implementado na Phase 40, re-verificado ao vivo no fechamento do v4.0 |
+| Zara (COMP-07): spike-gated GO/NO-GO antes do engine | NO-GO inicial (anti-bot, ambiente de teste) foi revertido a GO por reteste ao vivo do operador — engine só foi commitado após confirmação real. | ✓ GO revertido 2026-07-01; engine ativo |
 
 ## Evolution
 
@@ -174,4 +183,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-02 — Phase 42 completa (Frete para Marketplaces & Matriz Multi-Regional): FRET-08/FRET-09 validados com providers Mercado Livre/Amazon/Netshoes, matriz regional de 5 CEPs com throttle/cache, verificação ao vivo contra os três marketplaces reais, e um gap de goal-backward verification (Amazon rotulado incorretamente como bloqueado) achado e corrigido na mesma execução.*
+*Last updated: 2026-07-08 — Milestone v4.0 concluído e arquivado (9 phases, 32 plans, 24/24 requisitos). Todos os requisitos Active movidos para Validated (v4.0); COMP-07/Zara corrigido de "deferido" para entregue (NO-GO revertido a GO em 2026-07-01); Key Decisions atualizado com as decisões arquiteturais do milestone. Aguardando definição do v5.0 via `/gsd-new-milestone`.*

@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Paridade de Dados, Cobertura Total de Frete & Inteligência Competitiva
-status: executing
+status: Awaiting next milestone
 stopped_at: Phase 45 plan 03 complete
-last_updated: "2026-07-06T03:06:51Z"
-last_activity: 2026-07-06 -- Completed Phase 45 plan 03: dedicated sortiment dashboard UI
+last_updated: "2026-07-08T01:39:57.898Z"
+last_activity: 2026-07-08 — Milestone v4.0 completed and archived
 progress:
   total_phases: 9
   completed_phases: 9
@@ -31,10 +31,10 @@ See: [.planning/PROJECT.md](file:///c:/Users/arthur.correia/Documents/Pessoal/sc
 
 ## Current Position
 
-Phase: 45 (an-lise-de-sortimento) — COMPLETE
-Plan: 3 of 3
-Status: Phase 45 complete
-Last activity: 2026-07-06 -- Completed Phase 45 plan 03: dedicated sortiment dashboard UI
+Phase: Milestone v4.0 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-07-08 — Milestone v4.0 completed and archived
 
 ## Performance Metrics
 
@@ -241,7 +241,4 @@ Resume file: .planning/phases/45-an-lise-de-sortimento/45-03-SUMMARY.md
 
 ## Operator Next Steps
 
-- v4.0 milestone complete: audit the shipped milestone and prepare the next roadmap slice before starting new execution work
-- Phase 37: ainda aberto no roadmap; revisar antes de qualquer trabalho que dependa diretamente de atributos canônicos/SQLite
-- Phase 35: ainda pendente (banners SharePoint) — gate de acesso ao SharePoint necessário primeiro
-- Lacoste: ativar quando houver egress de IP limpo (proxy residencial/móvel); setar `proxy_url` e validar D-06 ao vivo antes de `is_active=true`
+- Start the next milestone with /gsd-new-milestone
